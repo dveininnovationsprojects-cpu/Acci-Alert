@@ -158,7 +158,7 @@ class ZoneManager {
       document.getElementById("zone-severity").value = zone.severity;
       document.getElementById("zone-details").value = zone.details || "";
     } else {
-      if (titleEl) titleEl.innerText = "Add New Danger Zone";
+      if (titleEl) titleEl.innerText = "Add danger zone";
       document.getElementById("zone-id").value = "";
       const nextNum = this.zonesList.length + 1;
       document.getElementById("zone-code").value = `Z${nextNum < 10 ? '0' + nextNum : nextNum}`;

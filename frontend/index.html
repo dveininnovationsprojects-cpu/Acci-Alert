@@ -567,68 +567,60 @@
         <div class="modal-body">
           <input type="hidden" id="zone-id" value="">
 
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Zone Code (Unique)</label>
-              <input type="text" id="zone-code" class="form-control" placeholder="e.g. Z05" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Severity Level</label>
-              <select id="zone-severity" class="form-control">
-                <option value="LOW">LOW (Informational)</option>
-                <option value="MEDIUM">MEDIUM (Caution)</option>
-                <option value="HIGH" selected>HIGH (School / Curve)</option>
-                <option value="CRITICAL">CRITICAL (Accident Prone)</option>
-              </select>
-            </div>
-          </div>
+          <input type="hidden" id="zone-code" value="">
 
           <div class="form-group">
-            <label class="form-label">Zone Name</label>
-            <input type="text" id="zone-name" class="form-control" placeholder="e.g. Marina Beach Curve" required>
+            <label class="form-label">Name</label>
+            <input type="text" id="zone-name" class="form-control" placeholder="Zone name" required>
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Latitude</label>
-              <input type="number" step="0.000001" id="zone-lat" class="form-control" placeholder="13.0827" required>
+              <input type="number" step="0.000001" id="zone-lat" class="form-control" required>
             </div>
             <div class="form-group">
               <label class="form-label">Longitude</label>
-              <input type="number" step="0.000001" id="zone-lon" class="form-control" placeholder="80.2707" required>
+              <input type="number" step="0.000001" id="zone-lon" class="form-control" required>
             </div>
           </div>
 
           <div style="display:flex; gap:8px; margin-bottom:14px;">
             <button type="button" id="btn-zone-use-gps" class="btn btn-outline btn-sm">
-              Use Vehicle GPS
+              Use vehicle location
             </button>
             <button type="button" id="btn-zone-pick-map" class="btn btn-outline btn-sm">
-              Pick on Map
+              Pick on map
             </button>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Radius (meters)</label>
+              <label class="form-label">Radius (m)</label>
               <input type="number" id="zone-radius" class="form-control" value="150" min="20" max="5000" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Speed Limit (km/h)</label>
+              <label class="form-label">Speed limit (km/h)</label>
               <input type="number" id="zone-speed-limit" class="form-control" value="30" min="10" max="100" required>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Description / Safety Notes</label>
-            <textarea id="zone-details" class="form-control" rows="2" placeholder="e.g. High pedestrian footfall, sharp hairpin turn."></textarea>
+            <label class="form-label">Severity</label>
+            <select id="zone-severity" class="form-control">
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH" selected>High</option>
+              <option value="CRITICAL">Critical</option>
+            </select>
           </div>
+          <textarea id="zone-details" style="display:none;"></textarea>
 
         </div>
         <div class="modal-footer">
           <button type="button" id="btn-modal-cancel" class="btn btn-outline btn-sm">Cancel</button>
           <button type="submit" class="btn btn-teal btn-sm">
-            Save Danger Zone
+            Save
           </button>
         </div>
       </form>
