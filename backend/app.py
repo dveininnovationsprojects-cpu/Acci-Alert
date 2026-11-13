@@ -224,16 +224,6 @@ def evaluate_and_dispatch_alerts(telemetry: dict):
             "sound": "overspeed"
         })
 
-    # 7. TRAFFIC SIGNAL STOP Check
-    if signal == "RED" and spd > 10.0:
-        current_alerts.append({
-            "type": "TRAFFIC SIGNAL STOP",
-            "severity": "HIGH",
-            "title": "TRAFFIC SIGNAL RED!",
-            "message": f"Vehicle is in motion ({spd:.1f} km/h) approaching RED traffic signal.",
-            "sound": "signal"
-        })
-
     # Process and log alert transitions
     for alert in current_alerts:
         alert_type = alert["type"]

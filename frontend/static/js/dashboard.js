@@ -206,19 +206,7 @@ class DashboardController {
       }
     }
 
-    // 7. Traffic Signal Status
-    const signal = (t.signal || "GREEN").toUpperCase();
-    const bulbRed = document.getElementById("bulb-red");
-    const bulbYellow = document.getElementById("bulb-yellow");
-    const bulbGreen = document.getElementById("bulb-green");
-    const signalLabel = document.getElementById("val-signal");
-
-    if (bulbRed) bulbRed.classList.toggle("active", signal === "RED");
-    if (bulbYellow) bulbYellow.classList.toggle("active", signal === "YELLOW");
-    if (bulbGreen) bulbGreen.classList.toggle("active", signal === "GREEN");
-    if (signalLabel) signalLabel.innerText = signal;
-
-    // 8. Vehicle Status (LOCKED / READY / RUNNING / WARNING / EMERGENCY)
+    // 7. Vehicle Status (LOCKED / READY / RUNNING / WARNING / EMERGENCY)
     const stateStr = (t.state || "READY").toUpperCase();
     const stateEl = document.getElementById("val-vehicle-state");
     const stateCardEl = document.getElementById("card-vehicle-state");
@@ -316,10 +304,6 @@ class DashboardController {
     if (window.AlertManager) {
       window.AlertManager.acknowledgeAlert();
     }
-  }
-
-  setTrafficSignal(color) {
-    this.sendCommand("SIGNAL", color);
   }
 
   toggleDriverAuth() {
@@ -483,7 +467,6 @@ class DashboardController {
       "OBSTACLE DETECTED": "badge-warning",
       "OVERSPEED": "badge-warning",
       "DANGER ZONE": "badge-warning",
-      "TRAFFIC SIGNAL STOP": "badge-warning",
       "ZONE EXIT": "badge-info",
       "ZONE_ENTER": "badge-warning",
       "ZONE_EXIT": "badge-info",
@@ -567,11 +550,6 @@ class DashboardController {
     document.getElementById("btn-banner-ack")?.addEventListener("click", () => {
       if (window.AlertManager) window.AlertManager.acknowledgeAlert();
     });
-
-    // Traffic Signal Override Buttons
-    document.getElementById("btn-signal-red")?.addEventListener("click", () => this.setTrafficSignal("RED"));
-    document.getElementById("btn-signal-yellow")?.addEventListener("click", () => this.setTrafficSignal("YELLOW"));
-    document.getElementById("btn-signal-green")?.addEventListener("click", () => this.setTrafficSignal("GREEN"));
 
     // Driver Auth Toggle
     document.getElementById("btn-auth-driver")?.addEventListener("click", () => this.toggleDriverAuth());
