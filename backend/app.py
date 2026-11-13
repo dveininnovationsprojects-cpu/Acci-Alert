@@ -52,6 +52,7 @@ class SystemState:
         self.active_alerts = {}  # alert_type: timestamp
         self.last_logged_alerts = {}  # alert_type: timestamp
         self.zone_speed_limit_applied = None
+        self.last_telemetry_saved = 0.0
 
 state = SystemState()
 
@@ -273,6 +274,18 @@ def process_telemetry_packet(raw_pkt: dict, source: str = "SIMULATOR"):
     enriched["driver_name"] = state.active_driver_name if enriched.get("auth", 1) == 1 else "Unknown Driver"
     enriched["esp32_connected"] = serial_mgr.is_connected()
     enriched["mode"] = state.mode
+
+    # Store telemetry once per second (rolling 24 h, purged hourly) for charts and replay
+    now = time.time()
+    if now - state.last_telemetry_saved >= 1.0:
+        state.last_telemetry_saved = now
+        try:
+            zone_db.log_telemetry(zone_conn, speed=raw_pkt.get("spd"), alcohol=raw_pkt.get("alc"),
+                                  distance=raw_pkt.get("dist"), tilt=raw_pkt.get("tilt"),
+                                  lat=raw_pkt.get("lat"), lon=raw_pkt.get("lon"),
+                                  state=raw_pkt.get("state"), zone_id=raw_pkt.get("zone"))
+        except Exception:
+            logger.exception("telemetry save failed")
 
     # Danger-zone engine (backend/zones.py): never raises, ignores bad/no-GPS fixes
     for zev in zone_engine.update(raw_pkt.get("lat"), raw_pkt.get("lon"),
