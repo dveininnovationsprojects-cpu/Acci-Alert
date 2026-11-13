@@ -1,7 +1,7 @@
 # AcciAlert - Test T8 Verification Report
 **Module:** AI Face Recognition & Driver Authorisation  
 **Author:** Arsal  
-**Date:** 2026-11-13 16:35:03  
+**Date:** 2026-11-13 17:23:19  
 **Status:** **PASSED**
 
 ---
@@ -12,7 +12,7 @@
 | :--- | :--- | :--- | :--- |
 | **Authorised Recognition Accuracy** | $\ge 90\%$ | **100.0%** (30/30) | **PASS** |
 | **Unknown Driver Rejection** | 10 of 10 rejected (0 False Acceptances) | **10/10 rejected** (0 False Accepts) | **PASS** |
-| **Recognition Latency** | $< 2.0$ seconds | **0.027 s** (Avg: 27.4 ms, Max: 91.4 ms) | **PASS** |
+| **Recognition Latency** | $< 2.0$ seconds | **0.038 s** (Avg: 38.1 ms, Max: 118.5 ms) | **PASS** |
 
 ---
 

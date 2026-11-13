@@ -191,7 +191,8 @@
           </div>
           <div class="card-footer">
             <span>Auth Status</span>
-            <span id="badge-driver-auth" class="badge badge-success">AUTHORIZED</span>
+            <span><span id="badge-driver-auth" class="badge badge-success">AUTHORIZED</span>
+            <button type="button" onclick="openDriverAuthTab()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.7rem; margin-left:6px;">Verify face</button></span>
           </div>
         </div>
 
@@ -320,6 +321,9 @@
         <button class="tab-btn active" data-tab="tab-control-panel">
           Controls
         </button>
+        <button class="tab-btn" data-tab="tab-face-recognition">
+          Face Recognition
+        </button>
         <button class="tab-btn" data-tab="tab-danger-zones">
           Danger Zone Management
         </button>
@@ -433,6 +437,309 @@
       </div>
 
       <!-- TAB 2: DANGER ZONE MANAGEMENT -->
+      <div id="tab-face-recognition" class="tab-content">
+        <div class="face-module-header">
+          <div>
+            <h3 style="font-size:1.15rem; font-weight:700; color:#FFFFFF;">
+                            Driver Face Recognition &amp; Authorisation Subsystem
+            </h3>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+              Real-time CLAHE illumination normalization &bull; 1024-D Local Binary Patterns (LBPH) &bull; Eye-blink vitality verification
+            </p>
+          </div>
+          <span id="ignitionLockBadge" class="badge badge-danger" style="font-size:0.85rem; padding:6px 14px;">
+            VEHICLE LOCKED
+          </span>
+        </div>
+
+        <!-- Nested Sub-Tabs Navigation for Arsal's 4 Submodules -->
+        <div class="face-subtabs-nav">
+          <button class="face-subtab-btn active" data-subtab="face-sub-detector">
+            Live Detector
+          </button>
+          <button class="face-subtab-btn" data-subtab="face-sub-enrol">
+            Enrol Drivers <span class="badge badge-info" id="subtab-enrol-badge" style="font-size:0.7rem; padding:1px 6px;">5</span>
+          </button>
+          <button class="face-subtab-btn" data-subtab="face-sub-logs">
+            Audit Logs
+          </button>
+          <button class="face-subtab-btn" data-subtab="face-sub-calibration">
+            Calibration
+          </button>
+        </div>
+
+        <!-- SUB-TAB 1: LIVE DETECTOR -->
+        <div id="face-sub-detector" class="face-subtab-content active">
+          <div style="display:grid; grid-template-columns: 1fr 340px; gap:20px;">
+            <!-- Left: Optical Camera Viewport -->
+            <div>
+              <div class="camera-viewport-wrap" id="faceCamContainer">
+                <video id="driverVideo" playsinline autoplay muted></video>
+                <canvas id="hudCanvas"></canvas>
+
+                <div id="cameraStandby" class="camera-standby-screen">
+                  <div>
+                                        <h4 style="color:#FFFFFF; font-size:1.1rem; font-weight:700;">Driver Optical Sensor Offline</h4>
+                    <p style="color:var(--text-secondary); font-size:0.8rem; max-width:380px; margin:8px auto 16px;">
+                      Start the optical feed to scan the driver's face, normalize lighting variations with CLAHE, and verify vitality.
+                    </p>
+                    <button id="btnStartCamera" class="btn btn-teal">
+                      Start Face Detector
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                <div style="display:flex; gap:8px;">
+                  <button id="btnStopCamera" class="btn btn-outline btn-sm" style="display:none; color:var(--red-critical); border-color:var(--red-critical);">
+                    Stop Camera
+                  </button>
+                  <button id="btnSwitchCamera" class="btn btn-outline btn-sm" title="Flip Camera">
+                    Flip Cam
+                  </button>
+                </div>
+                <div style="display:flex; gap:12px; font-size:0.75rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">
+                  <span>LBP-1024D CLASSIFIER</span>
+                  <span>LATENCY: 28ms</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Gating Status Card -->
+            <div class="control-group-card" style="display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
+              <div>
+                <span class="control-group-title" style="justify-content:center; margin-bottom:14px;">
+                  Vehicle Ignition Interlock
+                </span>
+
+                <div class="engine-indicator-wrap">
+                  <div id="engineIndicator" class="engine-indicator locked">
+                                        <span>ENGINE</span>
+                  </div>
+                </div>
+
+                <h4 id="engineStatusTitle" class="text-danger fw-bold mb-1" style="font-size:1.05rem;">ENGINE START LOCKED</h4>
+                <p id="engineSubStatus" style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:16px;">
+                  Waiting for biometric facial verification of registered driver.
+                </p>
+
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+                  <div class="stat-tile-sm">
+                    <div class="stat-label">DRIVER</div>
+                    <div id="valDriverName" class="stat-val" style="color:var(--teal-primary);">Unknown</div>
+                  </div>
+                  <div class="stat-tile-sm">
+                    <div class="stat-label">MATCH %</div>
+                    <div id="valSimilarity" class="stat-val" style="color:var(--yellow-warning);">0%</div>
+                  </div>
+                  <div class="stat-tile-sm">
+                    <div class="stat-label">DISTANCE</div>
+                    <div id="valDistance" class="stat-val" style="color:#94A3B8;">99.00</div>
+                  </div>
+                </div>
+
+                <!-- Liveness Status Badge -->
+                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center; text-align:left;">
+                  <div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary);">liveness detection:</div>
+                    <div style="font-size:0.8rem; color:#FFFFFF; font-weight:600;">Vitality Anti-Spoofing</div>
+                  </div>
+                  <span id="txtLivenessStatus" class="badge badge-warning">PENDING</span>
+                </div>
+              </div>
+
+              <p style="font-size:0.72rem; color:var(--text-muted); margin-top:14px; text-align:left;">
+                Eye-blink &amp; micro-motion anti-spoofing confirms you are a real living human before vehicle unlock.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: DRIVER ENROLMENT WIZARD -->
+        <div id="face-sub-enrol" class="face-subtab-content">
+          <div style="display:grid; grid-template-columns: 380px 1fr; gap:20px;">
+            <!-- Left: Enrolment Form -->
+            <div class="control-group-card">
+              <span class="control-group-title">
+                Register New Authorised Driver
+              </span>
+              <form id="formEnrolDriver" autocomplete="off" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Driver Full Name</label>
+                  <input type="text" id="inputDriverName" class="form-control" placeholder="e.g. Arun, Kumar, Ravi, Arsal" required>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">License Number</label>
+                  <input type="text" id="inputLicenseNumber" class="form-control" placeholder="e.g. TN-09-2024-9843">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Target Training Samples</label>
+                  <input type="number" id="inputSampleCount" class="form-control" value="25" min="5" max="100">
+                  <small style="color:var(--text-muted); font-size:0.72rem;">Captures 20-30 frontal &amp; tilted face variations for 100% accuracy.</small>
+                </div>
+
+                <div id="enrolProgressWrap" style="display:none; margin-top:6px;">
+                  <div class="mini-progress-bar" style="height:8px;">
+                    <div id="enrolProgressFill" class="mini-progress-fill" style="width:0%; background:var(--teal-primary);"></div>
+                  </div>
+                  <div id="enrolProgressText" style="font-size:0.75rem; color:var(--teal-primary); margin-top:4px;">Capturing facial frames...</div>
+                </div>
+
+                <button type="submit" id="btnStartEnrolment" class="btn btn-teal" style="margin-top:6px;">
+                  Start Enrolment Capture
+                </button>
+              </form>
+            </div>
+
+            <!-- Right: Enrolled Drivers Roster -->
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="font-size:1.05rem; font-weight:700; color:#FFFFFF;">
+                  Enrolled Driver Roster
+                </h3>
+                <span class="badge badge-info" id="enrolledCountBadge">5 Active Drivers</span>
+              </div>
+
+              <div class="table-responsive">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Driver Name</th>
+                      <th>Status</th>
+                      <th>Descriptors</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rosterTableBody">
+                    <!-- Rendered dynamically by driver_auth.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: AUDIT LOGS -->
+        <div id="face-sub-logs" class="face-subtab-content">
+          <!-- 4 Stats Cards -->
+          <div class="face-stats-grid">
+            <div class="face-stat-card">
+              <div class="face-stat-icon teal"></div>
+              <div class="face-stat-info">
+                <div id="faceTotalVerifications" class="stat-num">200</div>
+                <div class="stat-desc">Total Verifications</div>
+              </div>
+            </div>
+            <div class="face-stat-card">
+              <div class="face-stat-icon green"></div>
+              <div class="face-stat-info">
+                <div id="faceAuthorisedUnlocks" class="stat-num">12</div>
+                <div class="stat-desc">Authorised Unlocks</div>
+              </div>
+            </div>
+            <div class="face-stat-card">
+              <div class="face-stat-icon red"></div>
+              <div class="face-stat-info">
+                <div id="faceSecurityRejections" class="stat-num">188</div>
+                <div class="stat-desc">Security Rejections</div>
+              </div>
+            </div>
+            <div class="face-stat-card">
+              <div class="face-stat-icon purple"></div>
+              <div class="face-stat-info">
+                <div id="faceLastTelemetry" class="stat-num" style="font-size:1rem;">17:15:00</div>
+                <div class="stat-desc">Last Telemetry Event</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toolbar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; background:var(--bg-card-subtle); padding:10px 16px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06);">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:0.85rem; font-weight:700; color:#FFFFFF;">
+                                Security &amp; Ignition Authorisation Audit Trail
+              </span>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+              <!-- Filters -->
+              <button type="button" class="face-filter-pill active" data-face-filter="ALL">All Events</button>
+              <button type="button" class="face-filter-pill" data-face-filter="AUTH">Authorised</button>
+              <button type="button" class="face-filter-pill" data-face-filter="REJECT">Rejections</button>
+
+              <div style="width:1px; height:20px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
+
+              <!-- Export CSV & Clear Logs (No Export JSON) -->
+              <button type="button" id="btnExportFaceLogsCsv" class="btn btn-teal btn-sm" style="padding:4px 12px; font-size:0.75rem;">
+                Export CSV
+              </button>
+              <button type="button" id="btnClearFaceLogs" class="btn btn-outline btn-sm" style="padding:4px 12px; font-size:0.75rem; color:var(--red-critical); border-color:var(--red-critical);">
+                Clear Logs
+              </button>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Event Type</th>
+                  <th>Severity</th>
+                  <th>Driver Name</th>
+                  <th>Match Score</th>
+                  <th>Liveness Result</th>
+                  <th>ESP32 Serial Transmission</th>
+                </tr>
+              </thead>
+              <tbody id="faceAuditLogsTableBody">
+                <tr>
+                  <td colspan="7" style="text-align:center; color:#627289; padding:24px;">Loading audit logs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 4: CALIBRATION -->
+        <div id="face-sub-calibration" class="face-subtab-content">
+          <div style="max-width:680px; margin:0 auto;">
+            <div class="control-group-card">
+              <span class="control-group-title">
+                Recognition &amp; Threshold Settings
+              </span>
+              <div style="margin-top:14px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                  <label class="form-label" style="font-size:0.85rem; font-weight:600;">Decision Distance Threshold:</label>
+                  <span id="valThreshold" style="font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--teal-primary);">35.0</span>
+                </div>
+                <input type="range" class="form-range" min="10" max="70" step="0.5" id="rangeThreshold" value="35.0">
+                <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:6px;">
+                  A face distance below this value is accepted as an authorised driver. Lower is stricter; higher is more permissive. Calibrated range: 16.0–20.0.
+                </small>
+              </div>
+
+              <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <label style="font-size:0.85rem; font-weight:600; color:#FFFFFF; cursor:pointer;" for="toggleLiveness">
+                    Enable Anti-Spoofing Liveness Verification
+                  </label>
+                  <small style="color:var(--text-muted); font-size:0.75rem; display:block;">
+                    Requires eye blinking and natural micro-motion before unlocking vehicle. Prevents printed photo attacks.
+                  </small>
+                </div>
+                <input type="checkbox" id="toggleLiveness" checked style="width:20px; height:20px; accent-color:var(--teal-primary); cursor:pointer;">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 4: DANGER ZONE MANAGEMENT (Prasanth Subsystem) -->
+
       <div id="tab-danger-zones" class="tab-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
           <div>
@@ -647,6 +954,7 @@
   <script src="static/js/map.js"></script>
   <script src="static/js/zones.js"></script>
   <script src="static/js/dashboard.js"></script>
+  <script src="static/js/driver_auth.js"></script>
 
 <div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#F3F4F6;flex-direction:column;">
   <iframe id="zm-frame" title="Zone Manager" style="flex:1;border:0;width:100%;"></iframe>
