@@ -42,6 +42,7 @@
     <div class="brand-section">
       <div class="brand-text">
         <h1>AcciAlert</h1>
+        <p>Smart Driver Safety & Accident Prevention System</p>
       </div>
     </div>
 
@@ -82,10 +83,10 @@
     <div>
       <div class="section-header">
         <h2 class="section-title">Live Readings</h2>
-        <span style="display:none;">
-          <strong id="val-current-zone"></strong>
-          <strong id="zm-count"></strong>
-          <strong id="zm-inside"></strong>
+        <span style="font-size:0.8rem; color:var(--text-muted);">
+          Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
+          &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
+          &nbsp;|&nbsp; Time in zone: <strong id="zm-inside" style="color:var(--teal-primary);">--</strong>
         </span>
       </div>
 
@@ -715,15 +716,13 @@ function closeZoneManager(){document.getElementById("zm-overlay").style.display=
     var d=new Date();d.setHours(0,0,0,0);
     fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
       if(!Array.isArray(ev))return;
-      var c=document.getElementById("zm-count");
-      if(c) c.textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
+      document.getElementById("zm-count").textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
       var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
       since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
     }).catch(function(){});
   }
   setInterval(function(){
-    var ins=document.getElementById("zm-inside");
-    if(ins) ins.textContent=since?fmt(Date.now()/1000-since):"--";
+    document.getElementById("zm-inside").textContent=since?fmt(Date.now()/1000-since):"--";
   },1000);
   poll();setInterval(poll,2000);
 })();

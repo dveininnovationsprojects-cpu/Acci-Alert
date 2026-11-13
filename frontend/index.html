@@ -42,6 +42,7 @@
     <div class="brand-section">
       <div class="brand-text">
         <h1>AcciAlert</h1>
+        <p>Smart Driver Safety & Accident Prevention System</p>
       </div>
     </div>
 
@@ -78,10 +79,10 @@
     <div>
       <div class="section-header">
         <h2 class="section-title">Live Readings</h2>
-        <span style="display:none;">
-          <strong id="val-current-zone"></strong>
-          <strong id="zm-count"></strong>
-          <strong id="zm-inside"></strong>
+        <span style="font-size:0.8rem; color:var(--text-muted);">
+          Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
+          &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
+          &nbsp;|&nbsp; Time in zone: <strong id="zm-inside" style="color:var(--teal-primary);">--</strong>
         </span>
       </div>
 
@@ -355,7 +356,10 @@
             <span class="control-group-title">
               Driver authorization
             </span>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <p style="font-size:0.78rem; color:var(--text-secondary);">
+              Toggle active vehicle ignition permissions for operator verification.
+            </p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
               <span style="font-size:0.8rem; font-weight:600; color:var(--text-main);">Driver Permissions:</span>
               <button id="btn-auth-driver" class="btn btn-outline btn-sm">
                 Toggle Auth (Lock/Unlock)
@@ -432,8 +436,10 @@
         <div class="face-module-header">
           <div>
             <h3 style="font-size:1.15rem; font-weight:600; color:var(--text-main);">
-              Driver face login
+                            Driver face login
             </h3>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+              Camera check with a blink test before the car unlocks.</p>
           </div>
           <span id="ignitionLockBadge" class="badge badge-danger" style="font-size:0.85rem; padding:6px 14px;">
             VEHICLE LOCKED
@@ -458,7 +464,7 @@
 
         <!-- SUB-TAB 1: LIVE DETECTOR -->
         <div id="face-sub-detector" class="face-subtab-content active">
-          <div class="detector-layout-grid">
+          <div style="display:grid; grid-template-columns: 1fr 340px; gap:20px;">
             <!-- Left: Optical Camera Viewport -->
             <div>
               <div class="camera-viewport-wrap" id="faceCamContainer">
@@ -467,18 +473,18 @@
 
                 <div id="cameraStandby" class="camera-standby-screen">
                   <div>
-                    <h4 style="color:var(--text-main); font-size:1.05rem; font-weight:600; margin-bottom:4px;">Camera is off</h4>
-                    <p style="color:var(--text-secondary); font-size:0.78rem; max-width:280px; margin:6px auto 14px; line-height:1.35;">
+                                        <h4 style="color:var(--text-main); font-size:1.1rem; font-weight:600;">Camera is off</h4>
+                    <p style="color:var(--text-secondary); font-size:0.8rem; max-width:380px; margin:8px auto 16px;">
                       Start the camera to check the driver's face and run the blink test.
                     </p>
-                    <button id="btnStartCamera" class="btn btn-teal" style="padding:8px 18px; font-size:0.85rem;">
+                    <button id="btnStartCamera" class="btn btn-teal">
                       Start Face Detector
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div class="camera-control-bar">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
                 <div style="display:flex; gap:8px;">
                   <button id="btnStopCamera" class="btn btn-outline btn-sm" style="display:none; color:var(--red-critical); border-color:var(--red-critical);">
                     Stop Camera
@@ -487,58 +493,64 @@
                     Flip Cam
                   </button>
                 </div>
-                <div style="display:flex; gap:10px; font-size:0.72rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">
-                  <span>LBP-1024D</span>
+                <div style="display:flex; gap:12px; font-size:0.75rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">
+                  <span>LBP-1024D CLASSIFIER</span>
                   <span>LATENCY: 28ms</span>
                 </div>
               </div>
             </div>
 
-            <!-- Right: Gating Status Card -->
-            <div class="control-group-card" style="display:flex; flex-direction:column; justify-content:space-between; text-align:center; padding:16px 18px;">
+            <!-- Right: Capture Image Card -->
+            <div class="control-group-card" style="display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
               <div>
-                <span class="control-group-title" style="justify-content:center; margin-bottom:10px; font-size:0.85rem;">
-                  Car status
+                <span class="control-group-title" style="justify-content:center; margin-bottom:14px;">
+                  <i class="bi bi-camera-fill" style="margin-right:6px; color:var(--teal-primary);"></i> Capture Image
                 </span>
 
-                <div class="engine-indicator-wrap">
-                  <div id="engineIndicator" class="engine-indicator locked">
-                    <span>ENGINE</span>
+                <!-- Captured Image Preview Frame -->
+                <div id="capturePreviewContainer" style="width:100%; height:230px; background:rgba(0,0,0,0.02); border:2px dashed var(--border-color); border-radius:var(--radius-md); display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; position:relative; margin-bottom:14px;">
+                  <img id="capturedImagePreview" src="" alt="Captured Image" style="display:none; width:100%; height:100%; object-fit:cover;" />
+                  <div id="capturePlaceholder" style="text-align:center; padding:16px; color:var(--text-muted);">
+                    <i class="bi bi-person-bounding-box" style="font-size:3rem; display:block; margin-bottom:8px; color:var(--teal-primary); opacity:0.6;"></i>
+                    <div style="font-size:0.88rem; font-weight:600; color:var(--text-main);">No Image Captured</div>
+                    <p style="font-size:0.75rem; margin:4px 0 0; color:var(--text-muted);">Click Capture Image to take a photo</p>
                   </div>
                 </div>
 
-                <h4 id="engineStatusTitle" class="text-danger fw-bold mb-1" style="font-size:0.92rem; margin-top:2px;">ENGINE START LOCKED</h4>
-                <p id="engineSubStatus" style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:12px; line-height:1.3;">
-                  Waiting for biometric facial verification of registered driver.
-                </p>
+                <!-- Primary Action Button -->
+                <button id="btnCaptureSnapshot" class="btn btn-teal" style="width:100%; padding:10px 14px; font-weight:600; font-size:0.92rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <i class="bi bi-camera"></i> Capture Image
+                </button>
 
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:12px;">
-                  <div class="stat-tile-sm">
-                    <div class="stat-label">DRIVER</div>
-                    <div id="valDriverName" class="stat-val" style="color:var(--teal-primary);">Unknown</div>
-                  </div>
-                  <div class="stat-tile-sm">
-                    <div class="stat-label">MATCH %</div>
-                    <div id="valSimilarity" class="stat-val" style="color:var(--yellow-warning);">0%</div>
-                  </div>
-                  <div class="stat-tile-sm">
-                    <div class="stat-label">DISTANCE</div>
-                    <div id="valDistance" class="stat-val" style="color:var(--text-secondary);">99.00</div>
-                  </div>
+                <!-- Retake & Save Actions -->
+                <div id="captureActionsRow" style="display:none; gap:8px; margin-top:8px;">
+                  <button id="btnRetakeSnapshot" class="btn btn-outline btn-sm" style="flex:1;">
+                    <i class="bi bi-arrow-repeat"></i> Retake
+                  </button>
+                  <a id="btnDownloadSnapshot" class="btn btn-outline btn-sm" download="driver_snapshot.jpg" style="flex:1; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:4px;">
+                    <i class="bi bi-download"></i> Save Image
+                  </a>
                 </div>
 
-                <!-- Liveness Status Badge -->
-                <div style="background:#E5E7EB; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:8px 12px; display:flex; justify-content:space-between; align-items:center; text-align:left;">
-                  <div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">liveness detection:</div>
-                    <div style="font-size:0.78rem; color:var(--text-main); font-weight:600;">Vitality Anti-Spoofing</div>
-                  </div>
-                  <span id="txtLivenessStatus" class="badge badge-warning" style="font-size:0.7rem; padding:3px 8px;">Pending</span>
+                <!-- Status Feedback -->
+                <div id="captureStatusMsg" style="font-size:0.78rem; color:var(--text-secondary); margin-top:12px; text-align:center;">
+                  Ready to capture driver photo
                 </div>
               </div>
 
-              <p style="font-size:0.68rem; color:var(--text-muted); margin-top:10px; text-align:left; line-height:1.3;">
-                Eye-blink &amp; micro-motion anti-spoofing confirms you are a real living human before vehicle unlock.
+              <!-- Preserved Hidden Elements for Background Script Compatibility -->
+              <div style="display:none;" aria-hidden="true">
+                <div id="engineIndicator" class="engine-indicator locked"><span>ENGINE</span></div>
+                <h4 id="engineStatusTitle">ENGINE START LOCKED</h4>
+                <p id="engineSubStatus"></p>
+                <div id="valDriverName">Unknown</div>
+                <div id="valSimilarity">0%</div>
+                <div id="valDistance">99.00</div>
+                <span id="txtLivenessStatus">Pending</span>
+              </div>
+
+              <p style="font-size:0.72rem; color:var(--text-muted); margin-top:14px; text-align:center;">
+                Capture live driver image for identity verification and logging.
               </p>
             </div>
           </div>
@@ -960,15 +972,13 @@ function closeZoneManager(){document.getElementById("zm-overlay").style.display=
     var d=new Date();d.setHours(0,0,0,0);
     fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
       if(!Array.isArray(ev))return;
-      var c=document.getElementById("zm-count");
-      if(c) c.textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
+      document.getElementById("zm-count").textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
       var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
       since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
     }).catch(function(){});
   }
   setInterval(function(){
-    var ins=document.getElementById("zm-inside");
-    if(ins) ins.textContent=since?fmt(Date.now()/1000-since):"--";
+    document.getElementById("zm-inside").textContent=since?fmt(Date.now()/1000-since):"--";
   },1000);
   poll();setInterval(poll,2000);
 })();

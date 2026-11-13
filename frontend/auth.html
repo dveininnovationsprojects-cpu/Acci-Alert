@@ -109,60 +109,56 @@
                 <!-- Right Column: Vehicle Ignition Cockpit, Telemetry & Serial Console -->
                 <div class="col-lg-5 col-xl-4 mb-4">
                     
-                    <!-- Card 1: Supercar Ignition & Gating Status -->
+                    <!-- Card 1: Capture Image Card -->
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                Car status
+                                <i class="bi bi-camera-fill me-2"></i>Capture Image
                             </h2>
-                            <span id="vehicleStateBadge" class="status-badge badge-locked">
-                                VEHICLE LOCKED
-                            </span>
                         </div>
                         <div class="card-body text-center py-4">
-                            
-                            <!-- Supercar Push-To-Start Dial -->
-                            <div class="ignition-status-wrapper">
-                                <div id="ignitionDial" class="ignition-dial locked">
-                                                                        <span class="ignition-dial-text">ENGINE</span>
-                                </div>
-                                <div id="ignitionStatusText" class="ignition-main-banner text-danger">
-                                    ENGINE DISABLED - UNAUTHORISED DRIVER
-                                </div>
-                            </div>
-
-                            <!-- Driver Info & Telemetry Grid -->
-                            <div class="telemetry-grid">
-                                <div class="telemetry-cell">
-                                    <div class="telemetry-cell-label">Driver</div>
-                                    <div id="driverNameDisplay" class="telemetry-cell-value text-info fs-6 text-truncate">Unknown</div>
-                                </div>
-                                <div class="telemetry-cell">
-                                    <div class="telemetry-cell-label">Similarity</div>
-                                    <div id="similarityScoreDisplay" class="telemetry-cell-value text-success fs-6">0%</div>
-                                </div>
-                                <div class="telemetry-cell">
-                                    <div class="telemetry-cell-label">Distance</div>
-                                    <div id="distanceMetricDisplay" class="telemetry-cell-value text-warning fs-6">99.00</div>
+                            <!-- Captured Image Preview Frame -->
+                            <div id="capturePreviewContainerAuth" style="width:100%; height:230px; background:rgba(0,0,0,0.02); border:2px dashed #D1D5DB; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; position:relative; margin-bottom:14px;">
+                                <img id="capturedImagePreviewAuth" src="" alt="Captured Image" style="display:none; width:100%; height:100%; object-fit:cover;" />
+                                <div id="capturePlaceholderAuth" style="text-align:center; padding:16px; color:#6B7280;">
+                                    <div style="font-size:2.8rem; margin-bottom:8px; color:#0D9488; opacity:0.7;">📷</div>
+                                    <div style="font-size:0.88rem; font-weight:600; color:#111827;">No Image Captured</div>
+                                    <p style="font-size:0.75rem; margin:4px 0 0; color:#6B7280;">Click Capture Image to take a photo</p>
                                 </div>
                             </div>
 
-                            <!-- Liveness Anti-Spoofing Indicator -->
-                            <div id="livenessCard" class="p-3 text-start mt-3" style="border: 1px solid #D1D5DB;">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="small fw-bold text-white d-flex align-items-center" style="font-size: 0.85rem; letter-spacing: 0.02em;">
-                                        Liveness check:
-                                    </span>
-                                    <span id="livenessBadge" class="badge bg-success text-white">
-                                        VERIFIED
-                                    </span>
+                            <!-- Primary Action Button -->
+                            <button id="btnCaptureSnapshotAuth" class="btn btn-teal w-100" style="padding:10px 14px; font-weight:600; font-size:0.92rem; background-color:#0D9488; color:#fff; border:none; border-radius:6px;">
+                                Capture Image
+                            </button>
+
+                            <!-- Retake & Save Actions -->
+                            <div id="captureActionsRowAuth" style="display:none; gap:8px; margin-top:8px;">
+                                <button id="btnRetakeSnapshotAuth" class="btn btn-outline-secondary btn-sm flex-fill">
+                                    Retake
+                                </button>
+                                <a id="btnDownloadSnapshotAuth" class="btn btn-outline-secondary btn-sm flex-fill" download="driver_snapshot.jpg" style="text-decoration:none;">
+                                    Save Image
+                                </a>
+                            </div>
+
+                            <!-- Status Feedback -->
+                            <div id="captureStatusMsgAuth" style="font-size:0.78rem; color:#6B7280; margin-top:12px; text-align:center;">
+                                Ready to capture driver photo
+                            </div>
+
+                            <!-- Preserved Hidden Elements for Compatibility with js/app.js -->
+                            <div style="display:none;" aria-hidden="true">
+                                <span id="vehicleStateBadge">VEHICLE LOCKED</span>
+                                <div id="ignitionDial" class="ignition-dial locked"><span class="ignition-dial-text">ENGINE</span></div>
+                                <div id="ignitionStatusText">ENGINE DISABLED</div>
+                                <div id="driverNameDisplay">Unknown</div>
+                                <div id="similarityScoreDisplay">0%</div>
+                                <div id="distanceMetricDisplay">99.00</div>
+                                <div id="livenessCard">
+                                    <span id="livenessBadge">VERIFIED</span>
+                                    <div id="livenessProgressBar"></div>
                                 </div>
-                                <div class="progress bg-black" style="height: 6px;">
-                                    <div id="livenessProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 100%;"></div>
-                                </div>
-                                <small class="text-secondary d-block mt-2" style="font-size: 0.72rem;">
-                                    Eye-blink & micro-motion anti-spoofing confirms you are a real living human.
-                                </small>
                             </div>
                         </div>
                     </div>
@@ -397,5 +393,67 @@
     <script src="js/face_engine.js"></script>
     <script src="js/serial_controller.js"></script>
     <script src="js/app.js"></script>
+    <script>
+    (function() {
+      const btnCapture = document.getElementById("btnCaptureSnapshotAuth");
+      const btnRetake = document.getElementById("btnRetakeSnapshotAuth");
+      const preview = document.getElementById("capturedImagePreviewAuth");
+      const placeholder = document.getElementById("capturePlaceholderAuth");
+      const actionsRow = document.getElementById("captureActionsRowAuth");
+      const statusMsg = document.getElementById("captureStatusMsgAuth");
+      const downloadBtn = document.getElementById("btnDownloadSnapshotAuth");
+      const videoEl = document.getElementById("driverVideo");
+
+      if (btnCapture) {
+        btnCapture.addEventListener("click", function() {
+          const snapCanvas = document.createElement("canvas");
+          let dataUrl = "";
+          if (videoEl && videoEl.videoWidth > 0) {
+            snapCanvas.width = videoEl.videoWidth;
+            snapCanvas.height = videoEl.videoHeight;
+            const ctx = snapCanvas.getContext("2d");
+            ctx.drawImage(videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
+            dataUrl = snapCanvas.toDataURL("image/jpeg", 0.92);
+          } else {
+            snapCanvas.width = 640;
+            snapCanvas.height = 480;
+            const ctx = snapCanvas.getContext("2d");
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(0, 0, 640, 480);
+            ctx.fillStyle = "#0D9488";
+            ctx.font = "bold 18px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("DRIVER SNAPSHOT CAPTURED", 320, 240);
+            dataUrl = snapCanvas.toDataURL("image/jpeg");
+          }
+          if (preview) { preview.src = dataUrl; preview.style.display = "block"; }
+          if (placeholder) placeholder.style.display = "none";
+          if (actionsRow) actionsRow.style.display = "flex";
+          if (downloadBtn) { downloadBtn.href = dataUrl; downloadBtn.download = "driver_capture_" + Date.now() + ".jpg"; }
+          if (statusMsg) statusMsg.innerHTML = '<span style="color:#0D9488; font-weight:600;">✓ Image captured successfully! (' + new Date().toLocaleTimeString() + ')</span>';
+          try { localStorage.setItem("accialert_last_captured_image", dataUrl); } catch(e){}
+        });
+      }
+      if (btnRetake) {
+        btnRetake.addEventListener("click", function() {
+          if (preview) { preview.style.display = "none"; preview.src = ""; }
+          if (placeholder) placeholder.style.display = "block";
+          if (actionsRow) actionsRow.style.display = "none";
+          if (statusMsg) statusMsg.textContent = "Ready to capture driver photo";
+        });
+      }
+      try {
+        const saved = localStorage.getItem("accialert_last_captured_image");
+        if (saved && preview) {
+          preview.src = saved;
+          preview.style.display = "block";
+          if (placeholder) placeholder.style.display = "none";
+          if (actionsRow) actionsRow.style.display = "flex";
+          if (downloadBtn) downloadBtn.href = saved;
+          if (statusMsg) statusMsg.textContent = "Previously captured driver image";
+        }
+      } catch(e){}
+    })();
+    </script>
 </body>
 </html>
