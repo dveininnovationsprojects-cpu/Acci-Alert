@@ -1,7 +1,4 @@
-"""
-AcciAlert - SQLite Database Module
-Manages persistence for events, danger zones, drivers, and command audit logs.
-Author: Muniyappan
+"""Dashboard database: events, danger zones, drivers and the command log.
 """
 
 import sqlite3
@@ -123,9 +120,7 @@ def init_db():
     conn.close()
 
 
-# ==========================================
-# EVENT OPERATIONS
-# ==========================================
+# Event operations
 
 def add_event(event_type: str, driver_name: str, vehicle_speed: float,
               latitude: float, longitude: float, danger_zone_name: str = None,
@@ -232,9 +227,7 @@ def export_events_csv(event_type: str = None, start_date: str = None, end_date: 
     return output.getvalue()
 
 
-# ==========================================
-# DANGER ZONE OPERATIONS
-# ==========================================
+# Danger zone operations
 
 def get_all_zones():
     """Retrieve all danger zones."""
@@ -322,9 +315,7 @@ def delete_zone(zone_id: int) -> bool:
     return deleted
 
 
-# ==========================================
-# DRIVER OPERATIONS
-# ==========================================
+# Driver operations
 
 def get_all_drivers():
     """Retrieve all drivers."""
@@ -364,9 +355,7 @@ def add_or_update_driver(name: str, license_number: str, authorized: int = 1, no
     return driver_id
 
 
-# ==========================================
-# COMMAND AUDIT LOG
-# ==========================================
+# Command audit log
 
 def log_command(command: str, source: str = "UI", status: str = "SENT"):
     """Record an executed command into audit log."""
@@ -379,4 +368,26 @@ def log_command(command: str, source: str = "UI", status: str = "SENT"):
     """, (command, source, status, now))
     conn.commit()
     conn.close()
+
+
+# Compatibility Aliases for Rest APIs & Test Suites
+def add_danger_zone(code: str, name: str, latitude: float, longitude: float,
+                    radius_meters: float, speed_limit: float,
+                    severity: str = "MEDIUM", details: str = "") -> int:
+    return add_zone(code, name, latitude, longitude, radius_meters, speed_limit, severity, details)
+
+
+def delete_danger_zone(zone_id: int) -> bool:
+    return delete_zone(zone_id)
+
+
+def get_recent_events(limit: int = 100, offset: int = 0, event_type: str = None):
+    res = get_events(limit=limit, offset=offset, event_type=event_type)
+    return res["events"]
+
+
+def get_events_count(event_type: str = None) -> int:
+    res = get_events(limit=1, offset=0, event_type=event_type)
+    return res["total"]
+
 

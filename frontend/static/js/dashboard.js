@@ -24,7 +24,7 @@ class DashboardController {
       if (!this.backendConnected) {
         console.log("No backend detected. Starting in Standalone Frontend Mode.");
         this.clientSimulator.start();
-        this.updateConnectionBadge(true, "FRONTEND STANDALONE ACTIVE");
+        this.updateConnectionBadge(true, "Frontend standalone active");
         this.showToast("Running in Standalone Frontend Mode", "info");
       }
     }, 1500);
@@ -36,7 +36,7 @@ class DashboardController {
   initSocket() {
     if (typeof io !== "function" || window.location.protocol === "file:") {
       this.clientSimulator.start();
-      this.updateConnectionBadge(true, "STANDALONE MODE");
+      this.updateConnectionBadge(true, "Standalone mode");
       return;
     }
 
@@ -50,7 +50,7 @@ class DashboardController {
       this.socket.on("connect", () => {
         this.backendConnected = true;
         this.clientSimulator.stop();
-        this.updateConnectionBadge(true, "SYSTEM ACTIVE");
+        this.updateConnectionBadge(true, "System active");
         this.showToast("Connected to AcciAlert Backend Server", "success");
         this.loadSystemStatus();
       });
@@ -58,14 +58,14 @@ class DashboardController {
       this.socket.on("connect_error", () => {
         if (!this.backendConnected) {
           this.clientSimulator.start();
-          this.updateConnectionBadge(true, "STANDALONE MODE");
+          this.updateConnectionBadge(true, "Standalone mode");
         }
       });
 
       this.socket.on("disconnect", () => {
         this.backendConnected = false;
         this.clientSimulator.start();
-        this.updateConnectionBadge(true, "STANDALONE MODE");
+        this.updateConnectionBadge(true, "Standalone mode");
       });
 
       this.socket.on("status", (data) => {
@@ -90,7 +90,7 @@ class DashboardController {
     } catch (e) {
       console.warn("Socket.io init exception, switching to client simulator:", e);
       this.clientSimulator.start();
-      this.updateConnectionBadge(true, "STANDALONE MODE");
+      this.updateConnectionBadge(true, "Standalone mode");
     }
   }
 
@@ -120,13 +120,13 @@ class DashboardController {
     if (alcEl) alcEl.innerText = alc;
     if (alcBadgeEl) {
       if (alc >= 600) {
-        alcBadgeEl.innerText = "DANGER";
+        alcBadgeEl.innerText = "Danger";
         alcBadgeEl.className = "badge badge-danger";
       } else if (alc >= 350) {
-        alcBadgeEl.innerText = "CAUTION";
+        alcBadgeEl.innerText = "Caution";
         alcBadgeEl.className = "badge badge-warning";
       } else {
-        alcBadgeEl.innerText = "NORMAL";
+        alcBadgeEl.innerText = "Normal";
         alcBadgeEl.className = "badge badge-success";
       }
     }
@@ -145,13 +145,13 @@ class DashboardController {
     if (distEl) distEl.innerText = dist > 400 ? "> 400" : Math.round(dist);
     if (distBadgeEl) {
       if (dist <= 40) {
-        distBadgeEl.innerText = "IMMINENT";
+        distBadgeEl.innerText = "Imminent";
         distBadgeEl.className = "badge badge-danger";
       } else if (dist <= 100) {
-        distBadgeEl.innerText = "WARNING";
+        distBadgeEl.innerText = "Warning";
         distBadgeEl.className = "badge badge-warning";
       } else {
-        distBadgeEl.innerText = "CLEAR";
+        distBadgeEl.innerText = "Clear";
         distBadgeEl.className = "badge badge-success";
       }
     }
@@ -173,13 +173,13 @@ class DashboardController {
     }
     if (tiltBadgeEl) {
       if (tilt >= 45.0 || (t.evt && t.evt.includes("ACCIDENT"))) {
-        tiltBadgeEl.innerText = "ACCIDENT";
+        tiltBadgeEl.innerText = "Accident";
         tiltBadgeEl.className = "badge badge-danger";
       } else if (tilt >= 20.0) {
-        tiltBadgeEl.innerText = "WARNING";
+        tiltBadgeEl.innerText = "Warning";
         tiltBadgeEl.className = "badge badge-warning";
       } else {
-        tiltBadgeEl.innerText = "NORMAL";
+        tiltBadgeEl.innerText = "Normal";
         tiltBadgeEl.className = "badge badge-success";
       }
     }
@@ -198,10 +198,10 @@ class DashboardController {
     if (driverEl) driverEl.innerText = driverName;
     if (authBadgeEl) {
       if (auth) {
-        authBadgeEl.innerText = "AUTHORIZED";
+        authBadgeEl.innerText = "Authorized";
         authBadgeEl.className = "badge badge-success";
       } else {
-        authBadgeEl.innerText = "UNAUTHORIZED";
+        authBadgeEl.innerText = "Unauthorized";
         authBadgeEl.className = "badge badge-danger";
       }
     }
@@ -225,12 +225,12 @@ class DashboardController {
     const espPortEl = document.getElementById("val-esp32-port");
     if (espBadgeEl) {
       if (this.systemMode === "simulation" || !this.backendConnected) {
-        espBadgeEl.innerText = "SIMULATED";
+        espBadgeEl.innerText = "Simulated";
         espBadgeEl.className = "badge badge-info";
         if (espPortEl) espPortEl.innerText = "Virtual Driver Engine";
       } else {
         const isConn = t.esp32_connected;
-        espBadgeEl.innerText = isConn ? "CONNECTED" : "DISCONNECTED";
+        espBadgeEl.innerText = isConn ? "Connected" : "Disconnected";
         espBadgeEl.className = `badge ${isConn ? 'badge-success' : 'badge-muted'}`;
         if (espPortEl) espPortEl.innerText = isConn ? "USB Serial 115200" : "Hardware Offline";
       }
@@ -240,7 +240,7 @@ class DashboardController {
     const fix = t.fix === 1;
     const gpsFixBadge = document.getElementById("badge-gps-fix");
     if (gpsFixBadge) {
-      gpsFixBadge.innerText = fix ? "3D FIX" : "NO FIX";
+      gpsFixBadge.innerText = fix ? "3D fix" : "No fix";
       gpsFixBadge.className = `badge ${fix ? 'badge-success' : 'badge-danger'}`;
     }
 
@@ -248,7 +248,7 @@ class DashboardController {
     const zoneCode = t.zone || "NONE";
     const zoneBadgeEl = document.getElementById("val-current-zone");
     if (zoneBadgeEl) {
-      zoneBadgeEl.innerText = zoneCode === "NONE" ? "Open Highway" : zoneCode;
+      zoneBadgeEl.innerText = zoneCode === "None" ? "Open Highway" : zoneCode;
     }
 
     // Feed to Live Charts
@@ -386,7 +386,7 @@ class DashboardController {
       if (btnSerial) btnSerial.className = "btn btn-outline btn-sm";
       if (serialConfigPanel) serialConfigPanel.style.display = "none";
       if (headerModeBadge) {
-        headerModeBadge.innerText = "SIMULATION ACTIVE";
+        headerModeBadge.innerText = "Simulation active";
         headerModeBadge.className = "badge badge-info";
       }
     } else {
@@ -394,7 +394,7 @@ class DashboardController {
       if (btnSerial) btnSerial.className = "btn btn-teal btn-sm";
       if (serialConfigPanel) serialConfigPanel.style.display = "block";
       if (headerModeBadge) {
-        headerModeBadge.innerText = "HARDWARE SERIAL ACTIVE";
+        headerModeBadge.innerText = "Hardware serial active";
         headerModeBadge.className = "badge badge-warning";
       }
     }
@@ -452,7 +452,7 @@ class DashboardController {
     if (!events || events.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align:center; color:#627289; padding:24px;">
+          <td colspan="8" style="text-align:center; color:#6B7280; padding:24px;">
             No safety events recorded yet. Trigger a test scenario below to log events.
           </td>
         </tr>
@@ -479,14 +479,14 @@ class DashboardController {
       const badgeClass = typeBadges[ev.event_type] || "badge-info";
       html += `
         <tr>
-          <td><code style="color:#627289;">#${ev.id}</code></td>
+          <td><code style="color:#6B7280;">#${ev.id}</code></td>
           <td><span class="badge ${badgeClass}">${ev.event_type}</span></td>
-          <td style="color:#94A3B8; font-size:0.78rem;">${ev.timestamp}</td>
+          <td style="color:#4B5563; font-size:0.78rem;">${ev.timestamp}</td>
           <td><b>${ev.driver_name || 'Unknown'}</b></td>
-          <td><span style="color:#E6C34A; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
-          <td><code style="color:#94A3B8; font-size:0.75rem;">${ev.latitude}, ${ev.longitude}</code></td>
+          <td><span style="color:#A16207; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
+          <td><code style="color:#4B5563; font-size:0.75rem;">${ev.latitude}, ${ev.longitude}</code></td>
           <td>${ev.danger_zone_name || 'None'}</td>
-          <td style="color:#94A3B8; font-size:0.78rem;">${ev.details || ''}</td>
+          <td style="color:#4B5563; font-size:0.78rem;">${ev.details || ''}</td>
         </tr>
       `;
     });
@@ -612,10 +612,10 @@ class DashboardController {
     if (dot && text) {
       if (connected) {
         dot.className = "pulse-dot";
-        text.innerText = labelText || "SYSTEM ACTIVE";
+        text.innerText = labelText || "System active";
       } else {
         dot.className = "pulse-dot danger";
-        text.innerText = "DISCONNECTED";
+        text.innerText = "Disconnected";
       }
     }
   }
@@ -626,10 +626,8 @@ class DashboardController {
 
     const toast = document.createElement("div");
     toast.className = `toast toast-${type}`;
-    const icon = type === "error" ? "bi-x-circle-fill" : type === "warning" ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill";
 
     toast.innerHTML = `
-      <i class="bi ${icon}" style="font-size:1.1rem;"></i>
       <span>${message}</span>
     `;
 

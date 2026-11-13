@@ -147,7 +147,7 @@ class ZoneEngine:
         self._overspeed = set()   # zone ids with an overspeed event already raised
         self.set_zones(zones)
 
-    # ---- zone management (works without restarting the server) ----------
+    # zone management (works without restarting the server)
     def set_zones(self, zones):
         """Replace the zone list. State for zones that still exist is kept.
         Invalid zones are skipped; returns a list of rejection messages."""
@@ -187,7 +187,7 @@ class ZoneEngine:
             lims = [self._zones[i]["speed_limit"] for i in self._inside]
             return min(lims) if lims else None
 
-    # ---- main entry point -------------------------------------------------
+    # main entry point
     def update(self, lat, lon, speed_kmh=0.0, fix=1):
         """Process one GPS fix. Never raises. Returns a list of event dicts."""
         try:
@@ -274,3 +274,42 @@ class ZoneEngine:
             "details": details,
             "distance_m": distance_m,
         }
+
+
+# --------------------------------------------------- map helpers (used by the simulator and dashboard)
+# haversine_distance is the same calculation as haversine_m; kept under the old name for callers.
+haversine_distance = haversine_m
+
+
+def calculate_bearing(lat1, lon1, lat2, lon2):
+    """Compass bearing in degrees (0-360) from point 1 to point 2."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    y = math.sin(dl) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
+
+
+def move_coordinate(lat, lon, bearing_deg, distance_m):
+    """Point reached by travelling distance_m metres from (lat, lon) on the given bearing."""
+    ang = distance_m / EARTH_RADIUS_M
+    b = math.radians(bearing_deg)
+    p1, l1 = math.radians(lat), math.radians(lon)
+    p2 = math.asin(math.sin(p1) * math.cos(ang) + math.cos(p1) * math.sin(ang) * math.cos(b))
+    l2 = l1 + math.atan2(math.sin(b) * math.sin(ang) * math.cos(p1),
+                         math.cos(ang) - math.sin(p1) * math.sin(p2))
+    return math.degrees(p2), (math.degrees(l2) + 540.0) % 360.0 - 180.0
+
+
+def find_active_danger_zone(lat, lon, zones):
+    """Dashboard zones use latitude / longitude / radius_meters keys.
+    Returns (zone, distance_m) for the closest zone containing the point, else (None, None)."""
+    best, best_dist = None, float("inf")
+    for zone in zones:
+        try:
+            dist = haversine_m(lat, lon, float(zone.get("latitude", 0)), float(zone.get("longitude", 0)))
+            if dist <= float(zone.get("radius_meters", 100)) and dist < best_dist:
+                best, best_dist = zone, dist
+        except (ValueError, TypeError):
+            continue
+    return best, (best_dist if best else None)

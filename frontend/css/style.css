@@ -1,0 +1,853 @@
+/* AcciAlert face login page styles */
+
+:root {
+  --bg-base: #F3F4F6;
+    --bg-surface: #FFFFFF;
+    --bg-surface-elevated: #F9FAFB;
+    --bg-glass: #FFFFFF;
+
+    --border-subtle: #D1D5DB;
+    --border-glow: #D1D5DB;
+    --border-active: #A16207;
+
+    --text-primary: #111827;
+    --text-secondary: #4B5563;
+    --text-muted: #6B7280;
+
+    --neon-cyan: #A16207;
+    --neon-emerald: #15803D;
+    --neon-crimson: #DC2626;
+    --neon-amber: #B45309;
+    --neon-violet: #6B7280;
+
+    --glow-cyan: none;
+    --glow-emerald: none;
+    --glow-crimson: none;
+
+    --font-sans: "Segoe UI", Arial, sans-serif;
+    --font-mono: Consolas, monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-base);
+        color: var(--text-primary);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* -------------------------------------------------------------
+   Top Navigation & Header Bar
+   ------------------------------------------------------------- */
+.navbar-cockpit {
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 12px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.brand-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+}
+
+.brand-logo-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 3px;
+    background: #FFFFFF;
+    border: 1px solid var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neon-cyan);
+    font-size: 1.3rem;
+}
+
+.brand-wrapper:hover .brand-logo-icon {
+    transform: scale(1.05) rotate(3deg);
+}
+
+.brand-title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+
+.brand-subtitle {
+    font-size: 0.70rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.brand-version-pill {
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: rgba(161, 98, 7, 0.15);
+    border: 1px solid rgba(161, 98, 7, 0.4);
+    color: var(--neon-cyan);
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* Nav Segmented Controls */
+.nav-segmented {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    padding: 4px;
+    border-radius: 3px;
+    display: flex;
+    gap: 4px;
+}
+
+.nav-segmented .nav-link-custom {
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 8px 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.nav-segmented .nav-link-custom:hover {
+    color: var(--text-primary);
+    background: rgba(17, 24, 39, 0.08);
+}
+
+.nav-segmented .nav-link-custom.active {
+    color: var(--text-primary);
+    background: #FFFFFF;
+    border-color: rgba(161, 98, 7, 0.5);
+}
+
+.nav-segmented .nav-link-custom.active i {
+    color: var(--neon-cyan);
+}
+
+/* Tab Navigation Content Panes */
+.tab-content {
+    display: none !important;
+}
+
+.tab-content.active {
+    display: block !important;
+}
+
+/* Header Action Controls */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.badge-serial {
+    background: rgba(180, 83, 9, 0.12);
+    border: 1px solid rgba(180, 83, 9, 0.4);
+    color: var(--neon-amber);
+    padding: 7px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.badge-serial.connected {
+    background: rgba(21, 128, 61, 0.12);
+    border-color: rgba(21, 128, 61, 0.5);
+    color: var(--neon-emerald);
+}
+
+.badge-serial .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+    display: inline-block;
+}
+
+.btn-tactical {
+    background: #A16207;
+    border: 1px solid #A16207;
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 7px 16px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-tactical:hover {
+    background: #FFFFFF;
+    border-color: var(--neon-cyan);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+/* -------------------------------------------------------------
+   Cockpit Glass Cards
+   ------------------------------------------------------------- */
+.cockpit-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.cockpit-card:hover {
+    border-color: rgba(17, 24, 39, 0.21);
+}
+
+.cockpit-card-header {
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cockpit-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cockpit-card-title i {
+    color: var(--neon-cyan);
+    font-size: 1.1rem;
+}
+
+/* -------------------------------------------------------------
+   Camera Viewport & Tactical HUD
+   ------------------------------------------------------------- */
+.camera-hud-frame {
+    position: relative;
+    width: 100%;
+    min-height: 440px;
+    background: #020408;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+#driverVideo {
+    width: 100%;
+    height: auto;
+    max-height: 520px;
+    object-fit: cover;
+    transform: scaleX(-1);
+    display: block;
+}
+
+#hudCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Tactical HUD Telemetry Overlay */
+.hud-telemetry-bar {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.telemetry-chip {
+    background: #FFFFFF;
+    border: 1px solid rgba(161, 98, 7, 0.3);
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--neon-cyan);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.camera-controls-floating {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 15;
+}
+
+.btn-start-detector {
+    background: #A16207;
+    border: 1px solid var(--neon-emerald);
+    color: #FFFFFF;
+    font-weight: 600;
+    padding: 12px 28px;
+    border-radius: 3px;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-start-detector:hover {
+    transform: scale(1.05);
+    color: #FFFFFF;
+}
+
+.btn-stop-detector {
+    background: #FFFFFF;
+    border: 1px solid var(--neon-crimson);
+    color: var(--text-primary);
+    font-weight: 600;
+    padding: 12px 28px;
+    border-radius: 3px;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-stop-detector:hover {
+    transform: scale(1.05);
+    color: var(--text-primary);
+}
+
+/* -------------------------------------------------------------
+   Vehicle Ignition Cockpit Widget (Supercar Engine Dial)
+   ------------------------------------------------------------- */
+.ignition-status-wrapper {
+    position: relative;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.ignition-dial {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 3px solid rgba(17, 24, 39, 0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.ignition-dial.locked {
+    border-color: var(--neon-crimson);
+}
+
+.ignition-dial.unlocked {
+    border-color: var(--neon-emerald);
+}
+
+.ignition-dial i {
+    font-size: 2.4rem;
+}
+
+.ignition-dial.locked i {
+    color: var(--neon-crimson);
+}
+
+.ignition-dial.unlocked i {
+    color: var(--neon-emerald);
+}
+
+.ignition-dial-text {
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-top: 4px;
+    color: var(--text-secondary);
+}
+
+.ignition-main-banner {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* -------------------------------------------------------------
+   Telemetry Metric Gauges
+   ------------------------------------------------------------- */
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.telemetry-cell {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    padding: 12px 8px;
+    text-align: center;
+}
+
+.telemetry-cell:hover {
+    border-color: rgba(161, 98, 7, 0.3);
+    transform: translateY(-2px);
+}
+
+.telemetry-cell-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.telemetry-cell-value {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+/* -------------------------------------------------------------
+   Two-Factor Security Verification Checklist
+   ------------------------------------------------------------- */
+.checklist-card {
+    background: rgba(11, 17, 32, 0.85);
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    padding: 14px 16px;
+    width: 100%;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.checklist-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--neon-cyan);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.checklist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.checklist-item:last-child {
+    border-bottom: none;
+    padding-top: 10px;
+    margin-top: 4px;
+    border-top: 1px dashed rgba(17, 24, 39, 0.18);
+}
+
+/* -------------------------------------------------------------
+   Audit Trail Table (Super Clean, Crystal-Clear Legibility)
+   ------------------------------------------------------------- */
+.audit-stats-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.audit-stat-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.audit-stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.audit-stat-icon.cyan { background: rgba(161, 98, 7, 0.15); color: var(--neon-cyan); }
+.audit-stat-icon.emerald { background: rgba(21, 128, 61, 0.15); color: var(--neon-emerald); }
+.audit-stat-icon.crimson { background: rgba(220, 38, 38, 0.15); color: var(--neon-crimson); }
+.audit-stat-icon.violet { background: rgba(107, 114, 128, 0.15); color: var(--neon-violet); }
+
+.audit-stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.audit-stat-number {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+/* Modern Data Table */
+.table-cockpit-container {
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    background: #FFFFFF;
+}
+
+.table-cockpit {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #e2e8f0;
+    font-size: 0.88rem;
+}
+
+.table-cockpit thead th {
+    background: #FFFFFF;
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(17, 24, 39, 0.15);
+    white-space: nowrap;
+}
+
+.table-cockpit tbody td {
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+    vertical-align: middle;
+}
+
+.table-cockpit tbody tr:hover td {
+    background-color: rgba(161, 98, 7, 0.04);
+}
+
+/* High-Contrast Timestamp Display */
+.audit-ts-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.audit-ts-date {
+    font-size: 0.80rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.audit-ts-time {
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+/* Status Badges */
+.badge-cockpit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-cockpit.auth-ok {
+    background: rgba(21, 128, 61, 0.14);
+    border: 1px solid rgba(21, 128, 61, 0.5);
+    color: var(--neon-emerald);
+}
+
+.badge-cockpit.unauth {
+    background: rgba(220, 38, 38, 0.14);
+    border: 1px solid rgba(220, 38, 38, 0.5);
+    color: var(--neon-crimson);
+}
+
+.badge-cockpit.system-event {
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #cbd5e1;
+}
+
+.badge-severity-info {
+    background: rgba(161, 98, 7, 0.1);
+    border: 1px solid rgba(161, 98, 7, 0.3);
+    color: var(--neon-cyan);
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.badge-severity-high {
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.5);
+    color: var(--neon-crimson);
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+/* Driver Identity Pill in Table */
+.audit-driver-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.audit-driver-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #E5E7EB;
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--neon-cyan);
+}
+
+/* Match Percentage Meter in Table */
+.audit-match-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.audit-match-bar {
+    width: 50px;
+    height: 6px;
+    border-radius: 3px;
+    background: #E5E7EB;
+    overflow: hidden;
+}
+
+.audit-match-fill {
+    height: 100%;
+    border-radius: 3px;
+}
+
+/* JSON Code Snippet in Table */
+.audit-json-code {
+    background: #F3F4F6;
+    border: 1px solid rgba(17, 24, 39, 0.12);
+    border-radius: 3px;
+    padding: 5px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: #38bdf8;
+    display: inline-block;
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* -------------------------------------------------------------
+   Virtual Serial Terminal (CRT Sci-Fi Style)
+   ------------------------------------------------------------- */
+.terminal-window {
+    background: #F3F4F6;
+    border: 1px solid rgba(161, 98, 7, 0.2);
+    border-radius: 3px;
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    height: 180px;
+    overflow-y: auto;
+    color: #38bdf8;
+}
+
+.terminal-line {
+    margin-bottom: 4px;
+    word-break: break-all;
+    line-height: 1.45;
+}
+
+.terminal-ts { color: #64748b; margin-right: 6px; }
+.terminal-tx { color: #34d399; }
+.terminal-rx { color: #38bdf8; }
+.terminal-info { color: #94a3b8; }
+.terminal-warning { color: #fbbf24; }
+.terminal-error { color: #f87171; }
+.terminal-success { color: #4ade80; }
+
+/* -------------------------------------------------------------
+   Driver Profile Cards in Registry
+   ------------------------------------------------------------- */
+.driver-card-cockpit {
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.driver-card-cockpit:hover {
+    transform: translateY(-3px);
+    border-color: var(--neon-cyan);
+}
+
+.driver-card-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 3px;
+    object-fit: cover;
+    border: 2px solid var(--neon-cyan);
+}
+
+/* -------------------------------------------------------------
+   Prominent High-Tech Liveness Anti-Spoofing Telemetry Card
+   ------------------------------------------------------------- */
+.liveness-telemetry-card {
+    background: #FFFFFF;
+    border: 1.5px solid rgba(161, 98, 7, 0.25);
+    border-radius: 3px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.liveness-telemetry-card.verified {
+    border-color: rgba(21, 128, 61, 0.7);
+}
+
+.liveness-telemetry-card.checking {
+    border-color: rgba(255, 170, 0, 0.55);
+}
+
+.liveness-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.liveness-badge-pill {
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 3px;
+}
+
+.liveness-hero-banner {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(17, 24, 39, 0.12);
+}
+
+.liveness-hero-banner.verified {
+    background: #FFFFFF;
+    border-color: rgba(21, 128, 61, 0.45);
+}
+
+.liveness-hero-banner.checking {
+    background: #FFFFFF;
+    border-color: rgba(255, 170, 0, 0.45);
+}
+
+.liveness-hero-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    background: rgba(161, 98, 7, 0.15);
+    color: var(--neon-cyan);
+    border: 1px solid rgba(161, 98, 7, 0.3);
+}
+
+.liveness-hero-banner.verified .liveness-hero-icon {
+    background: rgba(21, 128, 61, 0.25);
+    color: var(--neon-emerald);
+    border-color: rgba(21, 128, 61, 0.6);
+}
+
+.liveness-hero-banner.checking .liveness-hero-icon {
+    background: rgba(255, 170, 0, 0.25);
+    color: #ffaa00;
+    border-color: rgba(255, 170, 0, 0.6);
+}
+
+/* -------------------------------------------------------------
+   Responsive Refinements
+   ------------------------------------------------------------- */
+@media (max-width: 992px) {
+    .nav-segmented {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    .audit-stats-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .audit-stats-strip {
+        grid-template-columns: 1fr;
+    }
+    .telemetry-grid {
+        grid-template-columns: 1fr;
+    }
+}
