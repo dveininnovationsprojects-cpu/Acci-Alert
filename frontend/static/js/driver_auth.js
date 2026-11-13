@@ -81,7 +81,10 @@ class DriverAuthController {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          this.auditLogs = parsed;
+          this.auditLogs = parsed.map(l => ({
+            ...l,
+            driver: (l.driver && String(l.driver).trim()) ? l.driver : (l.driver_name || "Unknown")
+          }));
         }
       }
     } catch (_) {}
@@ -465,7 +468,7 @@ class DriverAuthController {
 
     if (lockBadge) {
       lockBadge.className = isRealMatch ? "badge badge-success" : "badge badge-danger";
-      lockBadge.innerHTML = isRealMatch ? '<i class="bi bi-unlock-fill"></i> VEHICLE UNLOCKED' : '<i class="bi bi-lock-fill"></i> VEHICLE LOCKED';
+      lockBadge.innerHTML = isRealMatch ? 'VEHICLE UNLOCKED' : 'VEHICLE LOCKED';
     }
 
     if (engineIndicator) {
@@ -517,13 +520,14 @@ class DriverAuthController {
       }
 
       // Record in security audit trail
+      const safeDriverName = (displayName && String(displayName).trim()) ? displayName : "Unknown";
       this.recordAuditEvent({
         type: isRealMatch ? "AUTH_OK" : "UNAUTHORISED",
         severity: isRealMatch ? "INFO" : "HIGH",
-        driver: displayName,
+        driver: safeDriverName,
         match: Math.round(similarity),
         liveness: isRealMatch ? "PASSED" : "PENDING",
-        cmd: JSON.stringify({ cmd: "AUTH", ok: isRealMatch ? 1 : 0, driver: displayName })
+        cmd: JSON.stringify({ cmd: "AUTH", ok: isRealMatch ? 1 : 0, driver: safeDriverName })
       });
     }
   }
@@ -634,8 +638,8 @@ class DriverAuthController {
 
     tbody.innerHTML = drivers.map(d => `
       <tr>
-        <td style="font-weight:600; color:#FFFFFF;">
-          <i class="bi bi-person-fill" style="color:var(--teal-primary); margin-right:6px;"></i>${d.name}
+        <td style="font-weight:600; color:var(--text-main, #111827);">
+          ${d.name}
           ${d.name === this.selectedDriver ? '<span class="badge badge-info" style="margin-left:6px; font-size:0.65rem;">ACTIVE</span>' : ''}
         </td>
         <td><span class="badge badge-success">ACTIVE &bull; 100%</span></td>
@@ -643,10 +647,10 @@ class DriverAuthController {
         <td>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-teal btn-sm" onclick="window.DriverAuth.selectActiveDriver('${d.name}')" style="padding:2px 8px; font-size:0.75rem;">
-              <i class="bi bi-check-lg"></i> Select
+              Select
             </button>
             <button class="btn btn-outline btn-sm" onclick="window.DriverAuth.deleteDriver('${d.name}')" style="padding:2px 6px; font-size:0.75rem; color:var(--red-critical); border-color:rgba(225,29,72,0.4);" title="Delete Driver">
-              <i class="bi bi-trash"></i>
+              Delete
             </button>
           </div>
         </td>
@@ -699,11 +703,12 @@ class DriverAuthController {
   // ===================================================================
   recordAuditEvent(eventData) {
     const now = new Date();
+    const driverVal = (eventData.driver && String(eventData.driver).trim()) ? eventData.driver : "Unknown";
     const entry = {
       timestamp: now.toTimeString().split(" ")[0],
       type: eventData.type,
       severity: eventData.severity,
-      driver: eventData.driver,
+      driver: driverVal,
       match: eventData.match,
       liveness: eventData.liveness,
       cmd: eventData.cmd
@@ -728,7 +733,7 @@ class DriverAuthController {
             driver: l.driver_name || l.driver || "Unknown",
             match: l.match_score || 85,
             liveness: l.liveness_result || "PASSED",
-            cmd: l.transmission || JSON.stringify({ cmd: "AUTH", ok: 1, driver: l.driver_name })
+            cmd: l.transmission || JSON.stringify({ cmd: "AUTH", ok: 1, driver: l.driver_name || l.driver || "Unknown" })
           }));
           this.savePersistedLogs();
         }
@@ -785,7 +790,7 @@ class DriverAuthController {
           <td style="font-family:monospace; color:var(--text-secondary); font-size:0.78rem;">${l.timestamp}</td>
           <td><span class="${typeBadgeClass}">${l.type}</span></td>
           <td><span class="${sevBadgeClass}">${l.severity}</span></td>
-          <td style="font-weight:600; color:#FFFFFF;">${l.driver}</td>
+          <td style="font-weight:600; color:var(--text-main, #111827);">${l.driver || "Unknown"}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-family:monospace; color:${isOk ? 'var(--green-success)' : 'var(--red-critical)'}; font-weight:700;">${l.match}%</span>
@@ -834,7 +839,7 @@ class DriverAuthController {
   }
 }
 
-// Global Launcher helper to open Face Recognition tab from Header or Card 6
+// Opens the Face Recognition tab (used by the Driver Identity card)
 window.openDriverAuthTab = function() {
   const tabBtn = document.querySelector('[data-tab="tab-face-recognition"]');
   if (tabBtn) tabBtn.click();

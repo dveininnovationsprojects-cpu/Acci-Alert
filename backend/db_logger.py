@@ -1,12 +1,5 @@
-"""
-AcciAlert - Database & Backend Event Logger
-Module: AI Face Recognition & Driver Authorisation (Arsal)
-
-Features:
-  - Direct persistence into SQLite `accialert.db` (table: events)
-  - Manages enrolled driver records in `drivers` table
-  - REST API push to Muniyappan's dashboard (/api/events)
-  - Thread-safe and resilient against offline dashboard backend
+"""Saves face login results to the events table and posts them to the dashboard API.
+Keeps working if the dashboard is not running.
 """
 
 from datetime import datetime

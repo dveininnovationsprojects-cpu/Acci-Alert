@@ -1,19 +1,22 @@
 __pycache__/
-*.py[cod]
-*$py.class
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache/
-.mypy_cache/
-*.log
-venv/
-.env
 .vscode/
 .idea/
 
 # runtime data and backups
+*.db
 *.db-wal
 *.db-shm
+data/
 backend/data/
 backend/backups/
+.mypy_cache/
+.pytest_cache/
+
+# non-project documents
+*.docx
+chap_*.py
+main_builder.py
+style_helpers.py

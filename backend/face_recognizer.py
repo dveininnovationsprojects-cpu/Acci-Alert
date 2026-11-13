@@ -1,12 +1,5 @@
-"""
-AcciAlert - Face Recognition Engine (LBPH)
-Module: AI Face Recognition & Driver Authorisation (Arsal)
-
-Features:
-  - Local Binary Patterns Histograms (LBPH) Face Recognizer
-  - Robust against lighting variations via local texture histograms
-  - Dynamic thresholding: low distance = high match confidence
-  - Persistence to YAML and JSON label dictionary
+"""Recognises enrolled drivers with the OpenCV LBPH face recogniser.
+The trained model is saved in models/face_model.yml and the names in models/labels.json.
 """
 
 import json

@@ -1,7 +1,4 @@
-"""
-AcciAlert - Master Configuration Module
-Smart Driver Safety, Accident Prevention & Driver Authorisation System
-Unified Architecture: Arsal (AI Vision) & Prasanth / Muniyappan (Danger Zones & Fleet Telemetry)
+"""Settings for the whole backend: paths, server port, serial port, limits and starting data.
 """
 
 import os
@@ -13,10 +10,10 @@ BACKEND_DIR = Path(__file__).resolve().parent      # backend/
 DATA_DIR = BACKEND_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-AI_DIR = BASE_DIR / "ai"
-MODELS_DIR = BASE_DIR / "models"
-DATASET_DIR = BASE_DIR / "dataset"
-DATASET_TEST_DIR = BASE_DIR / "dataset_test"
+AI_DIR = BACKEND_DIR
+MODELS_DIR = BACKEND_DIR / "models"
+DATASET_DIR = BACKEND_DIR / "dataset"
+DATASET_TEST_DIR = BACKEND_DIR / "dataset_test"
 DOCS_DIR = BASE_DIR / "docs"
 FRONTEND_DIR = BASE_DIR / "frontend"
 
@@ -54,8 +51,8 @@ LIVENESS_MOTION_THRESHOLD = 2.0
 DATABASE_PATH = str(DATA_DIR / "accialert.db")
 DB_PATH = Path(DATABASE_PATH)
 
-# Server Configuration (Strictly Port 5173)
-SECRET_KEY = os.environ.get("SECRET_KEY", "accialert-secret-key-2026-muniyappan")
+# Server
+SECRET_KEY = os.environ.get("SECRET_KEY", "accialert-dev-key")
 HOST = "0.0.0.0"
 PORT = 5173
 DEBUG = False

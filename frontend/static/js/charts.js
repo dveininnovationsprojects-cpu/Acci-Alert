@@ -38,8 +38,8 @@ class LiveChartsManager {
 
     const ctx = canvas.getContext("2d");
     const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-    gradient.addColorStop(0, "rgba(230, 195, 74, 0.35)");
-    gradient.addColorStop(1, "rgba(230, 195, 74, 0.0)");
+    gradient.addColorStop(0, "rgba(202, 138, 4, 0.35)");
+    gradient.addColorStop(1, "rgba(202, 138, 4, 0.0)");
 
     this.speedChart = new Chart(ctx, {
       type: "line",
@@ -48,14 +48,14 @@ class LiveChartsManager {
         datasets: [{
           label: "Vehicle Speed (km/h)",
           data: [...this.speedHistory],
-          borderColor: "#E6C34A",
+          borderColor: "#CA8A04",
           borderWidth: 2.2,
           backgroundColor: gradient,
           fill: true,
           tension: 0.35,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#E6C34A"
+          pointHoverBackgroundColor: "#CA8A04"
         }]
       },
       options: {
@@ -67,10 +67,10 @@ class LiveChartsManager {
           tooltip: {
             mode: "index",
             intersect: false,
-            backgroundColor: "rgba(19, 34, 68, 0.95)",
-            titleColor: "#E6C34A",
+            backgroundColor: "#111827",
+            titleColor: "#CA8A04",
             bodyColor: "#FFFFFF",
-            borderColor: "rgba(230, 195, 74, 0.4)",
+            borderColor: "rgba(202, 138, 4, 0.4)",
             borderWidth: 1,
             callbacks: {
               label: (ctx) => `Speed: ${ctx.parsed.y.toFixed(1)} km/h`
@@ -80,9 +80,9 @@ class LiveChartsManager {
         scales: {
           x: {
             display: true,
-            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            grid: { color: "rgba(17, 24, 39, 0.08)" },
             ticks: {
-              color: "#627289",
+              color: "#6B7280",
               font: { size: 10 },
               maxTicksLimit: 6
             }
@@ -91,9 +91,9 @@ class LiveChartsManager {
             display: true,
             min: 0,
             max: 100,
-            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            grid: { color: "rgba(17, 24, 39, 0.08)" },
             ticks: {
-              color: "#94A3B8",
+              color: "#6B7280",
               font: { size: 10 },
               stepSize: 20
             }
@@ -109,8 +109,8 @@ class LiveChartsManager {
 
     const ctx = canvas.getContext("2d");
     const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-    gradient.addColorStop(0, "rgba(249, 115, 22, 0.35)");
-    gradient.addColorStop(1, "rgba(249, 115, 22, 0.0)");
+    gradient.addColorStop(0, "rgba(234, 88, 12, 0.35)");
+    gradient.addColorStop(1, "rgba(234, 88, 12, 0.0)");
 
     this.alcoholChart = new Chart(ctx, {
       type: "line",
@@ -120,14 +120,14 @@ class LiveChartsManager {
           {
             label: "Alcohol ADC Reading",
             data: [...this.alcoholHistory],
-            borderColor: "#F97316",
+            borderColor: "#EA580C",
             borderWidth: 2.2,
             backgroundColor: gradient,
             fill: true,
             tension: 0.3,
             pointRadius: 0,
             pointHoverRadius: 5,
-            pointHoverBackgroundColor: "#F97316"
+            pointHoverBackgroundColor: "#EA580C"
           },
           {
             label: "Danger Threshold (600 ADC)",
@@ -148,7 +148,7 @@ class LiveChartsManager {
           legend: {
             display: true,
             labels: {
-              color: "#94A3B8",
+              color: "#6B7280",
               font: { size: 10 },
               boxWidth: 12
             }
@@ -156,10 +156,10 @@ class LiveChartsManager {
           tooltip: {
             mode: "index",
             intersect: false,
-            backgroundColor: "rgba(19, 34, 68, 0.95)",
-            titleColor: "#F97316",
+            backgroundColor: "#111827",
+            titleColor: "#EA580C",
             bodyColor: "#FFFFFF",
-            borderColor: "rgba(249, 115, 22, 0.4)",
+            borderColor: "rgba(234, 88, 12, 0.4)",
             borderWidth: 1,
             callbacks: {
               label: (ctx) => {
@@ -174,9 +174,9 @@ class LiveChartsManager {
         scales: {
           x: {
             display: true,
-            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            grid: { color: "rgba(17, 24, 39, 0.08)" },
             ticks: {
-              color: "#627289",
+              color: "#6B7280",
               font: { size: 10 },
               maxTicksLimit: 6
             }
@@ -185,9 +185,9 @@ class LiveChartsManager {
             display: true,
             min: 0,
             max: 1024,
-            grid: { color: "rgba(255, 255, 255, 0.05)" },
+            grid: { color: "rgba(17, 24, 39, 0.08)" },
             ticks: {
-              color: "#94A3B8",
+              color: "#6B7280",
               font: { size: 10 },
               stepSize: 200
             }

@@ -7,7 +7,7 @@ Verifies:
 """
 
 import pytest
-from ai.test_recognition import run_t8_acceptance_tests
+from backend.tools.t8_acceptance import run_t8_acceptance_tests
 
 
 def test_t8_acceptance_criteria():

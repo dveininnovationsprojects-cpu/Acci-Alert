@@ -1,11 +1,8 @@
-"""
-AcciAlert - Master Unified Server & WebSocket Core
-Integrates:
-  1. AI Face Recognition & Liveness Anti-Spoofing (Arsal)
-  2. Danger-Zone Geofencing Engine & Zone Manager (Prasanth)
-  3. Live Telemetry Dashboard, Charts, Map & Simulator (Muniyappan)
-  4. ESP32 UART Serial Bridge & Protocol (Selvamani)
-Strictly configured to run on Port 5173.
+"""Main server: dashboard, zone manager, face login and the ESP32 link on one port (5173).
+
+Parts: face recognition (Arsal), danger zones and zone manager (Prasanth),
+dashboard, map and simulator (Muniyappan), serial protocol (Selvamani).
+Start with:  python backend/app.py
 """
 
 import base64
@@ -39,31 +36,27 @@ if str(PROJECT_ROOT) not in sys.path:
 try:
     import config
     import database
-    from geo_utils import haversine_distance, find_active_danger_zone
-    from serial_manager import SerialManager
+    from serial_link import SerialManager, ESP32SerialCommunicator
     from simulator import VehicleSimulator
     import db as zone_db
-    from zones import ZoneEngine, zones_to_esp32_cmd
+    from zones import ZoneEngine, zones_to_esp32_cmd, haversine_distance, find_active_danger_zone
     from zone_api import mount_zone_manager
     from face_detector import FaceDetector
     from face_recognizer import FaceRecognizer
     from liveness import LivenessDetector
     from db_logger import DatabaseLogger
-    from serial_comm import ESP32SerialCommunicator
 except ImportError:
     from backend import config
     from backend import database
-    from backend.geo_utils import haversine_distance, find_active_danger_zone
-    from backend.serial_manager import SerialManager
+    from backend.serial_link import SerialManager, ESP32SerialCommunicator
     from backend.simulator import VehicleSimulator
     from backend import db as zone_db
-    from backend.zones import ZoneEngine, zones_to_esp32_cmd
+    from backend.zones import ZoneEngine, zones_to_esp32_cmd, haversine_distance, find_active_danger_zone
     from backend.zone_api import mount_zone_manager
     from backend.face_detector import FaceDetector
     from backend.face_recognizer import FaceRecognizer
     from backend.liveness import LivenessDetector
     from backend.db_logger import DatabaseLogger
-    from backend.serial_comm import ESP32SerialCommunicator
 
 # Configure Logging
 logging.basicConfig(
@@ -124,7 +117,7 @@ serial_mgr = SerialManager(
     on_telemetry_callback=on_serial_telemetry_received
 )
 
-# ---- Prasanth's danger-zone engine + zone manager (backend/), mounted at /zm ----
+# Prasanth's danger-zone engine + zone manager (backend/), mounted at /zm
 zone_conn = zone_db.connect()  # backend/data/accialert_zones.db (zones + zone events)
 zone_db.seed_zones_from_json(zone_conn, os.path.join(os.path.dirname(os.path.abspath(__file__)), "zones.json"))
 zone_engine = ZoneEngine(zone_db.list_zones(zone_conn))
@@ -132,9 +125,7 @@ mount_zone_manager(app, zone_conn, zone_engine, prefix="/zm")
 zone_db.start_purge_scheduler()
 
 
-# =====================================================================
-# TELEMETRY PROCESSING & ALERT LOGIC
-# =====================================================================
+# Telemetry processing & alert logic
 
 def evaluate_and_dispatch_alerts(telemetry: dict):
     """
@@ -405,20 +396,24 @@ def send_unified_command(command: str, value=None, source: str = "UI"):
     return True
 
 
-# =====================================================================
-# STATIC ASSETS & FRONTEND PAGES
-# =====================================================================
+# Static assets & frontend pages
 
 @app.route("/")
 def index():
-    """Serves the master integrated AcciAlert cockpit (Driver Authorisation + Fleet Dashboard)."""
+    """Main page."""
     return send_from_directory(FRONTEND_DIR, "index.html")
 
 
 @app.route("/dashboard")
 def dashboard_view():
-    """Serves the standalone Fleet Telemetry & Danger Zones Dashboard."""
+    """Fleet dashboard page."""
     return send_from_directory(FRONTEND_DIR, "dashboard.html")
+
+
+@app.route("/auth.html")
+def auth_page():
+    """Serves the Driver Authorisation (face recognition) page."""
+    return send_from_directory(FRONTEND_DIR, "auth.html")
 
 
 @app.route("/zones.html")
@@ -452,9 +447,7 @@ def serve_static(filename):
     return send_from_directory(os.path.join(FRONTEND_DIR, "static"), filename)
 
 
-# =====================================================================
 # AI FACE RECOGNITION & DRIVER AUTHORISATION APIS (Arsal)
-# =====================================================================
 
 @app.route("/api/health", methods=["GET"])
 def health_check_api():
@@ -603,17 +596,18 @@ def audit_logs_api():
     logs = []
     for e in events:
         is_ok = "OK" in str(e["event_type"]).upper()
+        driver_val = e["driver_name"] or "Unknown"
         logs.append({
             "id": e["id"],
             "timestamp": e["timestamp"],
             "event_type": e["event_type"],
             "type": e["event_type"],
             "severity": "INFO" if is_ok else "HIGH",
-            "driver_name": e["driver_name"],
-            "driver": e["driver_name"],
+            "driver_name": driver_val,
+            "driver": driver_val,
             "match_score": 85 if is_ok else 42,
             "liveness_result": "PASSED",
-            "transmission": json.dumps({"cmd": "AUTH", "ok": 1 if is_ok else 0, "driver": e["driver_name"]}),
+            "transmission": json.dumps({"cmd": "AUTH", "ok": 1 if is_ok else 0, "driver": driver_val}),
             "details": e["details"] or ""
         })
     return jsonify({"status": "success", "logs": logs, "total": len(logs)})
@@ -713,9 +707,7 @@ def serial_history_api():
     return jsonify({"status": "success", "history": rows})
 
 
-# =====================================================================
 # FLEET TELEMETRY & DANGER ZONE APIS (Prasanth & Muniyappan)
-# =====================================================================
 
 @app.route("/api/status", methods=["GET"])
 def get_system_status():
@@ -938,9 +930,7 @@ def trigger_simulation_scenario_api():
     return jsonify({"status": "success", "scenario": scenario, "duration": duration})
 
 
-# =====================================================================
-# WEBSOCKET EVENT HANDLERS
-# =====================================================================
+# Websocket event handlers
 
 @socketio.on("connect")
 def on_client_connected():
@@ -964,9 +954,7 @@ def on_socket_command(payload):
         send_unified_command(cmd, val, source="SOCKETIO_CLIENT")
 
 
-# =====================================================================
-# MAIN ENTRYPOINT
-# =====================================================================
+# Main entrypoint
 
 # Start the background telemetry loop
 start_background_telemetry()

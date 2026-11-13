@@ -1,15 +1,12 @@
-"""
-AcciAlert - Mock Telemetry Generator & Vehicle Dynamics Simulator
-Generates realistic vehicle movement, sensor values, geofence interactions,
-and responds to control panel commands without physical hardware.
-Author: Muniyappan
+"""Fake car data for the dashboard when no ESP32 is connected.
+Moves a car along the road, produces sensor values and reacts to the control buttons.
 """
 
 import math
 import random
 import time
 from typing import Dict, Any, List, Optional
-from geo_utils import haversine_distance, calculate_bearing, move_coordinate, find_active_danger_zone
+from zones import haversine_distance, calculate_bearing, move_coordinate, find_active_danger_zone
 from config import THRESHOLDS, DEFAULT_LATITUDE, DEFAULT_LONGITUDE
 
 

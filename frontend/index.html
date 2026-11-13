@@ -8,14 +8,8 @@
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300F2C3'><path d='M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10h2v4h-2zm0 6h2v2h-2z'/></svg>">
 
-  <!-- Google Fonts: Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-
   <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
+  
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
@@ -29,9 +23,6 @@
   <!-- ================================================================= -->
   <div id="alert-banner-container">
     <div class="alert-banner-content">
-      <div class="alert-icon-wrap">
-        <i id="alert-banner-icon" class="bi bi-exclamation-octagon-fill" style="font-size: 1.4rem;"></i>
-      </div>
       <div class="alert-text-wrap">
         <h3 id="alert-banner-title">CRITICAL SAFETY ALERT</h3>
         <p id="alert-banner-message">Warning condition detected by sensor array.</p>
@@ -39,7 +30,7 @@
     </div>
     <div class="alert-actions-wrap">
       <button id="btn-banner-ack" class="btn btn-outline btn-sm" style="border-color:#FFFFFF; color:#FFFFFF;">
-        <i class="bi bi-bell-slash"></i> Acknowledge
+        Acknowledge
       </button>
     </div>
   </div>
@@ -49,40 +40,29 @@
   <!-- ================================================================= -->
   <header class="header-navbar">
     <div class="brand-section">
-      <div class="brand-logo">
-        <svg viewBox="0 0 24 24">
-          <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-        </svg>
-      </div>
       <div class="brand-text">
-        <h1>AcciAlert <span style="font-size:0.75rem; color:var(--teal-primary); font-weight:600; border:1px solid var(--teal-primary); padding:2px 8px; border-radius:12px;">v2.0 PRO</span></h1>
-        <p>Smart Driver Safety, Accident Prevention & Vision AI System &bull; Lead: Muniyappan &amp; Arsal</p>
+        <h1>AcciAlert</h1>
+        <p>Smart Driver Safety & Accident Prevention System • Muniyappan & Arsal</p>
       </div>
     </div>
 
     <div class="header-center-info">
       <div class="status-chip">
         <div id="header-pulse-dot" class="pulse-dot"></div>
-        <span id="header-status-text">SYSTEM ACTIVE</span>
+        <span id="header-status-text">INITIALIZING</span>
       </div>
-      <div class="status-chip">
-        <i class="bi bi-cpu" style="color:var(--teal-primary);"></i>
-        <span id="header-mode-badge" class="badge badge-info">SIMULATION ACTIVE</span>
+      <div class="status-chip" style="display:none;">
+                <span id="header-mode-badge" class="badge badge-info">Simulation active</span>
       </div>
     </div>
 
     <div class="header-actions">
-      <button type="button" onclick="openDriverAuthTab()" class="btn btn-teal btn-sm">
-        <i class="bi bi-camera-video-fill"></i> Face Recognition
-      </button>
-      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm">
-        <i class="bi bi-geo-alt-fill"></i> Zone Manager
-      </button>
+      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm">Zone Manager</button>
       <button id="btn-mute-toggle" class="btn btn-outline btn-sm">
-        <i class="bi bi-volume-up-fill"></i> Sound ON
+        Sound ON
       </button>
-      <div style="display:flex; background:rgba(255,255,255,0.06); padding:3px; border-radius:8px;">
-        <button id="btn-mode-sim" class="btn btn-teal btn-sm" style="padding:4px 10px; font-size:0.75rem;">Simulation</button>
+      <div style="display:flex; background:#E5E7EB; padding:3px; border-radius:3px;">
+        <button id="btn-mode-sim" class="btn btn-teal btn-sm" style="display:none; padding:4px 10px; font-size:0.75rem;">Simulation</button>
         <button id="btn-mode-serial" class="btn btn-outline btn-sm" style="padding:4px 10px; font-size:0.75rem;">ESP32 Serial</button>
       </div>
     </div>
@@ -98,7 +78,7 @@
     <!-- ------------------------------------------------------------- -->
     <div>
       <div class="section-header">
-        <h2 class="section-title">Live Telemetry & Diagnostics</h2>
+        <h2 class="section-title">Live Readings</h2>
         <span style="font-size:0.8rem; color:var(--text-muted);">
           Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
           &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
@@ -112,7 +92,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">Vehicle Speed</span>
-            <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
           </div>
           <div class="card-body">
             <span id="val-speed" class="card-value">0.0</span>
@@ -123,7 +102,7 @@
           </div>
           <div class="card-footer">
             <span>Limit: <strong id="val-speed-limit" style="color:var(--teal-primary);">60 km/h</strong></span>
-            <span id="badge-speed-status" class="badge badge-success">CRUISING</span>
+            <span id="badge-speed-status" class="badge badge-success">Cruising</span>
           </div>
         </div>
 
@@ -131,7 +110,6 @@
         <div class="metric-card accent-orange">
           <div class="card-top">
             <span class="card-label">Alcohol Sensor</span>
-            <div class="card-icon"><i class="bi bi-shield-shaded"></i></div>
           </div>
           <div class="card-body">
             <span id="val-alcohol" class="card-value">180</span>
@@ -142,7 +120,7 @@
           </div>
           <div class="card-footer">
             <span>Threshold: 600 ADC</span>
-            <span id="badge-alcohol" class="badge badge-success">NORMAL</span>
+            <span id="badge-alcohol" class="badge badge-success">Normal</span>
           </div>
         </div>
 
@@ -150,7 +128,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">Obstacle Distance</span>
-            <div class="card-icon"><i class="bi bi-radar"></i></div>
           </div>
           <div class="card-body">
             <span id="val-obstacle" class="card-value">180</span>
@@ -161,7 +138,7 @@
           </div>
           <div class="card-footer">
             <span>Range: 40 - 400 cm</span>
-            <span id="badge-obstacle" class="badge badge-success">CLEAR</span>
+            <span id="badge-obstacle" class="badge badge-success">Clear</span>
           </div>
         </div>
 
@@ -169,7 +146,6 @@
         <div class="metric-card accent-red">
           <div class="card-top">
             <span class="card-label">Accident / Tilt Status</span>
-            <div class="card-icon"><i class="bi bi-compass"></i></div>
           </div>
           <div class="card-body">
             <span id="val-tilt" class="card-value">3.2°</span>
@@ -178,7 +154,7 @@
           <div class="card-footer" style="flex-direction:column; align-items:flex-start; gap:4px;">
             <div style="display:flex; justify-content:space-between; width:100%;">
               <span id="val-accel" style="color:var(--text-muted); font-size:0.72rem;">X:0.02 Y:0.01 Z:1.00g</span>
-              <span id="badge-tilt" class="badge badge-success">NORMAL</span>
+              <span id="badge-tilt" class="badge badge-success">Normal</span>
             </div>
           </div>
         </div>
@@ -187,73 +163,45 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">GPS Coordinates</span>
-            <div class="card-icon"><i class="bi bi-geo-alt"></i></div>
           </div>
           <div class="card-body" style="font-size:1.1rem; flex-direction:column; align-items:flex-start;">
-            <span id="val-gps" style="font-size:1.35rem; font-weight:700; color:#FFFFFF;">13.0827, 80.2707</span>
+            <span id="val-gps" style="font-size:1.35rem; font-weight:600; color:var(--text-main);">13.0827, 80.2707</span>
             <span class="card-unit" style="font-size:0.75rem;">Chennai Corridor</span>
           </div>
           <div class="card-footer">
             <span>Accuracy: High</span>
             <button onclick="window.MapManager && window.MapManager.centerOnVehicle()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.7rem;">
-              <i class="bi bi-crosshair"></i> Locate
+              Locate
             </button>
           </div>
         </div>
 
-        <!-- Card 6: Driver Identity & Facial Auth (Arsal Integration) -->
+        <!-- Card 6: Driver Name & Authorisation -->
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">Driver Identity</span>
-            <div class="card-icon"><i class="bi bi-person-badge"></i></div>
           </div>
-          <div class="card-body" style="flex-direction:column; align-items:flex-start;">
-            <span id="val-driver" class="card-value" style="font-size:1.35rem;">Unknown</span>
-            <div style="display:flex; gap:6px; align-items:center; margin-top:2px;">
-              <span id="badge-driver-auth" class="badge badge-danger">UNAUTHORIZED</span>
-              <button onclick="openDriverAuthTab()" class="btn btn-teal btn-sm" style="padding:2px 8px; font-size:0.7rem;">
-                <i class="bi bi-camera"></i> Verify Face
-              </button>
-            </div>
+          <div class="card-body">
+            <span id="val-driver" class="card-value" style="font-size:1.45rem;">Unknown</span>
           </div>
           <div class="card-footer">
-            <span>Biometric Vision AI</span>
-            <span class="badge badge-info">LBP-1024D</span>
+            <span>Auth Status</span>
+            <span><span id="badge-driver-auth" class="badge badge-danger">Unauthorized</span>
+            <button type="button" onclick="openDriverAuthTab()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.7rem; margin-left:6px;">Verify face</button></span>
           </div>
         </div>
 
-        <!-- Card 7: Traffic Signal Status -->
-        <div class="metric-card">
-          <div class="card-top">
-            <span class="card-label">Traffic Signal</span>
-            <div class="card-icon"><i class="bi bi-stoplights"></i></div>
-          </div>
-          <div class="card-body" style="justify-content:space-between; align-items:center;">
-            <div class="traffic-signal-widget">
-              <div id="bulb-red" class="signal-bulb red"></div>
-              <div id="bulb-yellow" class="signal-bulb yellow"></div>
-              <div id="bulb-green" class="signal-bulb green active"></div>
-            </div>
-            <span id="val-signal" class="card-value" style="font-size:1.4rem; color:var(--green-success);">GREEN</span>
-          </div>
-          <div class="card-footer">
-            <span>V2X Signal Link</span>
-            <span class="badge badge-info">SYNCHRONIZED</span>
-          </div>
-        </div>
-
-        <!-- Card 8: Vehicle Status -->
+        <!-- Card 7: Vehicle Status -->
         <div id="card-vehicle-state" class="metric-card">
           <div class="card-top">
             <span class="card-label">Vehicle Status</span>
-            <div class="card-icon"><i class="bi bi-car-front"></i></div>
           </div>
           <div class="card-body">
             <span id="val-vehicle-state" class="card-value" style="color:var(--teal-primary);">RUNNING</span>
           </div>
           <div class="card-footer">
             <span>Safety Controller</span>
-            <span class="badge badge-success">SYS OK</span>
+            <span class="badge badge-success">System ok</span>
           </div>
         </div>
 
@@ -261,15 +209,14 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">ESP32 Hardware</span>
-            <div class="card-icon"><i class="bi bi-usb-symbol"></i></div>
           </div>
           <div class="card-body" style="font-size:1.2rem; flex-direction:column; align-items:flex-start;">
-            <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">SIMULATED</span>
-            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Virtual Driver Engine</span>
+            <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">Simulated</span>
+            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Simulator</span>
           </div>
           <div class="card-footer">
             <span>Baud: 115200</span>
-            <span class="badge badge-info">ONLINE</span>
+            <span class="badge badge-info">Online</span>
           </div>
         </div>
 
@@ -277,14 +224,13 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">GPS Link</span>
-            <div class="card-icon"><i class="bi bi-broadcast-pin"></i></div>
           </div>
           <div class="card-body">
-            <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D FIX</span>
+            <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D fix</span>
           </div>
           <div class="card-footer">
             <span>Constellation</span>
-            <span class="badge badge-info">8 SATS</span>
+            <span class="badge badge-info">8 sats</span>
           </div>
         </div>
 
@@ -299,9 +245,9 @@
       <!-- Left: Real-Time Charts (Speed & Alcohol) -->
       <div class="panel-card">
         <div class="panel-card-header">
-          <h2 class="section-title">Live Sensor Monitoring (Last 60 Seconds)</h2>
+          <h2 class="section-title">Sensors, last 60 seconds</h2>
           <span style="font-size:0.75rem; color:var(--text-muted);">
-            <i class="bi bi-arrow-repeat"></i> Auto-Updating
+            Updates live
           </span>
         </div>
 
@@ -309,7 +255,7 @@
           <!-- Speed Chart -->
           <div class="chart-subcard">
             <div class="chart-subcard-title">
-              <span><i class="bi bi-speedometer" style="color:var(--teal-primary);"></i> Speed Telemetry (km/h)</span>
+              <span>Speed Telemetry (km/h)</span>
               <span style="color:var(--teal-primary);">0 - 100 km/h</span>
             </div>
             <div class="chart-canvas-container">
@@ -320,7 +266,7 @@
           <!-- Alcohol Chart -->
           <div class="chart-subcard">
             <div class="chart-subcard-title">
-              <span><i class="bi bi-shield-exclamation" style="color:var(--orange-primary);"></i> Alcohol Sensor (MQ-3 ADC)</span>
+              <span>Alcohol Sensor (MQ-3 ADC)</span>
               <span style="color:var(--orange-primary);">0 - 1024 ADC</span>
             </div>
             <div class="chart-canvas-container">
@@ -333,16 +279,16 @@
       <!-- Right: Leaflet.js GPS Map -->
       <div class="panel-card">
         <div class="panel-card-header">
-          <h2 class="section-title orange">Vehicle GPS Tracking & Danger Zones</h2>
+          <h2 class="section-title orange">Vehicle map and danger zones</h2>
           <div style="display:flex; gap:6px;">
             <button id="btn-map-center" class="btn btn-outline btn-sm" title="Center on Vehicle">
-              <i class="bi bi-crosshair"></i> Center
+              Center
             </button>
             <button id="btn-map-follow" class="btn btn-teal btn-sm" title="Toggle Auto-Follow">
-              <i class="bi bi-crosshair2"></i> Following
+              Following
             </button>
             <button id="btn-map-clear-trail" class="btn btn-outline btn-sm" title="Clear Path Trail">
-              <i class="bi bi-trash"></i> Trail
+              Trail
             </button>
           </div>
         </div>
@@ -352,9 +298,9 @@
           
           <!-- Floating Coordinates Overlay -->
           <div class="map-floating-overlay">
-            <div><i class="bi bi-geo-alt-fill" style="color:var(--teal-primary);"></i> <span id="map-coords-readout">13.0827, 80.2707</span></div>
-            <div style="border-left:1px solid rgba(255,255,255,0.1); padding-left:10px;">
-              Zones: <span style="color:#22C55E;">■ Low</span> <span style="color:#FFD166;">■ Med</span> <span style="color:#F97316;">■ High</span> <span style="color:#E11D48;">■ Critical</span>
+            <div><span id="map-coords-readout">13.0827, 80.2707</span></div>
+            <div style="border-left:1px solid #D1D5DB; padding-left:10px;">
+              Zones: <span style="color:#16A34A;">■ Low</span> <span style="color:#CA8A04;">■ Med</span> <span style="color:#EA580C;">■ High</span> <span style="color:#DC2626;">■ Critical</span>
             </div>
           </div>
         </div>
@@ -363,21 +309,21 @@
     </div>
 
     <!-- ------------------------------------------------------------- -->
-    <!-- SECTION 3: INTEGRATED MODULE TABS -->
+    <!-- SECTION 3: TABS (CONTROL PANEL / DANGER ZONES / EVENTS) -->
     <!-- ------------------------------------------------------------- -->
     <div class="panel-card">
       <div class="tabs-navigation">
         <button class="tab-btn active" data-tab="tab-control-panel">
-          <i class="bi bi-sliders"></i> Control Panel & Hardware
+          Controls
         </button>
         <button class="tab-btn" data-tab="tab-face-recognition">
-          <i class="bi bi-person-bounding-box"></i> Face Recognition
+          Face Recognition
         </button>
         <button class="tab-btn" data-tab="tab-danger-zones">
-          <i class="bi bi-shield-shaded"></i> Danger Zone Management
+          Danger Zone Management
         </button>
         <button class="tab-btn" data-tab="tab-event-history">
-          <i class="bi bi-clock-history"></i> Event History & Audit Log
+          Event history
         </button>
       </div>
 
@@ -388,47 +334,35 @@
           <!-- Critical Actions Group -->
           <div class="control-group-card">
             <span class="control-group-title">
-              <i class="bi bi-shield-slash-fill" style="color:var(--red-critical);"></i> Emergency Controls
+              Emergency Controls
             </span>
             <div class="btn-actions-row">
               <button id="btn-emergency-stop" class="btn btn-emergency-stop" style="flex:1;">
-                <i class="bi bi-sign-stop-fill"></i> EMERGENCY STOP
+                EMERGENCY STOP
               </button>
               <button id="btn-reset-system" class="btn btn-teal" style="flex:1;">
-                <i class="bi bi-arrow-counterclockwise"></i> RESET SYSTEM
+                RESET SYSTEM
               </button>
             </div>
             <div class="btn-actions-row">
               <button id="btn-ack-alert" class="btn btn-orange" style="width:100%;">
-                <i class="bi bi-check2-circle"></i> Acknowledge Alert (Mute Siren)
+                Acknowledge Alert (Mute Siren)
               </button>
             </div>
           </div>
 
-          <!-- Traffic Signal & Auth Override -->
+          <!-- Driver authorization -->
           <div class="control-group-card">
             <span class="control-group-title">
-              <i class="bi bi-stoplights-fill" style="color:var(--yellow-warning);"></i> Traffic Signal & Auth Overrides
+              Driver authorization
             </span>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <span style="font-size:0.75rem; color:var(--text-secondary);">Force Traffic Signal:</span>
-              <div class="btn-actions-row">
-                <button id="btn-signal-red" class="btn btn-outline btn-sm" style="flex:1; border-color:#E11D48; color:#E11D48;">
-                  <i class="bi bi-circle-fill" style="color:#E11D48;"></i> RED
-                </button>
-                <button id="btn-signal-yellow" class="btn btn-outline btn-sm" style="flex:1; border-color:#FFD166; color:#FFD166;">
-                  <i class="bi bi-circle-fill" style="color:#FFD166;"></i> YELLOW
-                </button>
-                <button id="btn-signal-green" class="btn btn-outline btn-sm" style="flex:1; border-color:#06D6A0; color:#06D6A0;">
-                  <i class="bi bi-circle-fill" style="color:#06D6A0;"></i> GREEN
-                </button>
-              </div>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-              <span style="font-size:0.75rem; color:var(--text-secondary);">Driver Authorisation:</span>
+            <p style="font-size:0.78rem; color:var(--text-secondary);">
+              Toggle active vehicle ignition permissions for operator verification.
+            </p>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+              <span style="font-size:0.8rem; font-weight:600; color:var(--text-main);">Driver Permissions:</span>
               <button id="btn-auth-driver" class="btn btn-outline btn-sm">
-                <i class="bi bi-person-check-fill"></i> Toggle Auth
+                Toggle Auth (Lock/Unlock)
               </button>
             </div>
           </div>
@@ -439,48 +373,37 @@
           </div>
           <div id="demo-tools" class="control-group-card" style="grid-column: 1 / -1; display:none;">
             <span class="control-group-title">
-              <i class="bi bi-cpu-fill" style="color:var(--teal-primary);"></i> Simulation Scenario Test Bench (Quick Alert Triggers)
+              Test alerts
             </span>
             <div class="scenario-grid">
               <button class="btn-scenario accident" data-scenario="accident">
-                <i class="bi bi-exclamation-octagon-fill" style="color:#E11D48; font-size:1.2rem;"></i>
-                <span>Simulate Accident</span>
+                                <span>Simulate Accident</span>
               </button>
               <button class="btn-scenario" data-scenario="alcohol">
-                <i class="bi bi-shield-fill-x" style="color:#F97316; font-size:1.2rem;"></i>
-                <span>Simulate Alcohol</span>
+                                <span>Simulate Alcohol</span>
               </button>
               <button class="btn-scenario" data-scenario="obstacle">
-                <i class="bi bi-radar" style="color:#FFD166; font-size:1.2rem;"></i>
-                <span>Simulate Obstacle</span>
+                                <span>Simulate Obstacle</span>
               </button>
               <button class="btn-scenario" data-scenario="overspeed">
-                <i class="bi bi-speedometer2" style="color:#F97316; font-size:1.2rem;"></i>
-                <span>Simulate Overspeed</span>
+                                <span>Simulate Overspeed</span>
               </button>
               <button class="btn-scenario" data-scenario="unauthorized">
-                <i class="bi bi-person-x-fill" style="color:#E11D48; font-size:1.2rem;"></i>
-                <span>Unauthorized Driver</span>
+                                <span>Unauthorized Driver</span>
               </button>
               <button class="btn-scenario" data-scenario="danger_zone">
-                <i class="bi bi-geo-alt-fill" style="color:#E6C34A; font-size:1.2rem;"></i>
-                <span>Enter Danger Zone</span>
-              </button>
-              <button class="btn-scenario" data-scenario="red_signal">
-                <i class="bi bi-stoplights-fill" style="color:#E11D48; font-size:1.2rem;"></i>
-                <span>Red Signal Stop</span>
+                                <span>Enter Danger Zone</span>
               </button>
               <button class="btn-scenario" data-scenario="normal">
-                <i class="bi bi-check-circle-fill" style="color:#06D6A0; font-size:1.2rem;"></i>
-                <span>Normal Safe Drive</span>
+                                <span>Normal Safe Drive</span>
               </button>
             </div>
           </div>
 
-          <!-- ESP32 Serial Hardware Configuration -->
+          <!-- ESP32 Serial Hardware Configuration (Visible when Serial mode is active) -->
           <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1; display:none;">
             <span class="control-group-title">
-              <i class="bi bi-usb-plug-fill" style="color:var(--orange-primary);"></i> Physical ESP32 Serial Interface Setup
+              ESP32 serial setup
             </span>
             <div class="form-row">
               <div class="form-group">
@@ -499,7 +422,7 @@
               </div>
               <div class="form-group" style="justify-content:flex-end;">
                 <button onclick="window.DashboardApp.loadSerialPorts()" class="btn btn-outline btn-sm">
-                  <i class="bi bi-arrow-repeat"></i> Refresh Ports
+                  Refresh Ports
                 </button>
               </div>
             </div>
@@ -508,36 +431,34 @@
         </div>
       </div>
 
-      <!-- TAB 2: DRIVER FACE RECOGNITION (Arsal Subsystem) -->
+      <!-- TAB 2: DANGER ZONE MANAGEMENT -->
       <div id="tab-face-recognition" class="tab-content">
         <div class="face-module-header">
           <div>
-            <h3 style="font-size:1.15rem; font-weight:700; color:#FFFFFF;">
-              <i class="bi bi-camera-video-fill" style="color:var(--teal-primary); margin-right:8px;"></i>
-              Driver Face Recognition &amp; Authorisation Subsystem
+            <h3 style="font-size:1.15rem; font-weight:600; color:var(--text-main);">
+                            Driver face login
             </h3>
             <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
-              Real-time CLAHE illumination normalization &bull; 1024-D Local Binary Patterns (LBPH) &bull; Eye-blink vitality verification
-            </p>
+              Camera check with a blink test before the car unlocks.</p>
           </div>
           <span id="ignitionLockBadge" class="badge badge-danger" style="font-size:0.85rem; padding:6px 14px;">
-            <i class="bi bi-lock-fill"></i> VEHICLE LOCKED
+            VEHICLE LOCKED
           </span>
         </div>
 
         <!-- Nested Sub-Tabs Navigation for Arsal's 4 Submodules -->
         <div class="face-subtabs-nav">
           <button class="face-subtab-btn active" data-subtab="face-sub-detector">
-            <i class="bi bi-camera-video-fill"></i> Live Detector
+            Live Detector
           </button>
           <button class="face-subtab-btn" data-subtab="face-sub-enrol">
-            <i class="bi bi-person-plus-fill"></i> Enrol Drivers <span class="badge badge-info" id="subtab-enrol-badge" style="font-size:0.7rem; padding:1px 6px;">5</span>
+            Enrol Drivers <span class="badge badge-info" id="subtab-enrol-badge" style="font-size:0.7rem; padding:1px 6px;">5</span>
           </button>
           <button class="face-subtab-btn" data-subtab="face-sub-logs">
-            <i class="bi bi-shield-lock-fill"></i> Audit Logs
+            Audit Logs
           </button>
           <button class="face-subtab-btn" data-subtab="face-sub-calibration">
-            <i class="bi bi-sliders"></i> Calibration
+            Calibration
           </button>
         </div>
 
@@ -552,13 +473,12 @@
 
                 <div id="cameraStandby" class="camera-standby-screen">
                   <div>
-                    <i class="bi bi-camera-video-off standby-icon"></i>
-                    <h4 style="color:#FFFFFF; font-size:1.1rem; font-weight:700;">Driver Optical Sensor Offline</h4>
+                                        <h4 style="color:var(--text-main); font-size:1.1rem; font-weight:600;">Camera is off</h4>
                     <p style="color:var(--text-secondary); font-size:0.8rem; max-width:380px; margin:8px auto 16px;">
-                      Start the optical feed to scan the driver's face, normalize lighting variations with CLAHE, and verify vitality.
+                      Start the camera to check the driver's face and run the blink test.
                     </p>
                     <button id="btnStartCamera" class="btn btn-teal">
-                      <i class="bi bi-camera-video"></i> Start Face Detector
+                      Start Face Detector
                     </button>
                   </div>
                 </div>
@@ -567,15 +487,11 @@
               <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
                 <div style="display:flex; gap:8px;">
                   <button id="btnStopCamera" class="btn btn-outline btn-sm" style="display:none; color:var(--red-critical); border-color:var(--red-critical);">
-                    <i class="bi bi-stop-circle"></i> Stop Camera
-                  </button>
-                  <button id="btnSwitchCamera" class="btn btn-outline btn-sm" title="Flip Camera">
-                    <i class="bi bi-arrow-repeat"></i> Flip Cam
+                    Stop Camera
                   </button>
                 </div>
                 <div style="display:flex; gap:12px; font-size:0.75rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">
-                  <span><i class="bi bi-cpu"></i> LBP-1024D CLASSIFIER</span>
-                  <span><i class="bi bi-lightning-charge"></i> LATENCY: 28ms</span>
+                  <span>LATENCY: 28ms</span>
                 </div>
               </div>
             </div>
@@ -584,13 +500,12 @@
             <div class="control-group-card" style="display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
               <div>
                 <span class="control-group-title" style="justify-content:center; margin-bottom:14px;">
-                  <i class="bi bi-key-fill" style="color:var(--teal-primary);"></i> Vehicle Ignition Interlock
+                  Car status
                 </span>
 
                 <div class="engine-indicator-wrap">
                   <div id="engineIndicator" class="engine-indicator locked">
-                    <i class="bi bi-power" style="font-size:2rem; margin-bottom:2px;"></i>
-                    <span>ENGINE</span>
+                                        <span>ENGINE</span>
                   </div>
                 </div>
 
@@ -610,17 +525,17 @@
                   </div>
                   <div class="stat-tile-sm">
                     <div class="stat-label">DISTANCE</div>
-                    <div id="valDistance" class="stat-val" style="color:#94A3B8;">99.00</div>
+                    <div id="valDistance" class="stat-val" style="color:var(--text-secondary);">99.00</div>
                   </div>
                 </div>
 
                 <!-- Liveness Status Badge -->
-                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center; text-align:left;">
+                <div style="background:#D1D5DB; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center; text-align:left;">
                   <div>
-                    <div style="font-size:0.75rem; color:var(--text-secondary);"><i class="bi bi-eye"></i> liveness detection:</div>
-                    <div style="font-size:0.8rem; color:#FFFFFF; font-weight:600;">Vitality Anti-Spoofing</div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary);">liveness detection:</div>
+                    <div style="font-size:0.8rem; color:var(--text-main); font-weight:600;">Vitality Anti-Spoofing</div>
                   </div>
-                  <span id="txtLivenessStatus" class="badge badge-warning">PENDING</span>
+                  <span id="txtLivenessStatus" class="badge badge-warning">Pending</span>
                 </div>
               </div>
 
@@ -637,7 +552,7 @@
             <!-- Left: Enrolment Form -->
             <div class="control-group-card">
               <span class="control-group-title">
-                <i class="bi bi-person-plus-fill" style="color:var(--teal-primary);"></i> Register New Authorised Driver
+                Register New Authorised Driver
               </span>
               <form id="formEnrolDriver" autocomplete="off" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
                 <div class="form-group" style="margin-bottom:0;">
@@ -662,7 +577,7 @@
                 </div>
 
                 <button type="submit" id="btnStartEnrolment" class="btn btn-teal" style="margin-top:6px;">
-                  <i class="bi bi-camera"></i> Start Enrolment Capture
+                  Start Enrolment Capture
                 </button>
               </form>
             </div>
@@ -670,8 +585,8 @@
             <!-- Right: Enrolled Drivers Roster -->
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h3 style="font-size:1.05rem; font-weight:700; color:#FFFFFF;">
-                  <i class="bi bi-people-fill" style="color:var(--teal-primary); margin-right:6px;"></i> Enrolled Driver Roster
+                <h3 style="font-size:1.05rem; font-weight:600; color:var(--text-main);">
+                  Enrolled Driver Roster
                 </h3>
                 <span class="badge badge-info" id="enrolledCountBadge">5 Active Drivers</span>
               </div>
@@ -700,28 +615,28 @@
           <!-- 4 Stats Cards -->
           <div class="face-stats-grid">
             <div class="face-stat-card">
-              <div class="face-stat-icon teal"><i class="bi bi-list-check"></i></div>
+              <div class="face-stat-icon teal"></div>
               <div class="face-stat-info">
                 <div id="faceTotalVerifications" class="stat-num">200</div>
                 <div class="stat-desc">Total Verifications</div>
               </div>
             </div>
             <div class="face-stat-card">
-              <div class="face-stat-icon green"><i class="bi bi-key-fill"></i></div>
+              <div class="face-stat-icon green"></div>
               <div class="face-stat-info">
                 <div id="faceAuthorisedUnlocks" class="stat-num">12</div>
                 <div class="stat-desc">Authorised Unlocks</div>
               </div>
             </div>
             <div class="face-stat-card">
-              <div class="face-stat-icon red"><i class="bi bi-shield-slash-fill"></i></div>
+              <div class="face-stat-icon red"></div>
               <div class="face-stat-info">
                 <div id="faceSecurityRejections" class="stat-num">188</div>
                 <div class="stat-desc">Security Rejections</div>
               </div>
             </div>
             <div class="face-stat-card">
-              <div class="face-stat-icon purple"><i class="bi bi-clock-history"></i></div>
+              <div class="face-stat-icon purple"></div>
               <div class="face-stat-info">
                 <div id="faceLastTelemetry" class="stat-num" style="font-size:1rem;">17:15:00</div>
                 <div class="stat-desc">Last Telemetry Event</div>
@@ -730,11 +645,10 @@
           </div>
 
           <!-- Toolbar -->
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; background:var(--bg-card-subtle); padding:10px 16px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; background:var(--bg-card-subtle); padding:10px 16px; border-radius:var(--radius-md); border:1px solid #D1D5DB;">
             <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:0.85rem; font-weight:700; color:#FFFFFF;">
-                <i class="bi bi-shield-lock-fill" style="color:var(--teal-primary); margin-right:6px;"></i>
-                Security &amp; Ignition Authorisation Audit Trail
+              <span style="font-size:0.85rem; font-weight:600; color:var(--text-main);">
+                                Security &amp; Ignition Authorisation Audit Trail
               </span>
             </div>
 
@@ -744,14 +658,14 @@
               <button type="button" class="face-filter-pill" data-face-filter="AUTH">Authorised</button>
               <button type="button" class="face-filter-pill" data-face-filter="REJECT">Rejections</button>
 
-              <div style="width:1px; height:20px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
+              <div style="width:1px; height:20px; background:#D1D5DB; margin:0 4px;"></div>
 
               <!-- Export CSV & Clear Logs (No Export JSON) -->
               <button type="button" id="btnExportFaceLogsCsv" class="btn btn-teal btn-sm" style="padding:4px 12px; font-size:0.75rem;">
-                <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                Export CSV
               </button>
               <button type="button" id="btnClearFaceLogs" class="btn btn-outline btn-sm" style="padding:4px 12px; font-size:0.75rem; color:var(--red-critical); border-color:var(--red-critical);">
-                <i class="bi bi-trash"></i> Clear Logs
+                Clear Logs
               </button>
             </div>
           </div>
@@ -772,7 +686,7 @@
               </thead>
               <tbody id="faceAuditLogsTableBody">
                 <tr>
-                  <td colspan="7" style="text-align:center; color:#627289; padding:24px;">Loading audit logs...</td>
+                  <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">Loading audit logs...</td>
                 </tr>
               </tbody>
             </table>
@@ -784,12 +698,12 @@
           <div style="max-width:680px; margin:0 auto;">
             <div class="control-group-card">
               <span class="control-group-title">
-                <i class="bi bi-sliders2-vertical" style="color:var(--teal-primary);"></i> Recognition &amp; Threshold Settings
+                Recognition &amp; Threshold Settings
               </span>
               <div style="margin-top:14px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
                   <label class="form-label" style="font-size:0.85rem; font-weight:600;">Decision Distance Threshold:</label>
-                  <span id="valThreshold" style="font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--teal-primary);">35.0</span>
+                  <span id="valThreshold" style="font-family:'JetBrains Mono', monospace; font-weight:600; color:var(--teal-primary);">35.0</span>
                 </div>
                 <input type="range" class="form-range" min="10" max="70" step="0.5" id="rangeThreshold" value="35.0">
                 <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:6px;">
@@ -799,7 +713,7 @@
 
               <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <label style="font-size:0.85rem; font-weight:600; color:#FFFFFF; cursor:pointer;" for="toggleLiveness">
+                  <label style="font-size:0.85rem; font-weight:600; color:var(--text-main); cursor:pointer;" for="toggleLiveness">
                     Enable Anti-Spoofing Liveness Verification
                   </label>
                   <small style="color:var(--text-muted); font-size:0.75rem; display:block;">
@@ -815,16 +729,17 @@
       </div>
 
       <!-- TAB 4: DANGER ZONE MANAGEMENT (Prasanth Subsystem) -->
+
       <div id="tab-danger-zones" class="tab-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
           <div>
-            <h3 style="font-size:1.1rem; font-weight:700; color:#FFFFFF;">Configured Danger Geofence Zones</h3>
+            <h3 style="font-size:1.1rem; font-weight:600; color:var(--text-main);">Configured Danger Geofence Zones</h3>
             <p style="font-size:0.78rem; color:var(--text-secondary);">
               Geofences trigger live audio alerts and automatically send speed limit commands to the ESP32.
             </p>
           </div>
           <button id="btn-open-add-zone" class="btn btn-teal btn-sm">
-            <i class="bi bi-plus-circle-fill"></i> Add Danger Zone
+            Add Danger Zone
           </button>
         </div>
 
@@ -843,14 +758,14 @@
             </thead>
             <tbody id="zones-table-body">
               <tr>
-                <td colspan="7" style="text-align:center; color:#627289; padding:24px;">Loading danger zones...</td>
+                <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">Loading danger zones...</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- TAB 5: EVENT HISTORY & AUDIT LOG -->
+      <!-- TAB 3: EVENT HISTORY & AUDIT LOG -->
       <div id="tab-event-history" class="tab-content">
         <!-- Filter Bar -->
         <div class="filter-bar">
@@ -860,15 +775,14 @@
               <option value="ALL">All Event Types</option>
               <option value="ACCIDENT">ACCIDENT</option>
               <option value="ALCOHOL DETECTED">ALCOHOL DETECTED</option>
-              <option value="AUTH_OK">AUTH_OK (Driver Authorised)</option>
-              <option value="UNAUTHORISED">UNAUTHORISED (Intruder Alert)</option>
+              <option value="UNAUTHORISED DRIVER">UNAUTHORISED DRIVER</option>
               <option value="OBSTACLE DETECTED">OBSTACLE DETECTED</option>
               <option value="OVERSPEED">OVERSPEED</option>
               <option value="DANGER ZONE">DANGER ZONE</option>
               <option value="ZONE_ENTER">ZONE_ENTER</option>
               <option value="ZONE_EXIT">ZONE_EXIT</option>
               <option value="OVERSPEED_IN_ZONE">OVERSPEED_IN_ZONE</option>
-              <option value="TRAFFIC SIGNAL STOP">TRAFFIC SIGNAL STOP</option>
+              <option value="ZONE EXIT">ZONE EXIT</option>
               <option value="EMERGENCY STOP">EMERGENCY STOP</option>
             </select>
           </div>
@@ -890,13 +804,13 @@
 
           <div style="display:flex; gap:8px;">
             <button id="btn-filter-apply" class="btn btn-teal btn-sm">
-              <i class="bi bi-funnel-fill"></i> Filter
+              Filter
             </button>
             <button id="btn-filter-reset" class="btn btn-outline btn-sm">
-              <i class="bi bi-x-circle"></i> Reset
+              Reset
             </button>
             <button id="btn-export-csv" class="btn btn-orange btn-sm">
-              <i class="bi bi-file-earmark-spreadsheet-fill"></i> Export CSV
+              Export CSV
             </button>
           </div>
         </div>
@@ -906,7 +820,7 @@
             Logged in SQLite Database: <span id="events-count-badge" class="badge badge-info">0 Total</span>
           </span>
           <button onclick="window.DashboardApp && window.DashboardApp.loadEvents()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.75rem;">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
+            Refresh
           </button>
         </div>
 
@@ -926,14 +840,12 @@
             </thead>
             <tbody id="events-table-body">
               <tr>
-                <td colspan="8" style="text-align:center; color:#627289; padding:24px;">Loading safety event history...</td>
+                <td colspan="8" style="text-align:center; color:var(--text-muted); padding:24px;">Loading safety event history...</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-
-
 
     </div>
 
@@ -952,67 +864,61 @@
         <div class="modal-body">
           <input type="hidden" id="zone-id" value="">
 
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Zone Code (Unique)</label>
-              <input type="text" id="zone-code" class="form-control" placeholder="e.g. Z05" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Severity Level</label>
-              <select id="zone-severity" class="form-control">
-                <option value="LOW">LOW (Informational)</option>
-                <option value="MEDIUM">MEDIUM (Caution)</option>
-                <option value="HIGH" selected>HIGH (School / Curve)</option>
-                <option value="CRITICAL">CRITICAL (Accident Prone)</option>
-              </select>
-            </div>
-          </div>
+          <input type="hidden" id="zone-code" value="">
 
           <div class="form-group">
-            <label class="form-label">Zone Name / Location Description</label>
-            <input type="text" id="zone-name" class="form-control" placeholder="e.g. T. Nagar Pedestrian Crossing" required>
+            <label class="form-label">Name</label>
+            <input type="text" id="zone-name" class="form-control" placeholder="Zone name" required>
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Latitude</label>
-              <input type="number" step="any" id="zone-lat" class="form-control" placeholder="13.0400" required>
+              <input type="number" step="0.000001" id="zone-lat" class="form-control" required>
             </div>
             <div class="form-group">
               <label class="form-label">Longitude</label>
-              <input type="number" step="any" id="zone-lon" class="form-control" placeholder="80.2330" required>
+              <input type="number" step="0.000001" id="zone-lon" class="form-control" required>
             </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:14px;">
+            <button type="button" id="btn-zone-use-gps" class="btn btn-outline btn-sm">
+              Use vehicle location
+            </button>
+            <button type="button" id="btn-zone-pick-map" class="btn btn-outline btn-sm">
+              Pick on map
+            </button>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Geofence Radius (meters)</label>
-              <input type="number" id="zone-radius" class="form-control" value="150" min="20" max="2000" required>
+              <label class="form-label">Radius (m)</label>
+              <input type="number" id="zone-radius" class="form-control" value="150" min="20" max="5000" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Speed Limit (km/h)</label>
-              <input type="number" id="zone-speed-limit" class="form-control" value="30" min="5" max="120" required>
+              <label class="form-label">Speed limit (km/h)</label>
+              <input type="number" id="zone-speed-limit" class="form-control" value="30" min="10" max="100" required>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Details / Driver Hazard Advisory</label>
-            <textarea id="zone-details" class="form-control" rows="2" placeholder="Blind curve with heavy foot traffic..."></textarea>
+            <label class="form-label">Severity</label>
+            <select id="zone-severity" class="form-control">
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH" selected>High</option>
+              <option value="CRITICAL">Critical</option>
+            </select>
           </div>
+          <textarea id="zone-details" style="display:none;"></textarea>
 
-          <div style="display:flex; gap:8px;">
-            <button type="button" id="btn-zone-use-gps" class="btn btn-outline btn-sm" style="flex:1;">
-              <i class="bi bi-geo-fill"></i> Use Current Car GPS
-            </button>
-            <button type="button" id="btn-zone-pick-map" class="btn btn-outline btn-sm" style="flex:1;">
-              <i class="bi bi-pin-map-fill"></i> Pick on Map
-            </button>
-          </div>
         </div>
-
         <div class="modal-footer">
           <button type="button" id="btn-modal-cancel" class="btn btn-outline btn-sm">Cancel</button>
-          <button type="submit" id="btn-modal-save" class="btn btn-teal btn-sm">Save Danger Zone</button>
+          <button type="submit" class="btn btn-teal btn-sm">
+            Save
+          </button>
         </div>
       </form>
     </div>
@@ -1020,15 +926,6 @@
 
   <!-- Toast Notification Area -->
   <div id="toast-container"></div>
-
-  <!-- Zone Manager Iframe Modal Overlay -->
-  <div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#0b1220;flex-direction:column;">
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111827; border-bottom:1px solid rgba(255,255,255,0.1);">
-      <span style="font-weight:700; color:#FFFFFF;"><i class="bi bi-geo-alt-fill text-warning"></i> AcciAlert Zone Manager</span>
-      <button type="button" onclick="closeZoneManager()" class="btn btn-outline btn-sm">&times; Close</button>
-    </div>
-    <iframe id="zm-frame" title="Zone Manager" style="flex:1;border:0;width:100%;"></iframe>
-  </div>
 
   <!-- ================================================================= -->
   <!-- JAVASCRIPT LIBRARIES & MODULES -->
@@ -1049,38 +946,33 @@
   <script src="static/js/dashboard.js"></script>
   <script src="static/js/driver_auth.js"></script>
 
-  <script>
-  function openZoneManager(){
-    var f=document.getElementById("zm-frame");
-    if(!f.getAttribute("src")) f.src="/zm/";
-    document.getElementById("zm-overlay").style.display="flex";
+<div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#F3F4F6;flex-direction:column;">
+  <iframe id="zm-frame" title="Zone Manager" style="flex:1;border:0;width:100%;"></iframe>
+</div>
+<script>
+function openZoneManager(){var f=document.getElementById("zm-frame");if(!f.getAttribute("src"))f.src="/zm/";document.getElementById("zm-overlay").style.display="flex";}
+function closeZoneManager(){document.getElementById("zm-overlay").style.display="none";}
+</script>
+<script>
+// Zone counter: zones entered today + time inside the current zone (from the zone engine events)
+(function(){
+  var since=null;
+  function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+"m "+("0"+s%60).slice(-2)+"s";}
+  function poll(){
+    var d=new Date();d.setHours(0,0,0,0);
+    fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
+      if(!Array.isArray(ev))return;
+      document.getElementById("zm-count").textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
+      var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
+      since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
+    }).catch(function(){});
   }
-  function closeZoneManager(){
-    document.getElementById("zm-overlay").style.display="none";
-  }
-  </script>
-
-  <script>
-  // Zone counter: zones entered today + time inside the current zone (from the zone engine events)
-  (function(){
-    var since=null;
-    function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+"m "+("0"+s%60).slice(-2)+"s";}
-    function poll(){
-      var d=new Date();d.setHours(0,0,0,0);
-      fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
-        if(!Array.isArray(ev))return;
-        var zmCount = document.getElementById("zm-count");
-        if(zmCount) zmCount.textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
-        var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
-        since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
-      }).catch(function(){});
-    }
-    setInterval(function(){
-      var zmInside = document.getElementById("zm-inside");
-      if(zmInside) zmInside.textContent=since?fmt(Date.now()/1000-since):"--";
-    },1000);
-    poll();setInterval(poll,2000);
-  })();
-  </script>
+  setInterval(function(){
+    document.getElementById("zm-inside").textContent=since?fmt(Date.now()/1000-since):"--";
+  },1000);
+  poll();setInterval(poll,2000);
+})();
+</script>
 </body>
 </html>
+

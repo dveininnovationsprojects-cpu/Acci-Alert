@@ -1,13 +1,7 @@
-"""
-AcciAlert - Face Recognition Training Pipeline
-Module: AI Face Recognition & Driver Authorisation (Arsal)
+"""Trains the face model from the photos in dataset/<driver name>/.
 
-Workflow:
-  1. Scans `dataset/` for enrolled driver folders.
-  2. Detects and normalizes face ROIs with CLAHE.
-  3. Trains the OpenCV LBPH recognizer.
-  4. Saves `models/face_model.yml` and `models/labels.json`.
-  5. Syncs enrolled driver roster to `accialert.db`.
+Saves models/face_model.yml and models/labels.json, then updates the driver
+list in the database. Run with:  python -m backend.train_model
 """
 
 import sys

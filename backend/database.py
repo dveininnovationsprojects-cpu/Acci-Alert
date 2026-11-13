@@ -1,7 +1,4 @@
-"""
-AcciAlert - SQLite Database Module
-Manages persistence for events, danger zones, drivers, and command audit logs.
-Author: Muniyappan
+"""Dashboard database: events, danger zones, drivers and the command log.
 """
 
 import sqlite3
@@ -123,9 +120,7 @@ def init_db():
     conn.close()
 
 
-# ==========================================
-# EVENT OPERATIONS
-# ==========================================
+# Event operations
 
 def add_event(event_type: str, driver_name: str, vehicle_speed: float,
               latitude: float, longitude: float, danger_zone_name: str = None,
@@ -232,9 +227,7 @@ def export_events_csv(event_type: str = None, start_date: str = None, end_date: 
     return output.getvalue()
 
 
-# ==========================================
-# DANGER ZONE OPERATIONS
-# ==========================================
+# Danger zone operations
 
 def get_all_zones():
     """Retrieve all danger zones."""
@@ -322,9 +315,7 @@ def delete_zone(zone_id: int) -> bool:
     return deleted
 
 
-# ==========================================
-# DRIVER OPERATIONS
-# ==========================================
+# Driver operations
 
 def get_all_drivers():
     """Retrieve all drivers."""
@@ -364,9 +355,7 @@ def add_or_update_driver(name: str, license_number: str, authorized: int = 1, no
     return driver_id
 
 
-# ==========================================
-# COMMAND AUDIT LOG
-# ==========================================
+# Command audit log
 
 def log_command(command: str, source: str = "UI", status: str = "SENT"):
     """Record an executed command into audit log."""

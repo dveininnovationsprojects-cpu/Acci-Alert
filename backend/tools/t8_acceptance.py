@@ -1,16 +1,8 @@
-"""
-AcciAlert - Acceptance Test T8: Face Recognition & Authorisation Verification
-Module: AI Face Recognition & Driver Authorisation (Arsal)
+"""Acceptance test T8 for face recognition.
 
-Acceptance Criteria (from AcciAlert Requirements & Software Team Guide):
-  1. Recognition Accuracy >= 90% for authorised drivers (Arun, Kumar, Ravi).
-  2. Zero false acceptances: Unknown faces rejected in 10 of 10 tests (100% rejection).
-  3. Recognition latency under 2.0 seconds per frame.
-
-Outputs:
-  - Console summary with confusion matrix
-  - docs/T8_test_report.md
-  - docs/accuracy_report.json
+Passes when known drivers are recognised at least 90% of the time, unknown
+faces are always rejected, and one frame takes under 2 seconds. Writes
+docs/T8_test_report.md and docs/accuracy_report.json.
 """
 
 import json
@@ -20,14 +12,9 @@ from typing import Dict, List, Any
 import cv2
 import numpy as np
 
-try:
-    from . import config
-    from .face_detector import FaceDetector
-    from .face_recognizer import FaceRecognizer
-except ImportError:
-    from backend import config
-    from backend.face_detector import FaceDetector
-    from backend.face_recognizer import FaceRecognizer
+from backend import config
+from backend.face_detector import FaceDetector
+from backend.face_recognizer import FaceRecognizer
 
 
 def run_t8_acceptance_tests() -> Dict[str, Any]:
@@ -39,7 +26,7 @@ def run_t8_acceptance_tests() -> Dict[str, Any]:
     recognizer = FaceRecognizer()
 
     if not recognizer.is_trained:
-        raise RuntimeError("Model is not trained. Please run `python -m ai.train_model` first.")
+        raise RuntimeError("Model is not trained. Please run `python -m backend.train_model` first.")
 
     authorised_drivers = config.DEFAULT_AUTHORISED_DRIVERS  # ['Arun', 'Kumar', 'Ravi']
     unknown_subjects = ["Unknown_1", "Unknown_2", "Unknown_3", "Unknown_4", "Unknown_5"]

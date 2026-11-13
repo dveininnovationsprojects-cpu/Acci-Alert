@@ -4,7 +4,7 @@ Unit Tests for DatabaseLogger Module
 
 import sqlite3
 import pytest
-from ai.db_logger import DatabaseLogger
+from backend.db_logger import DatabaseLogger
 
 
 @pytest.fixture

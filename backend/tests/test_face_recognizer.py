@@ -4,9 +4,9 @@ Unit Tests for FaceRecognizer Module
 
 import cv2
 import pytest
-from ai.face_recognizer import FaceRecognizer, RecognitionResult
-from ai.face_detector import FaceDetector
-from ai import config
+from backend.face_recognizer import FaceRecognizer, RecognitionResult
+from backend.face_detector import FaceDetector
+from backend import config
 
 
 @pytest.fixture

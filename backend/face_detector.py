@@ -1,6 +1,4 @@
-"""
-AcciAlert - Face Detection & Preprocessing Module
-Module: AI Face Recognition & Driver Authorisation (Arsal)
+"""Finds faces and eyes in a camera frame and prepares the face for recognition.
 """
 
 from typing import List, Tuple, Optional, Dict, Any
@@ -32,7 +30,7 @@ class FaceDetectionResult:
 
 
 class FaceDetector:
-    """Robust face and eye detector with illumination normalization (CLAHE)."""
+    """Finds faces and eyes, evening out the lighting first (CLAHE)."""
 
     def __init__(self,
                  face_cascade_path: Optional[Path] = None,

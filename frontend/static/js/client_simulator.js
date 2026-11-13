@@ -149,19 +149,6 @@ class ClientSimulationEngine {
           sound: "unauthorized"
         });
       }
-    } else if (this.activeScenario === "red_signal") {
-      this.signal = "RED";
-      this.targetSpeed = 0.0;
-      this.currentEvent = "TRAFFIC SIGNAL STOP";
-      if (window.AlertManager) {
-        window.AlertManager.triggerAlert({
-          type: "TRAFFIC SIGNAL STOP",
-          severity: "HIGH",
-          title: "TRAFFIC SIGNAL RED",
-          message: "Vehicle approaching active RED light intersection.",
-          sound: "signal"
-        });
-      }
     } else if (this.activeScenario === "danger_zone") {
       const zones = window.ZoneApp ? window.ZoneApp.zonesList : DEFAULT_CLIENT_ZONES;
       if (zones.length > 0) {
