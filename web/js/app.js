@@ -401,8 +401,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // HUD Canvas Drawing Functions (High-Visibility Cockpit Overlay)
     // -------------------------------------------------------------
-    function drawTargetHUD(box, match, liveness) {
-        const { x, y, width, height } = box;
+    function drawTargetHUD(rawBox, match, liveness) {
+        // Map raw video coordinates to display canvas coordinates to match mirrored video (scaleX(-1))
+        const x = canvas.width - (rawBox.x + rawBox.width);
+        const y = rawBox.y;
+        const width = rawBox.width;
+        const height = rawBox.height;
+
         const isAuth = match.isAuthorised && liveness.passed;
         const isPending = match.isAuthorised && !liveness.passed;
         
@@ -587,7 +592,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.strokeStyle = '#ff2233';
         ctx.lineWidth = 3;
         for (const f of faces) {
-            ctx.strokeRect(f.x, f.y, f.width, f.height);
+            const fx = canvas.width - (f.x + f.width);
+            ctx.strokeRect(fx, f.y, f.width, f.height);
         }
         ctx.fillStyle = 'rgba(255, 34, 51, 0.85)';
         ctx.fillRect(0, 0, canvas.width, 42);
@@ -598,8 +604,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'left';
     }
 
-    function drawEnrolmentHUD(box) {
-        const { x, y, width, height } = box;
+    function drawEnrolmentHUD(rawBox) {
+        const x = canvas.width - (rawBox.x + rawBox.width);
+        const y = rawBox.y;
+        const width = rawBox.width;
+        const height = rawBox.height;
+
         ctx.strokeStyle = '#00e5ff';
         ctx.lineWidth = 4;
         ctx.strokeRect(x, y, width, height);
