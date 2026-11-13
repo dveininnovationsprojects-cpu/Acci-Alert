@@ -24,3 +24,4 @@ if __name__ == "__main__":
         debug=app.config.DEBUG,
         allow_unsafe_werkzeug=True
     )
+
