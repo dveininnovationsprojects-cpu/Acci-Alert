@@ -265,19 +265,21 @@ class DriverAuthController {
     if (!this.isRunning) return;
 
     if (this.videoEl && this.canvasEl && this.ctx && this.videoEl.videoWidth > 0) {
-      if (this.canvasEl.width !== this.videoEl.videoWidth) {
-        this.canvasEl.width = this.videoEl.videoWidth;
-        this.canvasEl.height = this.videoEl.videoHeight;
+      const cW = this.canvasEl.clientWidth || 360;
+      const cH = this.canvasEl.clientHeight || 340;
+      if (this.canvasEl.width !== cW || this.canvasEl.height !== cH) {
+        this.canvasEl.width = cW;
+        this.canvasEl.height = cH;
       }
 
       this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
 
       const cw = this.canvasEl.width;
       const ch = this.canvasEl.height;
-      const boxW = Math.round(cw * 0.44);
+      const boxW = Math.round(cw * 0.52);
       const boxH = Math.round(ch * 0.56);
       const boxX = Math.round((cw - boxW) / 2);
-      const boxY = Math.round((ch - boxH) / 2);
+      const boxY = Math.round((ch - boxH) / 2) + 10;
 
       // Draw non-mirrored HUD target overlay
       this.drawTargetHUD(boxX, boxY, boxW, boxH);
@@ -301,9 +303,9 @@ class DriverAuthController {
     const ctx = this.ctx;
     if (!ctx) return;
 
-    const cornerLen = 26;
+    const cornerLen = 20;
     ctx.strokeStyle = "#06D6A0";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.5;
 
     // Corner brackets
     ctx.beginPath();
@@ -334,7 +336,7 @@ class DriverAuthController {
     const eyeY = y + Math.round(h * 0.35);
     const eyeLeftX = x + Math.round(w * 0.3);
     const eyeRightX = x + Math.round(w * 0.7);
-    const eyeSize = 14;
+    const eyeSize = 12;
 
     ctx.strokeStyle = "rgba(6, 214, 160, 0.75)";
     ctx.lineWidth = 1.5;
@@ -343,15 +345,15 @@ class DriverAuthController {
 
     // Unmirrored HUD Status Header
     ctx.fillStyle = "rgba(11, 18, 32, 0.88)";
-    ctx.fillRect(x, y - 32, w, 28);
+    ctx.fillRect(x, y - 26, w, 22);
     ctx.strokeStyle = "#06D6A0";
     ctx.lineWidth = 1;
-    ctx.strokeRect(x, y - 32, w, 28);
+    ctx.strokeRect(x, y - 26, w, 22);
 
     ctx.fillStyle = "#F9FAFB";
-    ctx.font = "bold 13px 'Inter', sans-serif";
+    ctx.font = "bold 11px 'Inter', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("FACIAL SCANNING ACTIVE | CLAHE NORMALIZED", x + w / 2, y - 13);
+    ctx.fillText("FACIAL SCANNING ACTIVE", x + w / 2, y - 11);
   }
 
   evaluateDriverVerification() {
