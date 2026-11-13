@@ -1,0 +1,831 @@
+--- Page 1 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 1
+AcciAlert
+Smart Driver Safety and Accident Prevention System
+Drive Safe | Prevent Accidents | Save Lives
+Project Requirements Document and Implementation Strategy
+1. Project Explanation
+AcciAlert is a miniature smart-car prototype that shows how technology can stop accidents before they happen and
+call for help immediately if one does. A laptop running Python and OpenCV first checks that the person in the driver's
+seat is an authorised driver (face recognition). An ESP32 microcontroller then reads five types of sensors and
+decides, in real time, whether the car is safe to run. Everything is displayed on a live Flask web dashboard and stored
+as an event log.
+What the system does
+• Driver authorisation - webcam + face recognition; unknown face = vehicle stays locked.
+• Alcohol detection - MQ-3 sensor; if alcohol is above the threshold the vehicle will not start / is stopped and a
+buzzer sounds.
+• Speed monitoring - IR speed sensor measures wheel speed; over-speed triggers a warning and automatic speed
+reduction.
+• Obstacle detection - HC-SR04 ultrasonic sensor; car slows and brakes automatically when something is close.
+• Accident detection - MPU6050 detects a sudden impact or roll-over; the car stops and the system raises an
+emergency.
+• GPS tracking + emergency SMS - NEO-6M gets the position; SIM800L sends an SMS 'Accident Alert! Lat/Lon' to
+the emergency contact.
+• Traffic signal control - Red / Yellow / Green LEDs on the miniature road; the car obeys the signal state.
+• Live dashboard + event logging - speed, alcohol level, distance, location, driver identity and all events in real
+time.
+NEW CONCEPT ADDED: Danger Zone Detection and Dashboard Alert
+• Accident-prone places (sharp curves, school zones, junctions, black spots, construction areas) are stored as
+geofenced danger zones (latitude, longitude, radius, speed limit, severity).
+• When the car's GPS position enters a zone, the system raises a live alert on the dashboard (red banner, map
+highlight, sound), the buzzer warns the driver, the speed limit of the zone is applied, and the event is logged.
+• When the car leaves the zone the alert clears automatically. See Section 8 for full details.
+How the flow works (end to end)
+1) Laptop recognises driver > sends AUTH_OK to ESP32 2) ESP32 enables motors 3) Sensors stream data to
+ESP32 every 200 ms 4) ESP32 applies safety rules and drives motors/buzzer/signals 5) ESP32 sends telemetry
+(JSON) to the laptop over USB serial 6) Flask dashboard shows live data, checks danger zones, stores events 7) On
+accident the ESP32 reads GPS and sends an SMS through the SIM800L.
+Team at a glance
+Hardware Team (4) Software Team (4)
+Navin - Chassis, power, motors, integration
+Yasik - Input sensors (alcohol, ultrasonic, IR speed)
+Nivash - Accident sensor, buzzer, traffic signals, track
+Sidharraj - GPS + GSM communication
+Selvamani - ESP32 firmware and safety decision logic
+Arsal - AI face recognition and driver authorisation
+Muniyappan - Flask backend and live dashboard UI
+Prasanth - Database, danger-zone engine, testing and QA
+--- Page 2 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 2
+Contents
+# Section # Section
+1 Project explanation (page 1) 9 Dashboard requirements
+2 System architecture 10 Team responsibilities (all 8 members)
+3 Hardware requirements (Bill of Materials) 11 Responsibility matrix and hand-offs
+4 Sensor details and connection methods 12 Implementation strategy and timeline
+5 Pin map and power design 13 Testing plan and acceptance criteria
+6 Software requirements 14 Risks and mitigation
+7 Communication protocols and safety logic 15 Appendix (code snippets, checklist)
+8 NEW: Danger zone detection and dashboard alert
+2. System Architecture
+The system has five layers. The ESP32 is the single point where all hardware meets; the laptop adds intelligence (AI,
+dashboard, storage) over a USB serial cable.
+LAPTOP - AI & SOFTWARE
+Webcam + OpenCV face recognition
+Flask dashboard + SQLite log
+Danger-zone engine + alerts
+ESP32 - MAIN CONTROLLER
+Safety decision logic
+Vehicle control + zone check
+JSON telemetry
+EMERGENCY
+SMS: Accident Alert!
+Lat / Lon + map link
+SENSOR INPUT LAYER
+MQ-3 alcohol | HC-SR04 obstacle
+MPU6050 motion | IR speed
+NEO-6M GPS
+VEHICLE OUTPUT LAYER
+L298N + DC motors
+Buzzer
+Traffic signal LEDs
+COMMUNICATION
+SIM800L GSM (SMS)
+GPS location
+USB
+SMS
+Layer Parts Role
+AI & Software (laptop) Webcam, Python + OpenCV, Flask, SQLite Face recognition, live dashboard, event log, danger-zone
+alerts
+Main controller ESP32 DevKit (ESP-WROOM-32) Reads sensors, applies safety rules, controls vehicle,
+talks to laptop
+Sensor input MQ-3, HC-SR04, MPU6050, IR speed,
+NEO-6M
+Measure alcohol, distance, motion/impact, speed,
+location
+Vehicle output L298N, DC motors, buzzer, traffic LEDs Move/stop car, warn driver, show traffic signal
+Communication SIM800L GSM, NEO-6M GPS, USB serial Emergency SMS with location; laptop link
+--- Page 3 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 3
+3. Hardware Requirements (Bill of Materials)
+Quantities include one spare for parts that are easily damaged.
+Component Qty Key specification Purpose Owner
+ESP32 DevKit V1 (30-pin) 2 ESP-WROOM-32, 3.3V logic,
+USB
+Main controller (+1 spare) Navin
+Car chassis kit + 4 DC gear motors 1 4WD/2WD, 3-12V motors, wheels Miniature vehicle Navin
+L298N motor driver 1 2 channel, 2A per channel, 5-35V Drive motors Navin
+18650 Li-ion cells + 2S holder +
+BMS/charger
+2-3 7.4V, 2000+ mAh Main power Navin
+Buck converter (LM2596) x2 2 Adj. output, 3A 5V rail + 4.0V rail for
+SIM800L
+Navin
+MQ-3 alcohol sensor module 1 Analog AO + digital DO, 5V,
+heater 150mA
+Alcohol detection Yasik
+HC-SR04 ultrasonic 1 5V, 2-400 cm, TRIG/ECHO Obstacle detection Yasik
+IR speed sensor (LM393) + slotted
+encoder disc
+1 Digital OUT, 3.3-5V Wheel speed Yasik
+MPU6050 GY-521 1 3-axis accel + gyro, I2C 0x68 Accident / roll-over detection Nivash
+Active buzzer 5V 2 Active (self-oscillating) Audible alerts Nivash
+LEDs Red/Yellow/Green + 220 ohm
+resistors
+3
+sets
+5mm LEDs Traffic signals Nivash
+Road track mat / foam board + scenery 1 Approx 1.2 m x 0.8 m Miniature city (zones marked) Nivash
+NEO-6M GPS module + antenna 1 UART 9600 baud, 3.3-5V Location Sidharraj
+SIM800L GSM module + antenna 1 2G, UART, supply 3.7-4.2V peak
+2A
+Emergency SMS Sidharraj
+2G-enabled SIM (active SMS plan) 1 Micro-SIM (SIM800L) SMS network Sidharraj
+Webcam (USB) 1 720p or better Driver capture Arsal / Navin
+Breadboard, jumper wires, perfboard,
+headers
+set M-M, M-F, F-F Connections All hardware
+Resistors (1k, 2k, 10k), 1000 uF + 100
+uF caps, switches
+set For level dividers, decoupling Protection Sidharraj / Navin
+USB cable (ESP32 to laptop) 2 Micro-USB data cable (not
+charge-only)
+Flashing + serial link to laptop Navin / Selvamani
+Laptop with USB port 1 Python 3.10+, 8GB RAM AI + dashboard Software team
+3.1 Component availability checklist (against the team's confirmed component list)
+All 20 items from the team's component list are covered in this document. Items marked 'Included' are in the table
+above; extra parts needed for a safe build are listed after the checklist.
+No. Component (team list) In this document Status
+1 ESP32 DevKit (ESP-WROOM-32) Section 3, Section 5 Included
+2 MQ-3 alcohol sensor Section 3, 4 Included
+3 HC-SR04 ultrasonic sensor Section 3, 4 Included
+4 MPU6050 accelerometer/gyro module Section 3, 4 Included
+5 IR speed sensor with slotted wheel disc Section 3, 4 Included
+6 NEO-6M GPS module with antenna Section 3, 4 Included
+7 SIM800L GSM module with antenna Section 3, 4 Included
+8 SIM card (2G-supported) Section 3 Included
+9 4WD car chassis kit (4 DC motors and wheels) Section 3 Included
+10 L298N motor driver Section 3, 4 Included
+11 Buzzer Section 3, 4 Included
+--- Page 4 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 4
+No. Component (team list) In this document Status
+12 Red, yellow, green LEDs and resistors Section 3, 4 Included
+13 18650 batteries (2-3) with holder and charger Section 3, 5.2 Included
+14 Buck converter (SIM800L ~4V, 2A) Section 3, 5.2 (Rail C) Included
+15 Jumper wires (M-F, M-M) Section 3 Included
+16 Breadboard or perfboard Section 3, 5.3 Included
+17 USB cable (ESP32 to laptop) Section 3 (added) Included
+18 Track / road layout Section 3, 8.5 Included
+19 Webcam Section 3 Already available (laptop)
+20 Software: Python, OpenCV, Flask, Arduino IDE Section 6 Already available (free)
+Extra parts added to the list (needed for a reliable build)
+• Second buck converter (5 V, 3 A): the team list has one buck for the SIM800L; the ESP32 and sensors also
+need a stable 5 V rail.
+• Capacitors (1000 uF, 100 uF), 1k/2k/10k resistors, switch and fuse: for SIM800L power stability, level dividers
+and protection.
+• Spare ESP32 and spare sensors for the demo day.
+--- Page 5 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 5
+4. Sensor Details and Connection Methods
+Each sensor, how it connects to the ESP32, and who connects it. Important: ESP32 GPIOs are 3.3 V only. Any 5 V
+output (HC-SR04 ECHO, SIM800L TX if powered at 4 V is OK) must go through a voltage divider (e.g. 1 k + 2 k ohm).
+Sensor / module Interface Connection to ESP32 Voltage How it is used / threshold Owner
+MQ-3 Alcohol Analog
+(ADC)
+AO > GPIO34 (ADC1).
+Optional DO > not used
+5V
+(heater)
+Pre-heat 3 min after power-up.
+Calibrate: record clean-air baseline,
+alcohol threshold = baseline + margin
+(set after testing). Use ADC1 pin only
+(ADC2 conflicts with WiFi).
+Yasik
+HC-SR04
+Obstacle
+Digital pulse TRIG > GPIO5, ECHO >
+GPIO18 through 1k/2k divider
+5V Distance = echo time x 0.0343 / 2. <40
+cm slow, <20 cm stop. Read every 60
+ms.
+Yasik
+IR speed (LM393) Digital
+interrupt
+OUT > GPIO27
+(attachInterrupt, RISING)
+3.3V Count pulses on slotted disc. Speed =
+(pulses/slots) x wheel circumference
+per second. Debounce 2 ms.
+Yasik
+MPU6050 motion I2C SDA > GPIO21, SCL >
+GPIO22
+3.3V Accident if total accel > approx 2.5 g
+spike or tilt > 60 deg for > 1 s. Calibrate
+offsets at rest. Sample 100 Hz.
+Nivash
+NEO-6M GPS UART2 GPS TX > GPIO16 (RX2),
+GPS RX > GPIO17 (TX2)
+3.3-5V 9600 baud, parse NMEA with
+TinyGPSPlus. Needs sky view for first
+fix (1-5 min cold start).
+Sidharraj
+SIM800L GSM UART1
+(remapped)
+SIM TX > GPIO26, SIM RX <
+GPIO25 (via divider 1k/2k)
+4.0V,
+peak 2A
+AT commands: AT, AT+CMGF=1,
+AT+CMGS. Own buck converter + 1000
+uF cap on supply. Common GND.
+Sidharraj
+L298N motor
+driver
+PWM +
+digital
+ENA=GPIO23, IN1=GPIO32,
+IN2=GPIO33, IN3=GPIO19,
+IN4=GPIO4, ENB=GPIO13
+7.4V
+motors /
+5V logic
+PWM 1 kHz for speed. Left/right motors
+paired. Motor GND tied to ESP32 GND.
+Navin
+Buzzer (active) Digital GPIO14 (via transistor if
+needed)
+5V/3.3V Patterns: 1 beep = warning, continuous
+= alcohol/accident, 2 beeps = danger
+zone.
+Nivash
+Traffic LEDs Digital Red=GPIO2,
+Yellow=GPIO15,
+Green=GPIO12, each with
+220 ohm to GND
+3.3V GPIO2/12/15 are boot-strapping pins:
+keep LED-to-GND wiring; unplug if
+upload fails.
+Nivash
+Webcam USB (laptop) Laptop USB port 5V OpenCV VideoCapture(0). Arsal
+ESP32 <-> Laptop USB serial Micro-USB cable, 115200
+baud
+5V JSON line protocol (Section 7). Navin /
+Selvamani
+--- Page 6 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 6
+5. Pin Map and Power Design
+5.1 Final ESP32 pin assignment (no conflicts)
+GPIO Signal GPIO Signal GPIO Signal
+34 MQ-3 AO (input only) 23 L298N ENA (PWM) 5 HC-SR04 TRIG
+18 HC-SR04 ECHO 32 L298N IN1 33 L298N IN2
+19 L298N IN3 4 L298N IN4 13 L298N ENB (PWM)
+27 IR speed OUT 21 / 22 MPU6050 SDA / SCL 14 Buzzer
+16 / 17 GPS RX2 / TX2 26 / 25 GSM RX / TX 2 / 15 / 12 LED Red / Yellow / Green
+Hardware team: freeze this table in Week 1. Any change must be announced in the team group and updated here and in the firmware
+pins.h.
+5.2 Power design
+• Battery: 2S 18650 pack (7.4 V) with protection board. Add a main switch and a fuse (2-3 A).
+• Rail A - motors: battery direct to L298N 12V input (its onboard 5V regulator is not used for the ESP32).
+• Rail B - 5 V logic: LM2596 buck set to 5.0 V (3 A) for ESP32 VIN, MQ-3 heater, HC-SR04, MPU6050 (3.3 V from
+ESP32 pin), IR sensor, buzzer.
+• Rail C - 4.0 V GSM: a second buck set to 4.0 V (min 2 A) only for the SIM800L, with 1000 uF + 100 uF capacitors
+at the module. The ESP32 3.3 V pin can NOT power the SIM800L.
+• Common ground: all grounds joined at one point. Keep motor wires away from GPS/GSM antennas to reduce
+noise.
+• While connected to the laptop by USB, the ESP32 may be powered from USB for bench testing; for the road test
+use Rail B.
+5.3 Connection methods - summary
+Method Used for Notes
+Jumper wires / breadboard First prototype, all bring-up tests Quick to change; unreliable when the car vibrates.
+Perfboard / ESP32 shield with female
+headers
+Final build (recommended) Navin leads the final soldered board; every module plugs
+into labelled headers.
+I2C (2 wires) MPU6050 Pull-ups usually on the GY-521 board.
+UART (TX/RX crossed) GPS, GSM, laptop TX of one goes to RX of the other.
+PWM + direction pins Motors via L298N Use separate PWM per side.
+Interrupt input IR speed sensor Keep ISR short; compute speed in loop.
+--- Page 7 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 7
+6. Software Requirements
+Area Tool / library Version / note Owner
+ESP32 firmware Arduino IDE 2.x or PlatformIO, ESP32 board package Language: C++ (Arduino) Selvamani
+Firmware libraries TinyGPSPlus, Adafruit MPU6050 (or
+MPU6050_light), ArduinoJson
+Install via Library Manager Selvamani + HW
+owners
+AI module Python 3.10+, opencv-python, face_recognition (dlib)
+or OpenCV LBPH, numpy
+Enrol 3-5 authorised faces, 20+
+photos each
+Arsal
+Serial bridge pyserial 115200 baud, line-based JSON Arsal /
+Muniyappan
+Backend Flask, Flask-SocketIO, (eventlet/simple-websocket) REST + WebSocket live push Muniyappan
+Dashboard UI HTML, CSS, JavaScript, Chart.js, Leaflet.js (maps) Responsive; runs in browser at
+localhost:5000
+Muniyappan
+Database SQLite3 (file: accialert.db) Tables: drivers, events, telemetry,
+danger_zones
+Prasanth
+Danger-zone engine Python (haversine geofence), JSON zone file Section 8 Prasanth
+Version control Git + GitHub private repo Branches: main, hardware, firmware,
+ai, dashboard
+Selvamani
+Testing pytest, Serial Plotter, Postman/curl Test plan in Section 13 Prasanth
+6.1 Software modules
+Module Responsibility Inputs Outputs
+firmware/main.ino Task loop, state machine (LOCKED, READY,
+RUNNING, WARNING, EMERGENCY)
+Sensors, serial commands Motor, buzzer, LEDs, JSON
+telemetry
+firmware/sensors Drivers for each sensor with calibration GPIO, I2C, UART Calibrated values
+firmware/safety Rule engine from Section 7.3, zone check backup Sensor values, zones Vehicle state, alerts
+firmware/gsm SMS sender with retry Lat/Lon, event type SMS to contact
+ai/face_auth.py Detect and recognise driver; send AUTH over
+serial
+Webcam frames Driver ID, confidence
+server/app.py Flask app, serial reader thread, WebSocket push,
+REST API
+Serial JSON, DB Live data, events
+server/zones.py Load zones, haversine distance, enter/exit events Lat/Lon Zone alerts
+dashboard/* Cards, charts, map, event table, alert banner WebSocket events User view
+--- Page 8 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 8
+7. Communication Protocols and Safety Logic
+7.1 ESP32 > Laptop telemetry (every 200 ms, one JSON per line)
+{"t":123456,"spd":18.5,"alc":812,"dist":54,"ax":0.12,"ay":0.03,"az":1.01,"tilt":4,"lat":13.0827,"lon":80
+.2707,"fix":1,"state":"RUNNING","auth":1,"signal":"GREEN","zone":"Z03","evt":""}
+7.2 Laptop > ESP32 commands
+Command (JSON line) Meaning
+{"cmd":"AUTH","ok":1,"driver":"Arun"} Face matched - unlock vehicle (ok=0 locks)
+{"cmd":"SIGNAL","state":"RED"} Optional: dashboard overrides traffic signal
+{"cmd":"LIMIT","kmh":10} Set temporary speed limit (e.g. in danger zone)
+{"cmd":"ZONES","list":[{"id":"Z03","lat":..,"lon":..,"r":30,"lim":10}]} Upload danger zones to ESP32 (backup logic)
+{"cmd":"STOP"} / {"cmd":"RESET"} Emergency stop from dashboard / clear emergency
+7.3 Safety decision rules (in ESP32 firmware - must work even if laptop is disconnected)
+Priority Condition Action Dashboard event
+1 (highest) MPU6050 impact or tilt
+exceeds limit
+Motors OFF, continuous buzzer, read GPS, send SMS
+'Accident Alert! Lat: x Lon: y', state=EMERGENCY
+ACCIDENT (critical)
+2 Alcohol ADC above threshold Block start / motors OFF, buzzer continuous ALCOHOL (critical)
+3 Driver not authorised (auth=0) Motors locked UNAUTHORISED
+(high)
+4 Distance < 20 cm Brake (PWM 0); < 40 cm reduce PWM to 40% OBSTACLE (medium)
+5 Speed > limit Reduce PWM until below limit, buzzer beep OVERSPEED
+(medium)
+6 Inside danger zone Apply zone speed limit, 2 beeps DANGER_ZONE
+(warning)
+7 Signal RED Stop before the stop line; resume on GREEN SIGNAL_STOP (info)
+SMS format: ACCIDENT ALERT! Vehicle AcciAlert-01. Lat: 13.0827 N, Lon: 80.2707 E.
+maps.google.com/?q=13.0827,80.2707. Send once per accident; resend after 60 s if no acknowledgement; if
+GPS has no fix, send the last known position and mark it 'last known'.
+7.4 Dashboard REST/WebSocket API
+Endpoint Type Purpose
+/ (page) GET Live dashboard
+socket event 'telemetry' WS push Live values to browser
+socket event 'alert' WS push Event / danger zone alert
+/api/events?limit=100 GET Event log
+/api/zones GET / POST / DELETE List, add (click on map) or remove danger zones
+/api/drivers GET / POST Authorised driver list
+/api/command POST Send STOP / RESET / SIGNAL to ESP32
+--- Page 9 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 9
+8. NEW Concept: Danger Zone Detection and Dashboard Alert
+Goal: warn the driver and the monitoring operator when the vehicle moves into an area known to be dangerous,
+before an accident occurs. This adds a preventive layer to the existing reactive accident detection.
+8.1 What is a danger zone
+Zone type Example Default speed limit Severity
+Accident black spot Junction with repeated accidents 10 km/h (scaled) High
+Sharp curve Blind turn on the miniature road 8 km/h Medium
+School / hospital zone Pedestrian crossing area 5 km/h High
+Construction / road work Barricaded section 5 km/h Medium
+Restricted / no-entry Closed road 0 (stop) Critical
+8.2 Zone data model (SQLite table danger_zones / zones.json)
+Field Type Example
+id text Z03
+name text School crossing
+type text school
+lat, lon float 13.0830, 80.2710
+radius_m float 30 (real) - for the miniature demo see 8.5
+speed_limit int 10
+severity enum low / medium / high / critical
+active bool 1
+8.3 Detection algorithm
+• Every GPS update (1 Hz) the laptop (and ESP32 as backup) computes the haversine distance from the vehicle
+to each active zone centre.
+• If distance <= radius and the vehicle was previously outside > ENTER event. If distance > radius + 5 m hysteresis
+and it was inside > EXIT event (hysteresis prevents flicker).
+• Optional pre-warning ring: distance <= radius + 20 m shows a yellow 'Approaching danger zone' notice.
+• On ENTER: log event, push 'alert' via WebSocket, send LIMIT command to ESP32, ESP32 beeps twice and caps
+speed.
+• If the vehicle exceeds the zone limit while inside, escalate to OVERSPEED_IN_ZONE (high) and log it.
+• Critical zones (no-entry): ESP32 stops the car and the dashboard shows a red full-width alert until operator
+presses Acknowledge.
+8.4 Dashboard behaviour for danger zones
+• Map layer: all zones drawn as coloured circles (red high, orange medium, yellow low); vehicle marker moves live.
+• Alert banner: 'DANGER ZONE: School crossing - limit 10 km/h' with severity colour, timestamp and alert sound;
+stays until the vehicle exits or the operator acknowledges.
+• Zone counter card: zones entered today, current zone, time spent inside.
+• Event table: ZONE_ENTER / ZONE_EXIT / OVERSPEED_IN_ZONE rows with driver, speed and coordinates.
+• Zone manager page: click on the map to add a zone, set radius/limit/severity, enable or disable, delete.
+8.5 Indoor miniature demo (important practical note)
+GPS does not work reliably indoors and a 1 m track is smaller than GPS accuracy (2.5-5 m). So the team will support
+two modes, selectable on the dashboard:
+• Real GPS mode - for outdoor tests with a real NEO-6M fix.
+--- Page 10 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 10
+• Simulation / track mode - the miniature track is mapped to virtual coordinates (e.g. 1 cm = 1 m around a base
+lat/lon). The ESP32 estimates position by dead-reckoning (speed from the IR sensor + heading from the MPU6050
+gyro) or from checkpoint markers (IR/line markers or taps) placed at zone entrances. The same zone engine then
+runs on these virtual coordinates.
+Both modes use the same JSON fields (lat, lon, fix), so the dashboard and zone engine do not change. Owners: zone
+engine and DB - Prasanth; dashboard layer and zone manager - Muniyappan; ESP32 backup check and
+dead-reckoning - Selvamani; GPS data quality - Sidharraj; track markers and physical zone signage - Nivash.
+8.6 Acceptance criteria
+• Dashboard shows the alert within 1 second of the vehicle entering a zone and clears it within 2 seconds of exit.
+• ENTER and EXIT events logged exactly once per crossing (no flicker).
+• Zone speed limit applied by the ESP32 in 3 out of 3 trials; buzzer double beep heard.
+• At least 5 zones configured, edited and removed from the dashboard without restarting the server.
+• Works with the laptop disconnected (ESP32 backup applies limit; alert is logged and synced when reconnected -
+nice to have).
+--- Page 11 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 11
+9. Dashboard Requirements
+ID Requirement Priority
+D1 Live cards: speed, alcohol level, obstacle distance, tilt/impact, GPS lat/lon, vehicle state, signal colour Must
+D2 Driver panel: webcam preview or name + confidence, authorised / unauthorised badge Must
+D3 Live charts (last 60 s): speed and alcohol level Should
+D4 Map with vehicle marker, trail and danger-zone circles (Leaflet) Must
+D5 Alert banner with sound for ACCIDENT, ALCOHOL, UNAUTHORISED, DANGER ZONE Must
+D6 Event log table with filter by type and date; export to CSV Must
+D7 Control buttons: Emergency STOP, Reset, Traffic signal override, Acknowledge alert Should
+D8 Zone manager (add / edit / delete zones on the map) Must
+D9 Mode switch: Real GPS / Simulation Should
+D10 Connection status indicators (ESP32 serial, GPS fix, GSM signal) Should
+D11 Responsive design, dark theme matching the project banner (navy/teal/orange) Could
+9.1 Event logging requirements
+• Every event stored with: id, timestamp, type, severity, driver, speed, lat, lon, zone id, details.
+• Telemetry stored every 1 s (rolling 24 h) for charts and replay.
+• Accident events must never be dropped: write to DB before updating the UI.
+--- Page 12 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 12
+10. Team Responsibilities (all 8 members)
+Every sensor and module has exactly one owner and one backup. The owner builds and tests it alone first (bench
+test), then hands it to the integration lead.
+HARDWARE TEAM
+Navin (Hardware team) - Hardware lead - chassis, power, motors, final integration
+Tasks Deliverables
+• Assemble chassis, mount motors, wheels, battery and switch
+• Wire L298N to ESP32 (pins in Section 5) and test forward/back/left/right +
+PWM speed
+• Build the power rails (7.4 V, 5 V, 4.0 V for GSM); add fuse and common
+ground
+• Build the final ESP32 shield/perfboard with labelled headers; cable
+management
+• Mount webcam and sensors on the car; final wiring check before each demo
+• Running car with remote serial control (test sketch)
+• Power distribution diagram + photos
+• Final soldered board and wiring sheet
+Depends on / hands off to Definition of done
+Gets sensor modules from Yasik, Nivash, Sidharraj; hands the finished car to
+Selvamani for firmware loading. Backup for: Sidharraj (power).
+Car drives straight, speed controllable by PWM, runs 20
+min on battery, no brown-out when motors start.
+Yasik (Hardware team) - Input sensors - alcohol, obstacle, speed
+Tasks Deliverables
+• Interface MQ-3 on GPIO34; run 3-min pre-heat and baseline calibration;
+record ADC values for clean air and alcohol swab/sanitiser
+• Interface HC-SR04 (TRIG 5, ECHO 18 with divider); verify distance 5-100
+cm within +/-2 cm
+• Mount IR sensor + encoder disc; interrupt on GPIO27; verify pulses/second
+vs measured speed
+• Write small test sketches for each and document thresholds
+• 3 bench-tested sensor sketches
+• Calibration sheet (baseline, threshold, noise)
+• Mounting positions on the car
+Depends on / hands off to Definition of done
+Hands calibrated sensor code and threshold values to Selvamani; mounting to
+Navin. Backup for: Nivash.
+Readings stable (+/-5%), thresholds written in the
+calibration sheet, serial plotter screenshot attached.
+Nivash (Hardware team) - Accident sensor, buzzer, traffic signals, miniature track
+Tasks Deliverables
+• Interface MPU6050 on I2C; calibrate offsets; find impact (g) and tilt
+thresholds by controlled drop/tilt tests
+• Wire buzzer on GPIO14 and define beep patterns
+• Build 3-LED traffic signals (GPIO2/15/12) and a signal timing sequence (e.g.
+G 8 s, Y 2 s, R 6 s)
+• Build the road track: lanes, stop line, junction, curve, school-zone, black-spot
+marks (physical danger-zone markers) - coordinates agreed with Prasanth
+• MPU6050 test sketch + threshold table
+• Buzzer pattern chart
+• Traffic signal unit
+• Miniature track with labelled zones and a zone map (cm
+coordinates)
+Depends on / hands off to Definition of done
+Gives track zone map to Prasanth/Muniyappan (for simulation coordinates);
+sensor code to Selvamani. Backup for: Yasik.
+Impact detected in 10/10 drops and no false trigger while
+driving normally; signals cycle correctly; track ready by
+Week 4.
+--- Page 13 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 13
+Sidharraj (Hardware team) - Communication - GPS and GSM
+Tasks Deliverables
+• Connect NEO-6M to UART2 (16/17); get a fix outdoors; print lat/lon with
+TinyGPSPlus
+• Set up SIM800L with dedicated 4.0 V supply + capacitors, level divider on
+ESP32 TX; verify network registration and signal (AT+CSQ)
+• Send test SMS with text 'Accident Alert! Lat/Lon' to the emergency number;
+measure delivery time
+• Document antenna placement and fallback when no GPS fix
+• GPS test sketch
+• GSM test sketch with SMS function
+• Wiring/power note for SIM800L
+• Delivery time and signal test log
+Depends on / hands off to Definition of done
+Hands GPS and SMS functions to Selvamani (firmware gsm/gps modules);
+power rail with Navin. Backup for: Navin (power rails).
+SMS received on phone in under 30 s in 5/5 tests; GPS
+fix achieved outdoors; no module resets when SMS is
+sent.
+--- Page 14 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 14
+SOFTWARE TEAM
+Selvamani (Software team) - ESP32 firmware and safety decision logic
+Tasks Deliverables
+• Create the GitHub repo, branch rules and folder structure; run weekly
+integration
+• Write firmware skeleton: pins.h, state machine (LOCKED / READY /
+RUNNING / WARNING / EMERGENCY), non-blocking loop with millis()
+• Integrate sensor code from Yasik, Nivash, Sidharraj; implement the priority
+rules from Section 7.3
+• Implement the JSON telemetry and command parser (ArduinoJson) and the
+backup danger-zone check + dead-reckoning for simulation mode
+• Implement motor control (smooth stop, speed limiting) with Navin
+• firmware/ project in repo
+• Protocol document (Section 7) kept up to date
+• Weekly firmware release tags
+Depends on / hands off to Definition of done
+Needs sensor code from the hardware team; gives the protocol to Arsal and
+Muniyappan in Week 1. Backup for: Prasanth.
+All rules in Section 7.3 pass the test cases; telemetry
+delivered at 5 Hz without drops; ESP32 safe when laptop
+is disconnected.
+Arsal (Software team) - AI - face recognition and driver authorisation
+Tasks Deliverables
+• Collect and store face images of authorised drivers (3-5 people, 20+ images
+each, different lighting)
+• Build recognition (face_recognition encodings or OpenCV LBPH); set
+confidence threshold; handle no-face / multiple faces
+• Send AUTH commands to ESP32 over serial (via the shared serial service
+with Muniyappan)
+• Add liveness basics (blink or movement) if time permits; log recognition
+events to the DB through the API
+• ai/face_auth.py + enrol script
+• Encodings file
+• Accuracy report (true accept / false accept)
+Depends on / hands off to Definition of done
+Uses protocol from Selvamani; sends driver events to Muniyappan API; stores
+through Prasanth DB. Backup for: Muniyappan (serial service).
+Authorised drivers recognised in under 2 s with >= 90%
+accuracy; unknown faces rejected in 10/10 tests.
+Muniyappan (Software team) - Flask backend and live dashboard
+Tasks Deliverables
+• Build Flask app, serial reader thread (pyserial) and WebSocket
+(Flask-SocketIO) push
+• Build the dashboard pages from Section 9: cards, charts, map (Leaflet), alert
+banner and sound, event table, control buttons
+• Build the zone manager page and the danger-zone map layer / banner with
+Prasanth's engine (Section 8.4)
+• Create a mock telemetry generator so UI work does not wait for hardware
+• server/ and dashboard/ folders
+• Mock data script
+• User guide with screenshots
+Depends on / hands off to Definition of done
+Needs protocol (Selvamani) and DB/zone API (Prasanth); shows Arsal's
+recognition results. Backup for: Arsal.
+All Must-priority items D1, D2, D4, D5, D6, D8 working
+with real data; alert latency under 1 s.
+Prasanth (Software team) - Database, danger-zone engine, testing and documentation
+Tasks Deliverables
+• Design SQLite schema (drivers, events, telemetry, danger_zones) and the
+data access layer
+• Implement zones.py: haversine, ENTER/EXIT with hysteresis, pre-warning
+ring, severity escalation; unit tests with pytest
+• Prepare zone data for the miniature track with Nivash (simulation coordinate
+mapping)
+• Own the test plan (Section 13), log defects, run regression before every
+demo; maintain this document and the final report
+• server/db.py, server/zones.py
+• zones.json starter data (5+ zones)
+• Test cases + test report
+• Final documentation
+Depends on / hands off to Definition of done
+Takes zone map from Nivash; exposes zone API to Muniyappan; verifies
+Selvamani's ESP32 backup logic. Backup for: Selvamani.
+Zone engine passes all unit tests; zero duplicate
+ENTER/EXIT events; test report signed off each week.
+--- Page 15 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 15
+11. Responsibility Matrix and Hand-offs
+O = Owner (does the work), B = Backup, R = Reviews / integrates, - = not involved.
+Work item Navin Yasik Nivash Sidh. Selva. Arsal Muni. Prasa.
+Chassis, motors, L298N O - - - R - - -
+Power rails (5V / 4V) O - - B - - - -
+MQ-3 alcohol R O B - R - - -
+HC-SR04 obstacle R O B - R - - -
+IR speed sensor R O B - R - - -
+MPU6050 accident - B O - R - - -
+Buzzer, traffic signals, track - - O - R - R -
+GPS NEO-6M - - - O R - R -
+GSM SIM800L + SMS B - - O R - - -
+ESP32 firmware, safety rules R R R R O - - B
+Face recognition - - - - R O B -
+Serial bridge / Flask backend - - - - R B O -
+Dashboard UI + map - - - - - - O R
+Database + event log - - - - - R R O
+Danger-zone engine - - R R B - R O
+Testing + documentation R R R R R R R O
+Key hand-off points (who gives what to whom)
+From To What Due
+Selvamani All Pin map (frozen), JSON protocol, repo structure Week 1
+Yasik / Nivash / Sidharraj Selvamani Tested sensor sketches + threshold values Week 2-3
+Navin Selvamani Working car with power + motor control Week 3
+Nivash Prasanth, Muniyappan Track zone map with coordinates Week 4
+Prasanth Muniyappan, Selvamani Zone API, zones.json and zone format Week 4
+Arsal Selvamani, Muniyappan AUTH flow working over serial Week 4
+Muniyappan All Dashboard demo with mock then real data Week 5
+--- Page 16 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 16
+12. Implementation Strategy and Timeline
+12.1 Approach
+• Interfaces first: freeze pin map and JSON protocol in Week 1 so hardware and software work in parallel.
+• Module by module: every member bench-tests their part alone, then it is integrated one module at a time (never
+all at once).
+• Mock first: software team uses mock telemetry until real hardware is ready; hardware team uses test sketches
+until firmware is ready.
+• Safety logic lives on the ESP32, not the laptop, so the car stays safe if the laptop link drops.
+• Weekly cycle: Monday planning (30 min), mid-week 15-min stand-up, Friday integration test + demo to the team.
+• Communication: one group chat, one GitHub repo, one shared drive for photos, datasheets and this document.
+12.2 Eight-week plan
+Week Hardware team Software team Milestone
+1 Buy parts; verify each module powers up;
+freeze pin map
+Repo, folder structure, protocol, mock data
+generator
+M1: Plan + pin map + protocol
+frozen
+2 Bench tests: sensors (Yasik),
+MPU/buzzer/LEDs (Nivash), GPS/GSM
+(Sidharraj), chassis (Navin)
+Firmware skeleton; DB schema; Flask
+skeleton; collect face data
+M2: All sensors read on bench
+3 Power rails, car drives; mount sensors Integrate sensors in firmware; safety rules;
+JSON telemetry
+M3: Car runs with
+sensor-based safety
+4 Track + signals + zone markers; SMS
+tests on car
+Face auth over serial; zone engine; telemetry
+to dashboard
+M4: Laptop link + AUTH +
+zones working
+5 Final shield/perfboard; antenna placement Dashboard full UI, map, zone manager, alert
+banner
+M5: Live dashboard with
+danger-zone alert
+6 Vibration/wiring fixes Full integration, SMS from firmware on
+accident, logging
+M6: End-to-end demo scenario
+passes
+7 Calibration under final conditions Testing, bug fixing, performance, user guide M7: Test report complete
+8 Demo rehearsal, spare parts kit Final documentation, video demo, report M8: Final demo
+12.3 Demo scenario (end-to-end script)
+• Unknown person in front of the webcam > car locked, dashboard shows UNAUTHORISED.
+• Authorised driver recognised > car unlocks; drives on the track; dashboard shows live speed.
+• Alcohol (sanitiser swab) near MQ-3 > car stops, buzzer, ALCOHOL event.
+• Hand/obstacle in front > car slows and stops; OBSTACLE event.
+• Car drives into the school zone > dashboard DANGER ZONE alert, 2 beeps, speed limited; exits > alert clears.
+• Red signal > car stops; green > continues.
+• Hit/tilt the car > ACCIDENT; motors stop; SMS with latitude/longitude arrives on the phone; dashboard shows
+critical alert on the map.
+--- Page 17 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 17
+13. Testing Plan and Acceptance Criteria
+ID Test Pass criteria Tester
+T1 Motor control: forward, back, turn, stop, PWM Smooth speed change, straight line within 10
+cm per metre
+Navin / Prasanth
+T2 Alcohol: clean air vs alcohol swab, 10 trials Detected in 10/10; no false alarm in 10 clean
+trials
+Yasik
+T3 Obstacle at 10/20/30/50 cm Stops under 20 cm; slows under 40 cm Yasik
+T4 Speed: compare with stopwatch over 1 m Error within 10% Yasik / Prasanth
+T5 Accident: drop/tilt 10 times, drive normally 10
+min
+10/10 detection; 0 false triggers Nivash
+T6 GPS fix and accuracy outdoors Fix in under 5 min; error under 5 m Sidharraj
+T7 SMS delivery with location Received in under 30 s in 5/5 tests Sidharraj
+T8 Face recognition: 3 authorised + 5 unknown
+people
+>= 90% accept, 0 unknown accepted Arsal
+T9 Serial link stability 30 min No dropped/garbled lines; auto-reconnect
+works
+Selvamani / Muniyappan
+T10 Dashboard latency and alerts Under 1 s from event to banner Muniyappan
+T11 Danger zone ENTER/EXIT x 10 crossings per
+zone
+Exactly 10 ENTER and 10 EXIT, correct limits
+applied
+Prasanth
+T12 Laptop disconnected during run Car remains safe; safety rules still work Selvamani
+T13 Full demo scenario x 3 All 7 steps succeed in 3 consecutive runs All
+Definition of done (project level)
+• All Must requirements implemented and all tests T1-T13 passed and recorded in the test report.
+• Code merged to main with a README (how to flash firmware, how to run the server, how to enrol faces).
+• Wiring diagram, pin map and this document updated to the final build.
+• Demo video recorded as backup in case of live-demo failure.
+14. Risks and Mitigation
+Risk Impact Mitigation Owner
+SIM800L resets / no SMS (power
+dip)
+No emergency alert Dedicated 4.0 V 2 A supply + 1000 uF cap; test with
+battery, not USB
+Sidharraj
+2G network not available / SIM
+issue
+SMS fails Test SIM early; keep a backup SIM; show SMS in
+dashboard as well
+Sidharraj
+GPS no fix indoors No zone detection Simulation/track mode (Section 8.5) Selvamani /
+Prasanth
+MQ-3 drift and temperature effect False or missed
+alcohol alert
+Pre-heat, baseline calibration at start-up, re-calibrate
+before demo
+Yasik
+Motor noise causing sensor/ESP32
+resets
+Unstable car Separate rails, decoupling capacitors, twisted motor
+wires, common ground
+Navin
+ESP32 boot-strapping pins (2, 12,
+15) problems
+Upload/boot failure LEDs wired to GND only; disconnect if flashing fails Nivash
+Poor lighting for face recognition False reject Enrol in several lights; add fixed LED light near
+webcam
+Arsal
+Integration delays between teams Late demo Frozen protocol, mock data, weekly integration Selvamani
+A member unavailable Work blocked Backup owner defined for every module (Section 10) Prasanth
+Demo failure on the day Poor result Spare ESP32, spare modules, pre-recorded demo
+video
+All
+--- Page 18 ---
+AcciAlert Requirements & Implementation Strategy | v1.0
+Smart Driver Safety and Accident Prevention System - Team Document Page 18
+15. Appendix
+A. Haversine danger-zone check (Python, server/zones.py)
+import math
+def dist_m(lat1, lon1, lat2, lon2):
+R = 6371000
+p1, p2 = math.radians(lat1), math.radians(lat2)
+dp, dl = p2 - p1, math.radians(lon2 - lon1)
+a = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+return 2*R*math.asin(math.sqrt(a))
+def update(zone, inside_before, lat, lon):
+d = dist_m(lat, lon, zone['lat'], zone['lon'])
+if not inside_before and d <= zone['radius']: return 'ENTER'
+if inside_before and d > zone['radius'] + 5: return 'EXIT'
+return None
+B. SMS sending outline (ESP32, SIM800L on Serial1)
+Serial1.begin(9600, SERIAL_8N1, 26, 25); // RX=26, TX=25
+send("AT"); send("AT+CMGF=1");
+send("AT+CMGS=\"+91XXXXXXXXXX\""); // wait for '>'
+Serial1.print("ACCIDENT ALERT! Lat:" + lat + " Lon:" + lon);
+Serial1.write(26); // Ctrl+Z to send
+C. Pre-demo checklist
+Check Who Done
+Battery fully charged, spare battery ready Navin [ ]
+MQ-3 pre-heated 3 min and baseline recorded Yasik [ ]
+MPU6050 calibrated on a flat surface Nivash [ ]
+SIM has balance, SMS test sent, GPS antenna placed Sidharraj [ ]
+Firmware latest release flashed Selvamani [ ]
+Faces enrolled, lighting fixed, webcam works Arsal [ ]
+Server starts, dashboard loads, zones visible, sound on Muniyappan [ ]
+Database backed up, test report ready, demo video on laptop Prasanth [ ]
+Note: thresholds (alcohol ADC level, impact g-value, distances) are starting values and must be finalised by calibration tests by the
+respective owners.
