@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AcciAlert - Zone Manager</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="zones.css">
+</head>
+<body>
+<header>
+  <h1>AcciAlert <span>Zone Manager</span></h1>
+  <div id="status">connecting...</div>
+</header>
+
+<main>
+  <section id="mapwrap">
+    <div id="map"></div>
+    <p class="hint">Click the map to place a new zone. Click a circle to edit it.</p>
+  </section>
+
+  <aside>
+    <form id="zoneForm" autocomplete="off">
+      <h2 id="formTitle">New zone</h2>
+      <label>ID <input name="id" required pattern="[A-Za-z0-9_-]+" placeholder="Z07"></label>
+      <label>Name <input name="name" required placeholder="School crossing"></label>
+      <label>Type
+        <select name="type">
+          <option value="blackspot">Accident black spot</option>
+          <option value="curve">Sharp curve</option>
+          <option value="school">School / hospital</option>
+          <option value="construction">Construction</option>
+          <option value="restricted">Restricted / no-entry</option>
+        </select>
+      </label>
+      <div class="row">
+        <label>Lat <input name="lat" type="number" step="any" required></label>
+        <label>Lon <input name="lon" type="number" step="any" required></label>
+      </div>
+      <div class="row">
+        <label>Radius (m) <input name="radius_m" type="number" step="any" min="0.1" required value="30"></label>
+        <label>Limit (km/h) <input name="speed_limit" type="number" min="0" required value="10"></label>
+      </div>
+      <label>Severity
+        <select name="severity">
+          <option>low</option><option>medium</option><option selected>high</option><option>critical</option>
+        </select>
+      </label>
+      <label class="check"><input name="active" type="checkbox" checked> Active</label>
+      <div class="row">
+        <button type="submit" id="saveBtn">Save zone</button>
+        <button type="button" id="cancelBtn" class="ghost">Cancel</button>
+      </div>
+      <p id="formMsg" role="alert"></p>
+    </form>
+
+    <h2>Zones <small id="zoneCount"></small></h2>
+    <ul id="zoneList"></ul>
+  </aside>
+</main>
+
+<section id="events">
+  <h2>Zone events</h2>
+  <div class="filters">
+    <label>Type
+      <select id="fType">
+        <option value="">All</option>
+        <option>ZONE_ENTER</option><option>ZONE_EXIT</option>
+        <option>ZONE_APPROACH</option><option>OVERSPEED_IN_ZONE</option>
+        <option>ACCIDENT</option><option>ALCOHOL</option><option>UNAUTHORISED</option>
+      </select>
+    </label>
+    <label>From <input type="date" id="fFrom"></label>
+    <label>To <input type="date" id="fTo"></label>
+    <button id="fApply">Apply</button>
+    <a id="csvLink" class="btn" href="/api/events.csv">Export CSV</a>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Time</th><th>Type</th><th>Severity</th><th>Driver</th><th>Speed</th><th>Lat, Lon</th><th>Zone</th><th>Details</th></tr></thead>
+      <tbody id="evBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="zones.js"></script>
+</body>
+</html>
