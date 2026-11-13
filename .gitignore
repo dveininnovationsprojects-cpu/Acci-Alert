@@ -4,3 +4,12 @@ __pycache__/
 *.pyd
 .vscode/
 .idea/
+
+# runtime data and backups
+*.db
+*.db-wal
+*.db-shm
+backend/data/
+backend/backups/
+.mypy_cache/
+.pytest_cache/

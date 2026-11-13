@@ -38,8 +38,8 @@ class LiveChartsManager {
 
     const ctx = canvas.getContext("2d");
     const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-    gradient.addColorStop(0, "rgba(0, 242, 195, 0.35)");
-    gradient.addColorStop(1, "rgba(0, 242, 195, 0.0)");
+    gradient.addColorStop(0, "rgba(230, 195, 74, 0.35)");
+    gradient.addColorStop(1, "rgba(230, 195, 74, 0.0)");
 
     this.speedChart = new Chart(ctx, {
       type: "line",
@@ -48,14 +48,14 @@ class LiveChartsManager {
         datasets: [{
           label: "Vehicle Speed (km/h)",
           data: [...this.speedHistory],
-          borderColor: "#00F2C3",
+          borderColor: "#E6C34A",
           borderWidth: 2.2,
           backgroundColor: gradient,
           fill: true,
           tension: 0.35,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointHoverBackgroundColor: "#00F2C3"
+          pointHoverBackgroundColor: "#E6C34A"
         }]
       },
       options: {
@@ -68,9 +68,9 @@ class LiveChartsManager {
             mode: "index",
             intersect: false,
             backgroundColor: "rgba(19, 34, 68, 0.95)",
-            titleColor: "#00F2C3",
+            titleColor: "#E6C34A",
             bodyColor: "#FFFFFF",
-            borderColor: "rgba(0, 242, 195, 0.4)",
+            borderColor: "rgba(230, 195, 74, 0.4)",
             borderWidth: 1,
             callbacks: {
               label: (ctx) => `Speed: ${ctx.parsed.y.toFixed(1)} km/h`
@@ -109,8 +109,8 @@ class LiveChartsManager {
 
     const ctx = canvas.getContext("2d");
     const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-    gradient.addColorStop(0, "rgba(255, 122, 0, 0.35)");
-    gradient.addColorStop(1, "rgba(255, 122, 0, 0.0)");
+    gradient.addColorStop(0, "rgba(249, 115, 22, 0.35)");
+    gradient.addColorStop(1, "rgba(249, 115, 22, 0.0)");
 
     this.alcoholChart = new Chart(ctx, {
       type: "line",
@@ -120,19 +120,19 @@ class LiveChartsManager {
           {
             label: "Alcohol ADC Reading",
             data: [...this.alcoholHistory],
-            borderColor: "#FF7A00",
+            borderColor: "#F97316",
             borderWidth: 2.2,
             backgroundColor: gradient,
             fill: true,
             tension: 0.3,
             pointRadius: 0,
             pointHoverRadius: 5,
-            pointHoverBackgroundColor: "#FF7A00"
+            pointHoverBackgroundColor: "#F97316"
           },
           {
             label: "Danger Threshold (600 ADC)",
             data: new Array(this.maxDataPoints).fill(600),
-            borderColor: "rgba(255, 51, 102, 0.65)",
+            borderColor: "rgba(225, 29, 72, 0.65)",
             borderWidth: 1.5,
             borderDash: [5, 5],
             fill: false,
@@ -157,9 +157,9 @@ class LiveChartsManager {
             mode: "index",
             intersect: false,
             backgroundColor: "rgba(19, 34, 68, 0.95)",
-            titleColor: "#FF7A00",
+            titleColor: "#F97316",
             bodyColor: "#FFFFFF",
-            borderColor: "rgba(255, 122, 0, 0.4)",
+            borderColor: "rgba(249, 115, 22, 0.4)",
             borderWidth: 1,
             callbacks: {
               label: (ctx) => {

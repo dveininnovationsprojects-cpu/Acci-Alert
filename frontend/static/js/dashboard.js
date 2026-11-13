@@ -485,6 +485,9 @@ class DashboardController {
       "DANGER ZONE": "badge-warning",
       "TRAFFIC SIGNAL STOP": "badge-warning",
       "ZONE EXIT": "badge-info",
+      "ZONE_ENTER": "badge-warning",
+      "ZONE_EXIT": "badge-info",
+      "OVERSPEED_IN_ZONE": "badge-danger",
       "EMERGENCY STOP": "badge-danger"
     };
 
@@ -497,7 +500,7 @@ class DashboardController {
           <td><span class="badge ${badgeClass}">${ev.event_type}</span></td>
           <td style="color:#94A3B8; font-size:0.78rem;">${ev.timestamp}</td>
           <td><b>${ev.driver_name || 'Unknown'}</b></td>
-          <td><span style="color:#00F2C3; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
+          <td><span style="color:#E6C34A; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
           <td><code style="color:#94A3B8; font-size:0.75rem;">${ev.latitude}, ${ev.longitude}</code></td>
           <td>${ev.danger_zone_name || 'None'}</td>
           <td style="color:#94A3B8; font-size:0.78rem;">${ev.details || ''}</td>

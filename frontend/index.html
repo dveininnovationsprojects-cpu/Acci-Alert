@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
   <!-- Custom Theme CSS -->
-  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="stylesheet" href="static/css/dashboard.css">
 </head>
 <body>
 
@@ -72,6 +72,7 @@
     </div>
 
     <div class="header-actions">
+      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm"><i class="bi bi-geo-alt-fill"></i> Zone Manager</button>
       <button id="btn-mute-toggle" class="btn btn-outline btn-sm">
         <i class="bi bi-volume-up-fill"></i> Sound ON
       </button>
@@ -95,6 +96,8 @@
         <h2 class="section-title">Live Telemetry & Diagnostics</h2>
         <span style="font-size:0.8rem; color:var(--text-muted);">
           Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
+          &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
+          &nbsp;|&nbsp; Time in zone: <strong id="zm-inside" style="color:var(--teal-primary);">--</strong>
         </span>
       </div>
 
@@ -340,7 +343,7 @@
           <div class="map-floating-overlay">
             <div><i class="bi bi-geo-alt-fill" style="color:var(--teal-primary);"></i> <span id="map-coords-readout">13.0827, 80.2707</span></div>
             <div style="border-left:1px solid rgba(255,255,255,0.1); padding-left:10px;">
-              Zones: <span style="color:#00F2C3;">■ Low</span> <span style="color:#FFD166;">■ Med</span> <span style="color:#FF7A00;">■ High</span> <span style="color:#FF3366;">■ Critical</span>
+              Zones: <span style="color:#22C55E;">■ Low</span> <span style="color:#FFD166;">■ Med</span> <span style="color:#F97316;">■ High</span> <span style="color:#E11D48;">■ Critical</span>
             </div>
           </div>
         </div>
@@ -396,8 +399,8 @@
             <div style="display:flex; flex-direction:column; gap:8px;">
               <span style="font-size:0.75rem; color:var(--text-secondary);">Force Traffic Signal:</span>
               <div class="btn-actions-row">
-                <button id="btn-signal-red" class="btn btn-outline btn-sm" style="flex:1; border-color:#FF3366; color:#FF3366;">
-                  <i class="bi bi-circle-fill" style="color:#FF3366;"></i> RED
+                <button id="btn-signal-red" class="btn btn-outline btn-sm" style="flex:1; border-color:#E11D48; color:#E11D48;">
+                  <i class="bi bi-circle-fill" style="color:#E11D48;"></i> RED
                 </button>
                 <button id="btn-signal-yellow" class="btn btn-outline btn-sm" style="flex:1; border-color:#FFD166; color:#FFD166;">
                   <i class="bi bi-circle-fill" style="color:#FFD166;"></i> YELLOW
@@ -416,36 +419,21 @@
             </div>
           </div>
 
-          <!-- Speed Limit Setter -->
-          <div class="control-group-card">
-            <span class="control-group-title">
-              <i class="bi bi-speedometer" style="color:var(--teal-primary);"></i> Dynamic Speed Limiter
-            </span>
-            <div style="display:flex; gap:8px; align-items:center;">
-              <input id="input-custom-speed-limit" type="number" class="form-control" placeholder="Speed (km/h)" value="40" min="10" max="120" style="flex:1;">
-              <button id="btn-apply-limit" class="btn btn-teal btn-sm">
-                <i class="bi bi-send-fill"></i> Apply Limit
-              </button>
-            </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
-              <button onclick="window.DashboardApp.applySpeedLimit(30)" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:0.72rem;">30 km/h (School)</button>
-              <button onclick="window.DashboardApp.applySpeedLimit(40)" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:0.72rem;">40 km/h (Curve)</button>
-              <button onclick="window.DashboardApp.applySpeedLimit(60)" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:0.72rem;">60 km/h (Urban)</button>
-            </div>
-          </div>
-
           <!-- Simulation Scenarios (Bench Testing) -->
-          <div class="control-group-card" style="grid-column: 1 / -1;">
+          <div style="grid-column: 1 / -1;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="var b=document.getElementById('demo-tools');var h=b.style.display==='none';b.style.display=h?'block':'none';this.textContent=h?'Hide demo tools':'Show demo tools'">Show demo tools</button>
+          </div>
+          <div id="demo-tools" class="control-group-card" style="grid-column: 1 / -1; display:none;">
             <span class="control-group-title">
               <i class="bi bi-cpu-fill" style="color:var(--teal-primary);"></i> Simulation Scenario Test Bench (Quick Alert Triggers)
             </span>
             <div class="scenario-grid">
               <button class="btn-scenario accident" data-scenario="accident">
-                <i class="bi bi-exclamation-octagon-fill" style="color:#FF3366; font-size:1.2rem;"></i>
+                <i class="bi bi-exclamation-octagon-fill" style="color:#E11D48; font-size:1.2rem;"></i>
                 <span>Simulate Accident</span>
               </button>
               <button class="btn-scenario" data-scenario="alcohol">
-                <i class="bi bi-shield-fill-x" style="color:#FF7A00; font-size:1.2rem;"></i>
+                <i class="bi bi-shield-fill-x" style="color:#F97316; font-size:1.2rem;"></i>
                 <span>Simulate Alcohol</span>
               </button>
               <button class="btn-scenario" data-scenario="obstacle">
@@ -453,19 +441,19 @@
                 <span>Simulate Obstacle</span>
               </button>
               <button class="btn-scenario" data-scenario="overspeed">
-                <i class="bi bi-speedometer2" style="color:#FF7A00; font-size:1.2rem;"></i>
+                <i class="bi bi-speedometer2" style="color:#F97316; font-size:1.2rem;"></i>
                 <span>Simulate Overspeed</span>
               </button>
               <button class="btn-scenario" data-scenario="unauthorized">
-                <i class="bi bi-person-x-fill" style="color:#FF3366; font-size:1.2rem;"></i>
+                <i class="bi bi-person-x-fill" style="color:#E11D48; font-size:1.2rem;"></i>
                 <span>Unauthorized Driver</span>
               </button>
               <button class="btn-scenario" data-scenario="danger_zone">
-                <i class="bi bi-geo-alt-fill" style="color:#00F2C3; font-size:1.2rem;"></i>
+                <i class="bi bi-geo-alt-fill" style="color:#E6C34A; font-size:1.2rem;"></i>
                 <span>Enter Danger Zone</span>
               </button>
               <button class="btn-scenario" data-scenario="red_signal">
-                <i class="bi bi-stoplights-fill" style="color:#FF3366; font-size:1.2rem;"></i>
+                <i class="bi bi-stoplights-fill" style="color:#E11D48; font-size:1.2rem;"></i>
                 <span>Red Signal Stop</span>
               </button>
               <button class="btn-scenario" data-scenario="normal">
@@ -556,6 +544,9 @@
               <option value="OBSTACLE DETECTED">OBSTACLE DETECTED</option>
               <option value="OVERSPEED">OVERSPEED</option>
               <option value="DANGER ZONE">DANGER ZONE</option>
+              <option value="ZONE_ENTER">ZONE_ENTER</option>
+              <option value="ZONE_EXIT">ZONE_EXIT</option>
+              <option value="OVERSPEED_IN_ZONE">OVERSPEED_IN_ZONE</option>
               <option value="TRAFFIC SIGNAL STOP">TRAFFIC SIGNAL STOP</option>
               <option value="ZONE EXIT">ZONE EXIT</option>
               <option value="EMERGENCY STOP">EMERGENCY STOP</option>
@@ -721,13 +712,40 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Modules -->
-  <script src="/static/js/client_simulator.js"></script>
-  <script src="/static/js/alerts.js"></script>
-  <script src="/static/js/charts.js"></script>
-  <script src="/static/js/map.js"></script>
-  <script src="/static/js/zones.js"></script>
-  <script src="/static/js/dashboard.js"></script>
+  <script src="static/js/client_simulator.js"></script>
+  <script src="static/js/alerts.js"></script>
+  <script src="static/js/charts.js"></script>
+  <script src="static/js/map.js"></script>
+  <script src="static/js/zones.js"></script>
+  <script src="static/js/dashboard.js"></script>
 
+<div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#0b1220;flex-direction:column;">
+  <iframe id="zm-frame" title="Zone Manager" style="flex:1;border:0;width:100%;"></iframe>
+</div>
+<script>
+function openZoneManager(){var f=document.getElementById("zm-frame");if(!f.getAttribute("src"))f.src="/zm/";document.getElementById("zm-overlay").style.display="flex";}
+function closeZoneManager(){document.getElementById("zm-overlay").style.display="none";}
+</script>
+<script>
+// Zone counter: zones entered today + time inside the current zone (from the zone engine events)
+(function(){
+  var since=null;
+  function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+"m "+("0"+s%60).slice(-2)+"s";}
+  function poll(){
+    var d=new Date();d.setHours(0,0,0,0);
+    fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
+      if(!Array.isArray(ev))return;
+      document.getElementById("zm-count").textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
+      var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
+      since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
+    }).catch(function(){});
+  }
+  setInterval(function(){
+    document.getElementById("zm-inside").textContent=since?fmt(Date.now()/1000-since):"--";
+  },1000);
+  poll();setInterval(poll,2000);
+})();
+</script>
 </body>
 </html>
 

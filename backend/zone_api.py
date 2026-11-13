@@ -155,6 +155,33 @@ def create_zone_blueprint(conn, engine=None, on_zones_changed=None):
     return bp
 
 
+def mount_zone_manager(app, conn, engine, on_zones_changed=None, prefix="/zm"):
+    """Add the zone API and the zone manager page to an existing Flask app
+    (Muniyappan's app.py) WITHOUT touching its own /api/zones routes.
+    API: <prefix>/api/zones, <prefix>/api/events ...   Page: <prefix>/"""
+    from flask import redirect, send_from_directory
+    app.register_blueprint(create_zone_blueprint(conn, engine, on_zones_changed),
+                           url_prefix=prefix, name="zone_manager")
+
+    @app.after_request
+    def allow_embed(resp):  # runs before the blueprint's DENY default; lets the dashboard embed /zm/
+        if request.path.startswith(prefix):
+            resp.headers["X-Frame-Options"] = "SAMEORIGIN"
+        return resp
+
+    def page():
+        return send_from_directory(str(FRONTEND), "zones.html")
+
+    def asset(name):
+        if name not in ("zones.css", "zones.js"):
+            return _err("not found", 404)
+        return send_from_directory(str(FRONTEND), name)
+
+    app.add_url_rule(prefix, "zm_redirect", lambda: redirect(prefix + "/"))
+    app.add_url_rule(prefix + "/", "zm_page", page)
+    app.add_url_rule(prefix + "/<name>", "zm_asset", asset)
+
+
 def create_dev_app(db_path=db.DEFAULT_DB):
     conn = db.connect(db_path)
     db.seed_zones_from_json(conn, BACKEND / "zones.json")

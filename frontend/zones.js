@@ -1,6 +1,6 @@
 /* Zone manager + zone event table. Plain JS + Leaflet, talks to /api/zones and /api/events. */
 (function () {
-  const COLORS = { critical: "#e5484d", high: "#e5484d", medium: "#ff8a3d", low: "#f2c94c" };
+  const COLORS = { critical: "#e11d48", high: "#f97316", medium: "#ffd166", low: "#22c55e" };
   // Defaults per zone type (requirements 8.1)
   const PRESETS = {
     blackspot:    { radius_m: 30, speed_limit: 10, severity: "high" },
@@ -24,8 +24,11 @@
 
   function setStatus(text, cls) { const s = $("status"); s.textContent = text; s.className = cls || ""; }
 
+  // Works standalone ("/") and when mounted inside another app ("/zm/").
+  const BASE = location.pathname.replace(/\/[^\/]*$/, "");
+
   async function api(method, url, body) {
-    const res = await fetch(url, {
+    const res = await fetch(BASE + url, {
       method, headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -129,7 +132,7 @@
     const lat = parseFloat(form.elements.lat.value), lon = parseFloat(form.elements.lon.value);
     const r = parseFloat(form.elements.radius_m.value);
     if (isNaN(lat) || isNaN(lon) || !(r > 0)) return;
-    draft = L.circle([lat, lon], { radius: r, color: "#1fb5a8", dashArray: "4 4", fillOpacity: 0.15 }).addTo(map);
+    draft = L.circle([lat, lon], { radius: r, color: "#e6c34a", dashArray: "4 4", fillOpacity: 0.15 }).addTo(map);
   }
   function clearDraft() { if (draft) { map.removeLayer(draft); draft = null; } }
 
@@ -183,7 +186,7 @@
 
   async function loadEvents() {
     const q = evQuery();
-    $("csvLink").href = "/api/events.csv" + (q ? "?" + q : "");
+    $("csvLink").href = BASE + "/api/events.csv" + (q ? "?" + q : "");
     try {
       const rows = await api("GET", "/api/events" + (q ? "?" + q : ""));
       $("evBody").innerHTML = rows.map((r) =>

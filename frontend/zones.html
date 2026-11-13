@@ -10,7 +10,7 @@
 <body>
 <header>
   <h1>AcciAlert <span>Zone Manager</span></h1>
-  <div id="status">connecting...</div>
+  <div><a id="backLink" href="/" onclick="if(window.top!==window){parent.closeZoneManager();return false}" style="color:#e6c34a;margin-right:14px;text-decoration:none">&larr; Dashboard</a><span id="status">connecting...</span></div>
 </header>
 
 <main>
@@ -73,7 +73,7 @@
     <label>From <input type="date" id="fFrom"></label>
     <label>To <input type="date" id="fTo"></label>
     <button id="fApply">Apply</button>
-    <a id="csvLink" class="btn" href="/api/events.csv">Export CSV</a>
+    <a id="csvLink" class="btn" href="api/events.csv">Export CSV</a>
   </div>
   <div class="tablewrap">
     <table>

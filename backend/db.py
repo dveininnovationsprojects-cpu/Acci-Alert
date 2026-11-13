@@ -26,7 +26,7 @@ from zones import ZONE_FIELDS, validate_zone  # noqa: F401  (ZONE_FIELDS re-expo
 
 log = logging.getLogger("accialert.db")
 
-DEFAULT_DB = Path(__file__).resolve().parent / "accialert.db"
+DEFAULT_DB = Path(__file__).resolve().parent / "data" / "accialert_zones.db"
 TELEMETRY_KEEP_SECONDS = 24 * 3600
 VALID_SEVERITIES = ("low", "medium", "high", "critical")
 MAX_EVENT_ROWS = 5000
@@ -108,6 +108,7 @@ def _text(v, maxlen):
 @_locked
 def connect(path=DEFAULT_DB):
     """Open a connection (creates file + schema if needed)."""
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path), check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=5000")
