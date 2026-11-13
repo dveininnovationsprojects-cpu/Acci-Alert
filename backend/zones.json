@@ -1,0 +1,11 @@
+{
+  "_note": "PLACEHOLDER coordinates around base 13.0827, 80.2707. Replace with the real track zone map from Nivash (Week 3-4). Zones are spaced >60 m apart so they do not overlap.",
+  "zones": [
+    {"id": "Z01", "name": "Accident black spot", "type": "blackspot", "lat": 13.0827, "lon": 80.2707, "radius_m": 30, "speed_limit": 10, "severity": "high",     "active": 1},
+    {"id": "Z02", "name": "Sharp curve",         "type": "curve",     "lat": 13.0836, "lon": 80.2707, "radius_m": 25, "speed_limit": 8,  "severity": "medium",   "active": 1},
+    {"id": "Z03", "name": "School crossing",     "type": "school",    "lat": 13.0818, "lon": 80.2707, "radius_m": 30, "speed_limit": 5,  "severity": "high",     "active": 1},
+    {"id": "Z04", "name": "Construction",        "type": "construction", "lat": 13.0845, "lon": 80.2707, "radius_m": 25, "speed_limit": 5, "severity": "medium", "active": 1},
+    {"id": "Z05", "name": "No-entry road",       "type": "restricted", "lat": 13.0854, "lon": 80.2707, "radius_m": 20, "speed_limit": 0,  "severity": "critical", "active": 1},
+    {"id": "Z06", "name": "Hospital zone",       "type": "hospital",  "lat": 13.0863, "lon": 80.2707, "radius_m": 30, "speed_limit": 5,  "severity": "high",     "active": 1}
+  ]
+}

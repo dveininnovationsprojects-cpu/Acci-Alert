@@ -121,11 +121,11 @@ class ZoneManager {
 
       rowsHtml += `
         <tr>
-          <td><strong style="color:#00F2C3;">${z.code}</strong></td>
+          <td><strong style="color:#E6C34A;">${z.code}</strong></td>
           <td><b>${z.name}</b><br/><small style="color:#627289;">${z.details || ''}</small></td>
           <td><code style="color:#94A3B8;">${parseFloat(z.latitude).toFixed(4)}, ${parseFloat(z.longitude).toFixed(4)}</code></td>
           <td>${z.radius_meters} m</td>
-          <td><span style="color:#FF7A00; font-weight:700;">${z.speed_limit} km/h</span></td>
+          <td><span style="color:#F97316; font-weight:700;">${z.speed_limit} km/h</span></td>
           <td><span class="badge ${badgeClass}">${sev}</span></td>
           <td>
             <div style="display:flex; gap:6px;">
@@ -135,7 +135,7 @@ class ZoneManager {
               <button class="btn btn-outline btn-sm btn-icon" title="Edit Zone" onclick="window.ZoneApp.editZone(${z.id})">
                 <i class="bi bi-pencil"></i>
               </button>
-              <button class="btn btn-outline btn-sm btn-icon" style="color:#FF3366;" title="Delete Zone" onclick="window.ZoneApp.deleteZone(${z.id})">
+              <button class="btn btn-outline btn-sm btn-icon" style="color:#E11D48;" title="Delete Zone" onclick="window.ZoneApp.deleteZone(${z.id})">
                 <i class="bi bi-trash"></i>
               </button>
             </div>

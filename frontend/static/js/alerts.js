@@ -243,7 +243,7 @@ class AlertSystem {
     } else if (alert.type === "ALCOHOL DETECTED" || alert.type === "UNAUTHORISED DRIVER") {
       this.bannerEl.style.background = "linear-gradient(90deg, #C70039, #E63946, #FF5722)";
     } else {
-      this.bannerEl.style.background = "linear-gradient(90deg, #7F2B00, #E65100, #FF7A00)";
+      this.bannerEl.style.background = "linear-gradient(90deg, #7F2B00, #E65100, #F97316)";
     }
   }
 

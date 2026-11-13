@@ -28,7 +28,9 @@ logging.basicConfig(
 logger = logging.getLogger("AcciAlert.App")
 
 # Initialize Flask & SocketIO
-app = Flask(__name__, template_folder="templates", static_folder="static")
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend")
+app = Flask(__name__, template_folder=FRONTEND_DIR,
+            static_folder=os.path.join(FRONTEND_DIR, "static"))
 app.config["SECRET_KEY"] = config.SECRET_KEY
 CORS(app)
 
@@ -69,6 +71,18 @@ serial_mgr = SerialManager(
     baudrate=config.DEFAULT_SERIAL_BAUD,
     on_telemetry_callback=on_serial_telemetry_received
 )
+
+# ---- Prasanth's danger-zone engine + zone manager (backend/), mounted at /zm ----
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import db as zone_db
+from zones import ZoneEngine
+from zone_api import mount_zone_manager
+
+zone_conn = zone_db.connect()  # backend/data/accialert_zones.db (zones + zone events)
+zone_db.seed_zones_from_json(zone_conn, os.path.join(os.path.dirname(os.path.abspath(__file__)), "zones.json"))
+zone_engine = ZoneEngine(zone_db.list_zones(zone_conn))
+mount_zone_manager(app, zone_conn, zone_engine, prefix="/zm")
+zone_db.start_purge_scheduler()
 
 
 # =====================================================================
@@ -259,6 +273,17 @@ def process_telemetry_packet(raw_pkt: dict, source: str = "SIMULATOR"):
     enriched["driver_name"] = state.active_driver_name if enriched.get("auth", 1) == 1 else "Unknown Driver"
     enriched["esp32_connected"] = serial_mgr.is_connected()
     enriched["mode"] = state.mode
+
+    # Danger-zone engine (backend/zones.py): never raises, ignores bad/no-GPS fixes
+    for zev in zone_engine.update(raw_pkt.get("lat"), raw_pkt.get("lon"),
+                                  raw_pkt.get("spd", 0), raw_pkt.get("fix", 1)):
+        zone_db.log_event(zone_conn, zev["type"], zev["severity"], driver=enriched["driver_name"],
+                          speed=zev["speed"], lat=zev["lat"], lon=zev["lon"],
+                          zone_id=zev["zone_id"], details=zev["details"])
+        if zev["type"] in ("ZONE_ENTER", "ZONE_EXIT", "OVERSPEED_IN_ZONE"):  # show in the dashboard event table
+            database.add_event(zev["type"], enriched["driver_name"], zev["speed"], zev["lat"], zev["lon"],
+                               zev["zone_name"], zev["details"])
+        socketio.emit("zone_event", zev)
 
     # Run alert detection engine
     active_alerts = evaluate_and_dispatch_alerts(enriched)
