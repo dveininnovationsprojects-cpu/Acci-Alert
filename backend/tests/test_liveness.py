@@ -4,8 +4,8 @@ Unit Tests for LivenessDetector Module
 
 import numpy as np
 import pytest
-from ai.liveness import LivenessDetector
-from ai.face_detector import FaceDetector
+from backend.liveness import LivenessDetector
+from backend.face_detector import FaceDetector
 
 
 @pytest.fixture

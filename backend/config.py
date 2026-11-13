@@ -13,10 +13,10 @@ BACKEND_DIR = Path(__file__).resolve().parent      # backend/
 DATA_DIR = BACKEND_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-AI_DIR = BASE_DIR / "ai"
-MODELS_DIR = BASE_DIR / "models"
-DATASET_DIR = BASE_DIR / "dataset"
-DATASET_TEST_DIR = BASE_DIR / "dataset_test"
+AI_DIR = BACKEND_DIR
+MODELS_DIR = BACKEND_DIR / "models"
+DATASET_DIR = BACKEND_DIR / "dataset"
+DATASET_TEST_DIR = BACKEND_DIR / "dataset_test"
 DOCS_DIR = BASE_DIR / "docs"
 FRONTEND_DIR = BASE_DIR / "frontend"
 

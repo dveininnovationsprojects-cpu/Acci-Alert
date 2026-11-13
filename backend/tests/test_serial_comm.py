@@ -4,7 +4,7 @@ Unit Tests for ESP32SerialCommunicator Module
 
 import json
 import pytest
-from ai.serial_comm import ESP32SerialCommunicator
+from backend.serial_comm import ESP32SerialCommunicator
 
 
 @pytest.fixture

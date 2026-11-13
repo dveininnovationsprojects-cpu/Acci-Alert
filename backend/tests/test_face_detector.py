@@ -4,8 +4,8 @@ Unit Tests for FaceDetector Module
 
 import numpy as np
 import pytest
-from ai.face_detector import FaceDetector, FaceDetectionResult
-from ai import config
+from backend.face_detector import FaceDetector, FaceDetectionResult
+from backend import config
 
 
 @pytest.fixture

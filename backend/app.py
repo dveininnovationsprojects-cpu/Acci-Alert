@@ -421,6 +421,12 @@ def dashboard_view():
     return send_from_directory(FRONTEND_DIR, "dashboard.html")
 
 
+@app.route("/auth.html")
+def auth_page():
+    """Serves the Driver Authorisation (face recognition) page."""
+    return send_from_directory(FRONTEND_DIR, "auth.html")
+
+
 @app.route("/zones.html")
 def zones_page():
     """Serves the Zone Manager page."""

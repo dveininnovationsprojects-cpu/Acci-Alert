@@ -1,8 +1,0 @@
-# AcciAlert - AI Face Recognition & Driver Authorisation
-# Core dependencies for Python 3.10+
-opencv-contrib-python>=4.8.0
-numpy>=1.24.0
-pyserial>=3.5
-requests>=2.28.0
-pytest>=7.0.0
-

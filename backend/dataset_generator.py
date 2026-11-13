@@ -39,7 +39,7 @@ RAW_FACES: Dict[str, Tuple[str, Tuple[int, int, int, int]]] = {
 
 def extract_master_crops() -> Dict[str, np.ndarray]:
     """Extracts master real human face crops from dataset_raw."""
-    raw_dir = config.BASE_DIR / "dataset_raw"
+    raw_dir = config.BACKEND_DIR / "dataset_raw"
     if not raw_dir.exists():
         raise FileNotFoundError(f"dataset_raw directory not found: {raw_dir}")
 
