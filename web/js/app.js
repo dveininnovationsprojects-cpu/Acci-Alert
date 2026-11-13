@@ -136,6 +136,29 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLogsTable();
     updateVehicleStatusUI('LOCKED', 'Unknown', 0, 99.0, 'SYSTEM READY - CAMERA OFF');
 
+    // Sync Audit Logs with Backend SQLite Database
+    try {
+        fetch('/api/logs?limit=100')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    state.auditLogs = data.map(d => ({
+                        id: d.id,
+                        timestamp: d.timestamp,
+                        type: d.event_type,
+                        severity: d.severity,
+                        driver: d.driver_name,
+                        similarity: d.confidence_pct,
+                        liveness: d.liveness_verified ? 'PASSED' : 'FAILED',
+                        details: d.details || '',
+                        espCommand: d.esp32_command || `{"cmd":"AUTH","ok":${d.event_type === 'AUTH_OK' ? 1 : 0},"driver":"${d.driver_name}"}`
+                    }));
+                    renderLogsTable();
+                }
+            })
+            .catch(() => {});
+    } catch (_) {}
+
     if (thresholdSlider) {
         thresholdSlider.value = faceEngine.matchThreshold;
         thresholdValueLabel.textContent = faceEngine.matchThreshold.toFixed(1);
@@ -816,6 +839,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.auditLogs.length > 200) state.auditLogs.pop();
         localStorage.setItem('accialert_audit_logs', JSON.stringify(state.auditLogs));
         renderLogsTable();
+
+        // Persist to Backend REST API (SQLite Database)
+        try {
+            fetch('/api/logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event_type: type,
+                    severity: severity,
+                    driver_name: driver,
+                    match_score: similarity,
+                    liveness_result: logItem.liveness,
+                    details: details,
+                    esp32_cmd: logItem.espCommand
+                })
+            }).catch(() => {});
+        } catch (_) {}
     }
 
     function renderLogsTable() {
@@ -931,6 +971,9 @@ document.addEventListener('DOMContentLoaded', () => {
             state.auditLogs = [];
             localStorage.removeItem('accialert_audit_logs');
             renderLogsTable();
+            try {
+                fetch('/api/logs', { method: 'DELETE' }).catch(() => {});
+            } catch (_) {}
         }
     });
 
@@ -946,14 +989,16 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadFile(csv, 'accialert_audit_logs.csv', 'text/csv');
     });
 
-    btnExportJSON.addEventListener('click', () => {
-        if (state.auditLogs.length === 0) {
-            alert('No logs to export.');
-            return;
-        }
-        const jsonStr = JSON.stringify(state.auditLogs, null, 2);
-        downloadFile(jsonStr, 'accialert_audit_logs.json', 'application/json');
-    });
+    if (btnExportJSON) {
+        btnExportJSON.addEventListener('click', () => {
+            if (state.auditLogs.length === 0) {
+                alert('No logs to export.');
+                return;
+            }
+            const jsonStr = JSON.stringify(state.auditLogs, null, 2);
+            downloadFile(jsonStr, 'accialert_audit_logs.json', 'application/json');
+        });
+    }
 
     // -------------------------------------------------------------
     // Driver Enrolment Wizard
