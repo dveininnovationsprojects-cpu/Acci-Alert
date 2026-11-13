@@ -1,6 +1,7 @@
 /**
  * AcciAlert - Leaflet.js GPS Mapping Module
  * Displays vehicle position, breadcrumb trail, and severity-colored danger zones.
+ * Styled for Light White & Soft Gray theme.
  * Author: Muniyappan
  */
 
@@ -39,9 +40,9 @@ class VehicleMapManager {
     // Add Zoom Control to top-left
     L.control.zoom({ position: "topleft" }).addTo(this.map);
 
-    // Dark Matter Tiles (CartoDB)
-    const cartoDark = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    // Light CartoDB Positron / Voyager Tiles
+    const lightTiles = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
       {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
         subdomains: "abcd",
@@ -49,22 +50,22 @@ class VehicleMapManager {
       }
     );
 
-    // Fallback standard OSM tile layer in case Carto is unavailable
+    // Fallback standard OSM tile layer
     const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
       maxZoom: 19
     });
 
-    cartoDark.addTo(this.map);
-    cartoDark.on("tileerror", () => {
+    lightTiles.addTo(this.map);
+    lightTiles.on("tileerror", () => {
       if (!this.map.hasLayer(osm)) osm.addTo(this.map);
     });
 
-    // Trail Polyline
+    // Trail Polyline (Deep Teal)
     this.trailPolyline = L.polyline([], {
-      color: "#00F2C3",
-      weight: 3,
-      opacity: 0.75,
+      color: "#00897B",
+      weight: 3.5,
+      opacity: 0.85,
       dashArray: "6, 6"
     }).addTo(this.map);
 
@@ -86,23 +87,24 @@ class VehicleMapManager {
           width: 36px;
           height: 36px;
           border-radius: 50%;
-          background: rgba(0, 242, 195, 0.25);
-          border: 2px solid #00F2C3;
-          box-shadow: 0 0 14px #00F2C3;
+          background: rgba(0, 137, 123, 0.25);
+          border: 2px solid #00897B;
+          box-shadow: 0 0 12px rgba(0, 137, 123, 0.5);
           animation: pulse-ring 1.8s infinite;
         "></div>
         <div style="
           width: 24px;
           height: 24px;
           border-radius: 50%;
-          background: #0B132B;
+          background: #FFFFFF;
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 1.5px solid #FFFFFF;
+          border: 2px solid #00897B;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
           z-index: 2;
         ">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="#00F2C3">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="#00897B">
             <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
           </svg>
         </div>
@@ -119,8 +121,8 @@ class VehicleMapManager {
 
     this.vehicleMarker = L.marker([this.defaultLat, this.defaultLon], { icon: carIcon }).addTo(this.map);
     this.vehicleMarker.bindPopup(`
-      <div style="font-size:0.85rem; line-height:1.4;">
-        <strong style="color:#00F2C3;">AcciAlert Vehicle</strong><br/>
+      <div style="font-size:0.85rem; line-height:1.4; color:#0F172A;">
+        <strong style="color:#00897B;">AcciAlert Vehicle</strong><br/>
         Driver: <span id="map-popup-driver">Muniyappan</span><br/>
         Speed: <span id="map-popup-speed">0.0 km/h</span><br/>
         Status: <span id="map-popup-status">INITIALIZING</span>
@@ -155,8 +157,8 @@ class VehicleMapManager {
 
     // Update Popup content
     const popupContent = `
-      <div style="font-size:0.82rem; line-height:1.4;">
-        <strong style="color:#00F2C3; font-size:0.9rem;">AcciAlert Vehicle</strong><br/>
+      <div style="font-size:0.82rem; line-height:1.4; color:#0F172A;">
+        <strong style="color:#00897B; font-size:0.9rem;">AcciAlert Vehicle</strong><br/>
         <b>Driver:</b> ${driverName || "Muniyappan"}<br/>
         <b>Speed:</b> ${speed ? speed.toFixed(1) : 0.0} km/h<br/>
         <b>State:</b> <span class="badge ${state === 'RUNNING' ? 'badge-success' : 'badge-danger'}">${state || 'READY'}</span><br/>
@@ -229,9 +231,15 @@ class VehicleMapManager {
         if (data.status === "success" && Array.isArray(data.zones)) {
           this.zonesData = data.zones;
           this.renderDangerZones(data.zones);
+        } else if (window.ZoneApp && window.ZoneApp.zonesList) {
+          this.renderDangerZones(window.ZoneApp.zonesList);
         }
       })
-      .catch(err => console.error("Error loading danger zones:", err));
+      .catch(() => {
+        if (window.ZoneApp && window.ZoneApp.zonesList) {
+          this.renderDangerZones(window.ZoneApp.zonesList);
+        }
+      });
   }
 
   renderDangerZones(zones) {
@@ -239,10 +247,10 @@ class VehicleMapManager {
     this.zoneCirclesLayer.clearLayers();
 
     const severityColors = {
-      "LOW": { color: "#00F2C3", fill: "rgba(0, 242, 195, 0.22)" },
-      "MEDIUM": { color: "#FFD166", fill: "rgba(255, 209, 102, 0.25)" },
-      "HIGH": { color: "#FF7A00", fill: "rgba(255, 122, 0, 0.30)" },
-      "CRITICAL": { color: "#FF3366", fill: "rgba(255, 51, 102, 0.38)" }
+      "LOW": { color: "#00897B", fill: "rgba(0, 137, 123, 0.2)" },
+      "MEDIUM": { color: "#D97706", fill: "rgba(217, 119, 6, 0.22)" },
+      "HIGH": { color: "#E65100", fill: "rgba(230, 81, 0, 0.25)" },
+      "CRITICAL": { color: "#D32F2F", fill: "rgba(211, 47, 47, 0.3)" }
     };
 
     zones.forEach(zone => {
@@ -254,20 +262,20 @@ class VehicleMapManager {
         color: style.color,
         weight: 2,
         fillColor: style.color,
-        fillOpacity: sev === "CRITICAL" ? 0.35 : 0.22,
+        fillOpacity: sev === "CRITICAL" ? 0.32 : 0.2,
         dashArray: sev === "CRITICAL" ? "4, 4" : null
       });
 
       const popupHtml = `
-        <div style="font-size:0.82rem; line-height:1.45;">
+        <div style="font-size:0.82rem; line-height:1.45; color:#0F172A;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <strong style="color:${style.color}; font-size:0.9rem;">${zone.name}</strong>
             <span class="badge ${sev === 'CRITICAL' ? 'badge-danger' : sev === 'HIGH' ? 'badge-warning' : 'badge-info'}" style="font-size:0.65rem;">${sev}</span>
           </div>
           <b>Zone Code:</b> ${zone.code}<br/>
-          <b>Speed Limit:</b> <span style="color:#00F2C3; font-weight:700;">${zone.speed_limit} km/h</span><br/>
+          <b>Speed Limit:</b> <span style="color:#00897B; font-weight:700;">${zone.speed_limit} km/h</span><br/>
           <b>Radius:</b> ${zone.radius_meters} m<br/>
-          <div style="margin-top:6px; color:#94A3B8; font-size:0.75rem;">${zone.details || ''}</div>
+          <div style="margin-top:6px; color:#64748B; font-size:0.75rem;">${zone.details || ''}</div>
           <button onclick="window.DashboardApp.applySpeedLimit(${zone.speed_limit})" class="btn btn-teal btn-sm" style="width:100%; margin-top:8px; padding:4px 8px; font-size:0.75rem;">
             Enforce Limit (${zone.speed_limit} km/h)
           </button>
@@ -280,6 +288,4 @@ class VehicleMapManager {
   }
 }
 
-// Global instance
 window.MapManager = null;
-
