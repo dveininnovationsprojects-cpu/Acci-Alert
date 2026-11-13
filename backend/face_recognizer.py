@@ -155,3 +155,14 @@ class FaceRecognizer:
             threshold=self.threshold
         )
 
+    def recognize(self, face_roi: np.ndarray) -> Dict[str, any]:
+        """Convenience dictionary wrapper around predict()."""
+        res = self.predict(face_roi)
+        return {
+            "driver": res.driver,
+            "authorized": res.is_authorised,
+            "distance": res.confidence_distance,
+            "confidence": res.similarity_pct,
+            "threshold": res.threshold
+        }
+

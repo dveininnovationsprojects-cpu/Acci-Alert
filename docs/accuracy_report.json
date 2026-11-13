@@ -1,6 +1,6 @@
 {
   "test_name": "T8 - Face Recognition & Driver Authorisation",
-  "date": "2026-11-13 17:23:19",
+  "date": "2026-11-13 18:15:20",
   "overall_status": "PASS",
   "criteria": {
     "accuracy_ge_90_pct": {
@@ -15,14 +15,14 @@
     },
     "latency_lt_2s": {
       "pass": true,
-      "avg_latency_sec": 0.0381,
-      "max_latency_ms": 118.54,
+      "avg_latency_sec": 0.0257,
+      "max_latency_ms": 79.51,
       "target": 2.0
     }
   },
   "stats": {
-    "total_authorised_tested": 30,
-    "correct_authorised": 30,
+    "total_authorised_tested": 50,
+    "correct_authorised": 50,
     "total_unknown_tested": 48,
     "correctly_rejected_unknown": 48,
     "decision_threshold": 50.0

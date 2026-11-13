@@ -11,7 +11,7 @@ class DashboardController {
     this.socket = null;
     this.latestTelemetry = null;
     this.systemMode = "simulation";
-    this.activeDriver = "Muniyappan";
+    this.activeDriver = "Unknown";
     this.backendConnected = false;
     this.clientSimulator = new ClientSimulationEngine(this);
 
@@ -192,12 +192,12 @@ class DashboardController {
 
     // 6. Driver Name and Authorisation Status
     const auth = t.auth === 1;
-    const driverName = t.driver_name || (auth ? this.activeDriver : "Unknown Driver");
+    const driverName = t.driver || t.driver_name || (auth && this.activeDriver !== "Unknown" ? this.activeDriver : "Unknown");
     const driverEl = document.getElementById("val-driver");
     const authBadgeEl = document.getElementById("badge-driver-auth");
     if (driverEl) driverEl.innerText = driverName;
     if (authBadgeEl) {
-      if (auth) {
+      if (auth && driverName !== "Unknown") {
         authBadgeEl.innerText = "AUTHORIZED";
         authBadgeEl.className = "badge badge-success";
       } else {

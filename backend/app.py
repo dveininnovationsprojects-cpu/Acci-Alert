@@ -89,8 +89,8 @@ database.init_db()
 class SystemState:
     def __init__(self):
         self.mode = "simulation"  # "simulation" or "serial"
-        self.active_driver_name = "Muniyappan"
-        self.active_driver_auth = 1
+        self.active_driver_name = "Unknown"
+        self.active_driver_auth = 0
         self.latest_telemetry = None
         self.current_zone_code = "NONE"
         self.current_zone_name = "None"
@@ -493,13 +493,13 @@ def verify_face_api():
             return jsonify({"status": "error", "message": "Invalid image format."}), 400
 
         # Run Face Detection
-        faces = face_detector.detect_faces(frame)
-        if len(faces) == 0:
+        det = face_detector.detect_faces(frame)
+        if det.face_count == 0 or det.primary_roi is None:
             return jsonify({
                 "status": "success",
                 "detected": False,
                 "authorized": False,
-                "driver": "No Face Detected",
+                "driver": "Unknown",
                 "distance": 99.0,
                 "confidence": 0.0,
                 "liveness": "NO_FACE",
@@ -507,7 +507,7 @@ def verify_face_api():
             })
 
         # Process primary face
-        roi = face_detector.extract_face_roi(frame, faces[0])
+        roi = det.primary_roi
         rec_res = face_recognizer.recognize(roi)
         distance = float(rec_res.get("distance", 99.0))
         similarity = float(rec_res.get("confidence", 0.0))

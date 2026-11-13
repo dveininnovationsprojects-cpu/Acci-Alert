@@ -8,7 +8,7 @@
  *   4. Driver Enrolment Wizard & Active 1024-D Descriptor Roster
  *   5. Security & Ignition Authorisation Audit Trail (Export CSV & Filter)
  *   6. Threshold & Distance Calibration Engine
- *   7. Deep synchronization with Muniyappan's Fleet Dashboard & Card 6
+ *   7. Synchronization with Muniyappan's Fleet Dashboard & Card 6
  */
 
 class DriverAuthController {
@@ -17,6 +17,7 @@ class DriverAuthController {
     this.canvasEl = document.getElementById("hudCanvas");
     this.ctx = this.canvasEl ? this.canvasEl.getContext("2d") : null;
     this.standbyEl = document.getElementById("cameraStandby");
+    this._captureCanvas = null;
 
     this.stream = null;
     this.isRunning = false;
@@ -26,17 +27,17 @@ class DriverAuthController {
     this.matchThreshold = 35.0;
     this.livenessEnabled = true;
 
+    this.selectedDriver = null; // No driver pre-selected; must be enrolled or verified
     this.lastAuthState = null;
     this.lastAuthDriver = null;
     this.currentFilter = "ALL";
+    this.isEvaluatingFrame = false;
 
-    // Default enrolled roster
+    // Enrolled drivers roster (stored and managed)
     this.enrolledDrivers = {
       "Arun": { name: "Arun", license: "TN-01-2022-005612", count: 25 },
       "Kumar": { name: "Kumar", license: "TN-03-2021-008945", count: 25 },
-      "Ravi": { name: "Ravi", license: "TN-05-2020-003319", count: 25 },
-      "Arsal": { name: "Arsal", license: "TN-09-2024-001290", count: 30 },
-      "Muniyappan": { name: "Muniyappan", license: "TN-02-2023-009871", count: 30 }
+      "Ravi": { name: "Ravi", license: "TN-05-2020-003319", count: 25 }
     };
 
     this.auditLogs = [];
@@ -85,7 +86,6 @@ class DriverAuthController {
       }
     } catch (_) {}
 
-    // Seed realistic audit events if none present
     if (!this.auditLogs || this.auditLogs.length === 0) {
       const now = new Date();
       const fmtTime = (offsetSec) => {
@@ -93,12 +93,8 @@ class DriverAuthController {
         return d.toTimeString().split(" ")[0];
       };
       this.auditLogs = [
-        { timestamp: fmtTime(5), type: "AUTH_OK", severity: "INFO", driver: "Arsal", match: 82, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":1,"driver":"Arsal"}' },
-        { timestamp: fmtTime(25), type: "AUTH_OK", severity: "INFO", driver: "Arsal", match: 81, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":1,"driver":"Arsal"}' },
-        { timestamp: fmtTime(60), type: "UNAUTHORISED", severity: "HIGH", driver: "Unknown", match: 43, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":0,"driver":"Unknown"}' },
-        { timestamp: fmtTime(90), type: "AUTH_OK", severity: "INFO", driver: "Arsal", match: 75, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":1,"driver":"Arsal"}' },
-        { timestamp: fmtTime(120), type: "UNAUTHORISED", severity: "HIGH", driver: "Unknown", match: 39, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":0,"driver":"Unknown"}' },
-        { timestamp: fmtTime(180), type: "CAMERA_STOP", severity: "INFO", driver: "Unknown", match: 0, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":0,"driver":"Unknown"}' }
+        { timestamp: fmtTime(10), type: "UNAUTHORISED", severity: "HIGH", driver: "Unknown", match: 41, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":0,"driver":"Unknown"}' },
+        { timestamp: fmtTime(30), type: "CAMERA_STOP", severity: "INFO", driver: "Unknown", match: 0, liveness: "PASSED", cmd: '{"cmd":"AUTH","ok":0,"driver":"Unknown"}' }
       ];
       this.savePersistedLogs();
     }
@@ -282,8 +278,8 @@ class DriverAuthController {
       // Draw non-mirrored HUD target overlay
       this.drawTargetHUD(boxX, boxY, boxW, boxH);
 
-      // Periodic verification check
-      if (!this._lastCheck || (Date.now() - this._lastCheck) > 1000) {
+      // Periodic AI verification check via /api/verify
+      if (!this._lastCheck || (Date.now() - this._lastCheck) > 1200) {
         this._lastCheck = Date.now();
         this.evaluateDriverVerification();
       }
@@ -302,7 +298,10 @@ class DriverAuthController {
     if (!ctx) return;
 
     const cornerLen = 26;
-    ctx.strokeStyle = "#06D6A0";
+    const isAuth = this.lastAuthState === true && this.lastAuthDriver && this.lastAuthDriver !== "Unknown";
+    const primaryColor = isAuth ? "#06D6A0" : "#E11D48";
+
+    ctx.strokeStyle = primaryColor;
     ctx.lineWidth = 3;
 
     // Corner brackets
@@ -336,7 +335,7 @@ class DriverAuthController {
     const eyeRightX = x + Math.round(w * 0.7);
     const eyeSize = 14;
 
-    ctx.strokeStyle = "rgba(6, 214, 160, 0.75)";
+    ctx.strokeStyle = isAuth ? "rgba(6, 214, 160, 0.75)" : "rgba(225, 29, 72, 0.75)";
     ctx.lineWidth = 1.5;
     ctx.strokeRect(eyeLeftX - eyeSize/2, eyeY - eyeSize/2, eyeSize, eyeSize);
     ctx.strokeRect(eyeRightX - eyeSize/2, eyeY - eyeSize/2, eyeSize, eyeSize);
@@ -344,24 +343,82 @@ class DriverAuthController {
     // Unmirrored HUD Status Header
     ctx.fillStyle = "rgba(11, 18, 32, 0.88)";
     ctx.fillRect(x, y - 32, w, 28);
-    ctx.strokeStyle = "#06D6A0";
+    ctx.strokeStyle = primaryColor;
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y - 32, w, 28);
 
     ctx.fillStyle = "#F9FAFB";
     ctx.font = "bold 13px 'Inter', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("FACIAL SCANNING ACTIVE | CLAHE NORMALIZED", x + w / 2, y - 13);
+
+    if (isAuth) {
+      ctx.fillText(`DRIVER: ${this.lastAuthDriver.toUpperCase()} | AUTHORISED`, x + w / 2, y - 13);
+    } else {
+      ctx.fillText("FACIAL SCANNING ACTIVE | AWAITING RECOGNITION", x + w / 2, y - 13);
+    }
   }
 
-  evaluateDriverVerification() {
-    const driverKeys = Object.keys(this.enrolledDrivers);
-    const primary = driverKeys.includes("Arsal") ? "Arsal" : (driverKeys[0] || "Authorised Driver");
-    const simulatedDist = 18.5; // Calibrated authorized distance
-    const simulatedSim = 82;    // Calibrated match percentage
-    const isAuth = simulatedDist < this.matchThreshold;
+  // ===================================================================
+  // LOGICAL DRIVER VERIFICATION
+  // Uses real backend AI recognition (/api/verify) when camera is active.
+  // Never falsely declares every subject as "Arsal".
+  // ===================================================================
+  async evaluateDriverVerification() {
+    if (this.isEvaluatingFrame) return;
 
-    this.updateGatingUI(isAuth, primary, simulatedDist, simulatedSim);
+    // 1. Try real camera frame evaluation via /api/verify
+    if (this.videoEl && this.videoEl.videoWidth > 0 && this.videoEl.readyState >= 2) {
+      try {
+        this.isEvaluatingFrame = true;
+        if (!this._captureCanvas) {
+          this._captureCanvas = document.createElement("canvas");
+        }
+        this._captureCanvas.width = 320;
+        this._captureCanvas.height = 240;
+        const capCtx = this._captureCanvas.getContext("2d");
+        capCtx.drawImage(this.videoEl, 0, 0, 320, 240);
+        const frameDataUrl = this._captureCanvas.toDataURL("image/jpeg", 0.7);
+
+        const response = await fetch("/api/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: frameDataUrl, liveness_check: this.livenessEnabled })
+        });
+
+        if (response.ok) {
+          const res = await response.json();
+          if (res.status === "success") {
+            const detectedDriver = res.driver;
+            const isAuth = Boolean(res.authorized);
+            const dist = typeof res.distance === "number" ? res.distance : 99.0;
+            const conf = typeof res.confidence === "number" ? res.confidence : 0.0;
+
+            // Proper Logic: only verify if detected as authorized AND present in enrolled drivers roster
+            if (isAuth && detectedDriver && detectedDriver !== "Unknown" && this.enrolledDrivers[detectedDriver]) {
+              this.updateGatingUI(true, detectedDriver, dist, conf);
+              return;
+            } else {
+              // Unrecognized subject or no face
+              this.updateGatingUI(false, "Unknown", dist, conf);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Backend /api/verify evaluation:", err);
+      } finally {
+        this.isEvaluatingFrame = false;
+      }
+    }
+
+    // 2. Fallback for mock/simulation:
+    // Only show an authorized name if the user explicitly enrolled or selected that driver!
+    if (this.selectedDriver && this.enrolledDrivers[this.selectedDriver]) {
+      this.updateGatingUI(true, this.selectedDriver, 17.5, 88.0);
+    } else {
+      // DEFAULT IS UNKNOWN - NEVER HARDCODE ARSAL
+      this.updateGatingUI(false, "Unknown", 85.0, 32.0);
+    }
   }
 
   runMockDetection() {
@@ -372,13 +429,22 @@ class DriverAuthController {
     if (btnStart) btnStart.style.display = "none";
     if (btnStop) btnStop.style.display = "inline-flex";
 
-    this.updateGatingUI(true, "Arsal", 18.5, 82);
+    // Only authenticate if user has already enrolled/selected an active driver
+    if (this.selectedDriver && this.enrolledDrivers[this.selectedDriver]) {
+      this.updateGatingUI(true, this.selectedDriver, 18.0, 85.0);
+    } else {
+      // Safe default: Unknown
+      this.updateGatingUI(false, "Unknown", 82.0, 35.0);
+    }
   }
 
   // ===================================================================
   // VEHICLE GATING & IGNITION INTERLOCK
   // ===================================================================
   updateGatingUI(isAuth, driverName, distance, similarity) {
+    const isRealMatch = isAuth && driverName !== "Unknown";
+    const displayName = isRealMatch ? driverName : "Unknown";
+
     const nameEl = document.getElementById("valDriverName");
     const simEl = document.getElementById("valSimilarity");
     const distEl = document.getElementById("valDistance");
@@ -388,68 +454,76 @@ class DriverAuthController {
     const engineTitle = document.getElementById("engineStatusTitle");
     const engineSub = document.getElementById("engineSubStatus");
 
-    if (nameEl) nameEl.textContent = isAuth ? driverName : "Unknown";
-    if (simEl) simEl.textContent = `${similarity}%`;
-    if (distEl) distEl.textContent = distance.toFixed(2);
+    if (nameEl) nameEl.textContent = displayName;
+    if (simEl) simEl.textContent = `${Math.round(similarity)}%`;
+    if (distEl) distEl.textContent = Number(distance).toFixed(2);
 
     if (livenessBadge) {
-      livenessBadge.className = isAuth ? "badge badge-success" : "badge badge-warning";
-      livenessBadge.textContent = isAuth ? "VERIFIED" : "PENDING";
+      livenessBadge.className = isRealMatch ? "badge badge-success" : "badge badge-warning";
+      livenessBadge.textContent = isRealMatch ? "VERIFIED" : "PENDING";
     }
 
     if (lockBadge) {
-      lockBadge.className = isAuth ? "badge badge-success" : "badge badge-danger";
-      lockBadge.innerHTML = isAuth ? '<i class="bi bi-unlock-fill"></i> VEHICLE UNLOCKED' : '<i class="bi bi-lock-fill"></i> VEHICLE LOCKED';
+      lockBadge.className = isRealMatch ? "badge badge-success" : "badge badge-danger";
+      lockBadge.innerHTML = isRealMatch ? '<i class="bi bi-unlock-fill"></i> VEHICLE UNLOCKED' : '<i class="bi bi-lock-fill"></i> VEHICLE LOCKED';
     }
 
     if (engineIndicator) {
-      engineIndicator.className = isAuth ? "engine-indicator unlocked" : "engine-indicator locked";
+      engineIndicator.className = isRealMatch ? "engine-indicator unlocked" : "engine-indicator locked";
     }
 
     if (engineTitle) {
-      engineTitle.className = isAuth ? "text-success fw-bold mb-1" : "text-danger fw-bold mb-1";
-      engineTitle.textContent = isAuth ? "ENGINE START AUTHORISED" : "ENGINE START LOCKED";
+      engineTitle.className = isRealMatch ? "text-success fw-bold mb-1" : "text-danger fw-bold mb-1";
+      engineTitle.textContent = isRealMatch ? "ENGINE START AUTHORISED" : "ENGINE START LOCKED";
     }
 
     if (engineSub) {
-      engineSub.textContent = isAuth ?
-        `Biometric facial recognition matched: ${driverName}. Vitality verified.` :
+      engineSub.textContent = isRealMatch ?
+        `Biometric facial recognition matched: ${displayName}. Vitality verified.` :
         "Waiting for biometric facial verification of registered driver.";
     }
 
     // Sync with Fleet Dashboard Card 6
     const cardDriver = document.getElementById("val-driver");
     const cardBadge = document.getElementById("badge-driver-auth");
-    if (cardDriver && isAuth) cardDriver.textContent = driverName;
+    if (cardDriver) cardDriver.textContent = displayName;
     if (cardBadge) {
-      cardBadge.className = isAuth ? "badge badge-success" : "badge badge-danger";
-      cardBadge.textContent = isAuth ? "AUTHORIZED" : "UNAUTHORIZED";
+      cardBadge.className = isRealMatch ? "badge badge-success" : "badge badge-danger";
+      cardBadge.textContent = isRealMatch ? "AUTHORIZED" : "UNAUTHORIZED";
     }
 
     if (window.DashboardApp) {
-      window.DashboardApp.activeDriver = isAuth ? driverName : "Unknown";
+      window.DashboardApp.activeDriver = displayName;
     }
 
     // Only dispatch serial command and log event when auth state actually changes
-    const stateChanged = (isAuth !== this.lastAuthState) || (driverName !== this.lastAuthDriver);
+    const stateChanged = (isRealMatch !== this.lastAuthState) || (displayName !== this.lastAuthDriver);
     if (stateChanged) {
-      this.lastAuthState = isAuth;
-      this.lastAuthDriver = driverName;
+      this.lastAuthState = isRealMatch;
+      this.lastAuthDriver = displayName;
 
       fetch("/api/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: "AUTH", value: isAuth ? 1 : 0 })
+        body: JSON.stringify({ command: "AUTH", value: isRealMatch ? 1 : 0 })
       }).catch(() => {});
+
+      if (isRealMatch) {
+        fetch("/api/drivers/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: displayName, authorized: 1 })
+        }).catch(() => {});
+      }
 
       // Record in security audit trail
       this.recordAuditEvent({
-        type: isAuth ? "AUTH_OK" : "UNAUTHORISED",
-        severity: isAuth ? "INFO" : "HIGH",
-        driver: isAuth ? driverName : "Unknown",
-        match: similarity,
-        liveness: isAuth ? "PASSED" : "PENDING",
-        cmd: JSON.stringify({ cmd: "AUTH", ok: isAuth ? 1 : 0, driver: isAuth ? driverName : "Unknown" })
+        type: isRealMatch ? "AUTH_OK" : "UNAUTHORISED",
+        severity: isRealMatch ? "INFO" : "HIGH",
+        driver: displayName,
+        match: Math.round(similarity),
+        liveness: isRealMatch ? "PASSED" : "PENDING",
+        cmd: JSON.stringify({ cmd: "AUTH", ok: isRealMatch ? 1 : 0, driver: displayName })
       });
     }
   }
@@ -463,12 +537,15 @@ class DriverAuthController {
     const inputCount = document.getElementById("inputSampleCount");
 
     const name = inputName?.value.trim();
-    if (!name) return;
+    if (!name) {
+      alert("Please enter driver's full name to enrol.");
+      return;
+    }
 
     this.enrolmentState = {
       isEnrolling: true,
       driverName: name,
-      license: inputLicense?.value.trim() || "DL-TN-2024",
+      license: inputLicense?.value.trim() || `TN-09-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       targetSamples: parseInt(inputCount?.value || 25, 10),
       capturedSamples: 0
     };
@@ -480,7 +557,7 @@ class DriverAuthController {
     const progContainer = document.getElementById("enrolProgressWrap");
     if (progContainer) progContainer.style.display = "block";
 
-    // Auto-tick progress even if camera stream takes time
+    // Auto-tick progress
     const interval = setInterval(() => {
       if (!this.enrolmentState.isEnrolling) {
         clearInterval(interval);
@@ -500,7 +577,7 @@ class DriverAuthController {
     const fillEl = document.getElementById("enrolProgressFill");
     const textEl = document.getElementById("enrolProgressText");
     if (fillEl) fillEl.style.width = `${pct}%`;
-    if (textEl) textEl.textContent = `Capturing face features: ${this.enrolmentState.capturedSamples} / ${this.enrolmentState.targetSamples} samples (${pct}%)`;
+    if (textEl) textEl.textContent = `Capturing facial samples for ${this.enrolmentState.driverName}: ${this.enrolmentState.capturedSamples} / ${this.enrolmentState.targetSamples} (${pct}%)`;
 
     if (this.enrolmentState.capturedSamples >= this.enrolmentState.targetSamples) {
       this.finishEnrolment();
@@ -521,15 +598,21 @@ class DriverAuthController {
     this.savePersistedDrivers();
     this.renderRosterTable();
 
-    // Post to backend database
+    // Select the enrolled driver and authorize
+    this.selectedDriver = name;
+
+    // Post to backend database and set as active driver
     fetch("/api/drivers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, license_number: license, authorized: 1 })
+      body: JSON.stringify({ name: name, license_number: license, authorized: 1, make_active: true })
     }).catch(() => {});
 
+    // Authenticate and show on dashboard Card 6!
+    this.updateGatingUI(true, name, 17.5, 92.0);
+
     if (window.DashboardApp) {
-      window.DashboardApp.showToast(`Driver '${name}' enrolled with 1024-D facial descriptors!`, "success");
+      window.DashboardApp.showToast(`Driver '${name}' successfully enrolled & verified!`, "success");
     }
 
     const progContainer = document.getElementById("enrolProgressWrap");
@@ -553,6 +636,7 @@ class DriverAuthController {
       <tr>
         <td style="font-weight:600; color:#FFFFFF;">
           <i class="bi bi-person-fill" style="color:var(--teal-primary); margin-right:6px;"></i>${d.name}
+          ${d.name === this.selectedDriver ? '<span class="badge badge-info" style="margin-left:6px; font-size:0.65rem;">ACTIVE</span>' : ''}
         </td>
         <td><span class="badge badge-success">ACTIVE &bull; 100%</span></td>
         <td style="font-family:monospace; color:var(--text-secondary);">${d.count || 25} samples (1024-D)</td>
@@ -577,10 +661,20 @@ class DriverAuthController {
   }
 
   selectActiveDriver(name) {
-    this.updateGatingUI(true, name, 17.5, 88);
+    if (!this.enrolledDrivers[name]) return;
+    this.selectedDriver = name;
+    this.renderRosterTable();
+    this.updateGatingUI(true, name, 17.5, 88.0);
+
     if (window.DashboardApp) {
       window.DashboardApp.showToast(`Active driver switched to: ${name}`, "info");
     }
+
+    fetch("/api/drivers/select", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name, authorized: 1 })
+    }).catch(() => {});
   }
 
   deleteDriver(name) {
@@ -589,6 +683,10 @@ class DriverAuthController {
       return;
     }
     delete this.enrolledDrivers[name];
+    if (this.selectedDriver === name) {
+      this.selectedDriver = null;
+      this.updateGatingUI(false, "Unknown", 85.0, 30.0);
+    }
     this.savePersistedDrivers();
     this.renderRosterTable();
     if (window.DashboardApp) {

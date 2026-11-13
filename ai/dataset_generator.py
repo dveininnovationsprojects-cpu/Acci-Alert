@@ -23,10 +23,12 @@ from ai import config
 
 # Real human face coordinates from raw driver images
 RAW_FACES: Dict[str, Tuple[str, Tuple[int, int, int, int]]] = {
+    "Arsal": ("media_1794564092805_5fe29a8c.jpg", (192, 255, 188, 188)),
+    "Muniyappan": ("media_1794551262237_eda05b18.webp", (242, 75, 102, 108)),
     "Arun": ("media_1794551287264_6d629909.webp", (242, 60, 80, 85)),
     "Kumar": ("media_1794551306602_f7b8f60e.webp", (308, 90, 92, 98)),
     "Ravi": ("media_1794551255175_aecc4d27.webp", (190, 45, 90, 95)),
-    "Unknown_1": ("media_1794551262237_eda05b18.webp", (242, 75, 102, 108)),
+    "Unknown_1": ("media_1794551255175_aecc4d27.webp", (32, 49, 168, 168)),
     "Unknown_2": ("media_1794551279380_ad28788a.webp", (225, 135, 75, 80)),
     "Unknown_3": ("media_1794551279380_ad28788a.webp", (160, 135, 70, 75)),
     "Unknown_4": ("media_1794551287264_6d629909.webp", (395, 110, 65, 65)),

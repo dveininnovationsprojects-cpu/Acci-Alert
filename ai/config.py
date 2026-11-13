@@ -59,4 +59,4 @@ API_BASE_URL = os.getenv("ACCIALERT_API_URL", "http://localhost:5000")
 API_TIMEOUT = 1.5
 
 # Authorised Drivers (Default Roster per Team Guide)
-DEFAULT_AUTHORISED_DRIVERS = ["Arun", "Kumar", "Ravi"]
+DEFAULT_AUTHORISED_DRIVERS = ["Arsal", "Muniyappan", "Arun", "Kumar", "Ravi"]

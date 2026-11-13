@@ -71,13 +71,26 @@ class DatabaseLogger:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO drivers (name, enrolled_date, status, face_count)
-                VALUES (?, ?, 'ACTIVE', ?)
-                ON CONFLICT(name) DO UPDATE SET
-                    face_count = excluded.face_count,
-                    enrolled_date = excluded.enrolled_date
-            """, (driver_name, now, face_count))
+            cursor.execute("PRAGMA table_info(drivers)")
+            cols = [c[1] for c in cursor.fetchall()]
+            if "enrolled_date" in cols:
+                cursor.execute("""
+                    INSERT INTO drivers (name, enrolled_date, status, face_count)
+                    VALUES (?, ?, 'ACTIVE', ?)
+                    ON CONFLICT(name) DO UPDATE SET
+                        face_count = excluded.face_count,
+                        enrolled_date = excluded.enrolled_date
+                """, (driver_name, now, face_count))
+            else:
+                cursor.execute("SELECT id FROM drivers WHERE name = ?", (driver_name,))
+                existing = cursor.fetchone()
+                if existing:
+                    row_id = existing["id"] if isinstance(existing, dict) or hasattr(existing, "__getitem__") else existing[0]
+                    cursor.execute("UPDATE drivers SET authorized = 1, notes = ? WHERE id = ?",
+                                   (f"Enrolled {face_count} face descriptors", row_id))
+                else:
+                    cursor.execute("INSERT INTO drivers (name, license_number, authorized, notes, created_at) VALUES (?, ?, 1, ?, ?)",
+                                   (driver_name, f"DL-{driver_name[:3].upper()}-2024", f"Enrolled {face_count} face descriptors", now))
             conn.commit()
 
     def log_auth_event(self,
