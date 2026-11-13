@@ -8,11 +8,6 @@
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300F2C3'><path d='M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10h2v4h-2zm0 6h2v2h-2z'/></svg>">
 
-  <!-- Google Fonts: Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
   <!-- Bootstrap Icons -->
   
   <!-- Leaflet CSS -->
@@ -57,7 +52,7 @@
         <span id="header-status-text">INITIALIZING</span>
       </div>
       <div class="status-chip" style="display:none;">
-                <span id="header-mode-badge" class="badge badge-info">SIMULATION ACTIVE</span>
+                <span id="header-mode-badge" class="badge badge-info">Simulation active</span>
       </div>
     </div>
 
@@ -66,7 +61,7 @@
       <button id="btn-mute-toggle" class="btn btn-outline btn-sm">
         Sound ON
       </button>
-      <div style="display:flex; background:#E5E7EB; padding:3px; border-radius:8px;">
+      <div style="display:flex; background:#E5E7EB; padding:3px; border-radius:3px;">
         <button id="btn-mode-sim" class="btn btn-teal btn-sm" style="display:none; padding:4px 10px; font-size:0.75rem;">Simulation</button>
         <button id="btn-mode-serial" class="btn btn-outline btn-sm" style="padding:4px 10px; font-size:0.75rem;">ESP32 Serial</button>
       </div>
@@ -107,7 +102,7 @@
           </div>
           <div class="card-footer">
             <span>Limit: <strong id="val-speed-limit" style="color:var(--teal-primary);">60 km/h</strong></span>
-            <span id="badge-speed-status" class="badge badge-success">CRUISING</span>
+            <span id="badge-speed-status" class="badge badge-success">Cruising</span>
           </div>
         </div>
 
@@ -125,7 +120,7 @@
           </div>
           <div class="card-footer">
             <span>Threshold: 600 ADC</span>
-            <span id="badge-alcohol" class="badge badge-success">NORMAL</span>
+            <span id="badge-alcohol" class="badge badge-success">Normal</span>
           </div>
         </div>
 
@@ -143,7 +138,7 @@
           </div>
           <div class="card-footer">
             <span>Range: 40 - 400 cm</span>
-            <span id="badge-obstacle" class="badge badge-success">CLEAR</span>
+            <span id="badge-obstacle" class="badge badge-success">Clear</span>
           </div>
         </div>
 
@@ -159,7 +154,7 @@
           <div class="card-footer" style="flex-direction:column; align-items:flex-start; gap:4px;">
             <div style="display:flex; justify-content:space-between; width:100%;">
               <span id="val-accel" style="color:var(--text-muted); font-size:0.72rem;">X:0.02 Y:0.01 Z:1.00g</span>
-              <span id="badge-tilt" class="badge badge-success">NORMAL</span>
+              <span id="badge-tilt" class="badge badge-success">Normal</span>
             </div>
           </div>
         </div>
@@ -170,7 +165,7 @@
             <span class="card-label">GPS Coordinates</span>
           </div>
           <div class="card-body" style="font-size:1.1rem; flex-direction:column; align-items:flex-start;">
-            <span id="val-gps" style="font-size:1.35rem; font-weight:700; color:#FFFFFF;">13.0827, 80.2707</span>
+            <span id="val-gps" style="font-size:1.35rem; font-weight:600; color:var(--text-main);">13.0827, 80.2707</span>
             <span class="card-unit" style="font-size:0.75rem;">Chennai Corridor</span>
           </div>
           <div class="card-footer">
@@ -191,7 +186,7 @@
           </div>
           <div class="card-footer">
             <span>Auth Status</span>
-            <span><span id="badge-driver-auth" class="badge badge-success">AUTHORIZED</span>
+            <span><span id="badge-driver-auth" class="badge badge-success">Authorized</span>
             <button type="button" onclick="openDriverAuthTab()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.7rem; margin-left:6px;">Verify face</button></span>
           </div>
         </div>
@@ -206,7 +201,7 @@
           </div>
           <div class="card-footer">
             <span>Safety Controller</span>
-            <span class="badge badge-success">SYS OK</span>
+            <span class="badge badge-success">System ok</span>
           </div>
         </div>
 
@@ -216,12 +211,12 @@
             <span class="card-label">ESP32 Hardware</span>
           </div>
           <div class="card-body" style="font-size:1.2rem; flex-direction:column; align-items:flex-start;">
-            <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">SIMULATED</span>
+            <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">Simulated</span>
             <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Simulator</span>
           </div>
           <div class="card-footer">
             <span>Baud: 115200</span>
-            <span class="badge badge-info">ONLINE</span>
+            <span class="badge badge-info">Online</span>
           </div>
         </div>
 
@@ -231,11 +226,11 @@
             <span class="card-label">GPS Link</span>
           </div>
           <div class="card-body">
-            <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D FIX</span>
+            <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D fix</span>
           </div>
           <div class="card-footer">
             <span>Constellation</span>
-            <span class="badge badge-info">8 SATS</span>
+            <span class="badge badge-info">8 sats</span>
           </div>
         </div>
 
@@ -304,8 +299,8 @@
           <!-- Floating Coordinates Overlay -->
           <div class="map-floating-overlay">
             <div><span id="map-coords-readout">13.0827, 80.2707</span></div>
-            <div style="border-left:1px solid rgba(255,255,255,0.1); padding-left:10px;">
-              Zones: <span style="color:#22C55E;">■ Low</span> <span style="color:#FFD166;">■ Med</span> <span style="color:#F97316;">■ High</span> <span style="color:#E11D48;">■ Critical</span>
+            <div style="border-left:1px solid #D1D5DB; padding-left:10px;">
+              Zones: <span style="color:#16A34A;">■ Low</span> <span style="color:#CA8A04;">■ Med</span> <span style="color:#EA580C;">■ High</span> <span style="color:#DC2626;">■ Critical</span>
             </div>
           </div>
         </div>
@@ -440,12 +435,11 @@
       <div id="tab-face-recognition" class="tab-content">
         <div class="face-module-header">
           <div>
-            <h3 style="font-size:1.15rem; font-weight:700; color:#FFFFFF;">
-                            Driver Face Recognition &amp; Authorisation Subsystem
+            <h3 style="font-size:1.15rem; font-weight:600; color:var(--text-main);">
+                            Driver face login
             </h3>
             <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
-              Real-time CLAHE illumination normalization &bull; 1024-D Local Binary Patterns (LBPH) &bull; Eye-blink vitality verification
-            </p>
+              Camera check with a blink test before the car unlocks.</p>
           </div>
           <span id="ignitionLockBadge" class="badge badge-danger" style="font-size:0.85rem; padding:6px 14px;">
             VEHICLE LOCKED
@@ -479,9 +473,9 @@
 
                 <div id="cameraStandby" class="camera-standby-screen">
                   <div>
-                                        <h4 style="color:#FFFFFF; font-size:1.1rem; font-weight:700;">Driver Optical Sensor Offline</h4>
+                                        <h4 style="color:var(--text-main); font-size:1.1rem; font-weight:600;">Camera is off</h4>
                     <p style="color:var(--text-secondary); font-size:0.8rem; max-width:380px; margin:8px auto 16px;">
-                      Start the optical feed to scan the driver's face, normalize lighting variations with CLAHE, and verify vitality.
+                      Start the camera to check the driver's face and run the blink test.
                     </p>
                     <button id="btnStartCamera" class="btn btn-teal">
                       Start Face Detector
@@ -510,7 +504,7 @@
             <div class="control-group-card" style="display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
               <div>
                 <span class="control-group-title" style="justify-content:center; margin-bottom:14px;">
-                  Vehicle Ignition Interlock
+                  Car status
                 </span>
 
                 <div class="engine-indicator-wrap">
@@ -535,17 +529,17 @@
                   </div>
                   <div class="stat-tile-sm">
                     <div class="stat-label">DISTANCE</div>
-                    <div id="valDistance" class="stat-val" style="color:#94A3B8;">99.00</div>
+                    <div id="valDistance" class="stat-val" style="color:var(--text-secondary);">99.00</div>
                   </div>
                 </div>
 
                 <!-- Liveness Status Badge -->
-                <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center; text-align:left;">
+                <div style="background:#D1D5DB; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 14px; display:flex; justify-content:space-between; align-items:center; text-align:left;">
                   <div>
                     <div style="font-size:0.75rem; color:var(--text-secondary);">liveness detection:</div>
-                    <div style="font-size:0.8rem; color:#FFFFFF; font-weight:600;">Vitality Anti-Spoofing</div>
+                    <div style="font-size:0.8rem; color:var(--text-main); font-weight:600;">Vitality Anti-Spoofing</div>
                   </div>
-                  <span id="txtLivenessStatus" class="badge badge-warning">PENDING</span>
+                  <span id="txtLivenessStatus" class="badge badge-warning">Pending</span>
                 </div>
               </div>
 
@@ -595,7 +589,7 @@
             <!-- Right: Enrolled Drivers Roster -->
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h3 style="font-size:1.05rem; font-weight:700; color:#FFFFFF;">
+                <h3 style="font-size:1.05rem; font-weight:600; color:var(--text-main);">
                   Enrolled Driver Roster
                 </h3>
                 <span class="badge badge-info" id="enrolledCountBadge">5 Active Drivers</span>
@@ -655,9 +649,9 @@
           </div>
 
           <!-- Toolbar -->
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; background:var(--bg-card-subtle); padding:10px 16px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px; background:var(--bg-card-subtle); padding:10px 16px; border-radius:var(--radius-md); border:1px solid #D1D5DB;">
             <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:0.85rem; font-weight:700; color:#FFFFFF;">
+              <span style="font-size:0.85rem; font-weight:600; color:var(--text-main);">
                                 Security &amp; Ignition Authorisation Audit Trail
               </span>
             </div>
@@ -668,7 +662,7 @@
               <button type="button" class="face-filter-pill" data-face-filter="AUTH">Authorised</button>
               <button type="button" class="face-filter-pill" data-face-filter="REJECT">Rejections</button>
 
-              <div style="width:1px; height:20px; background:rgba(255,255,255,0.1); margin:0 4px;"></div>
+              <div style="width:1px; height:20px; background:#D1D5DB; margin:0 4px;"></div>
 
               <!-- Export CSV & Clear Logs (No Export JSON) -->
               <button type="button" id="btnExportFaceLogsCsv" class="btn btn-teal btn-sm" style="padding:4px 12px; font-size:0.75rem;">
@@ -696,7 +690,7 @@
               </thead>
               <tbody id="faceAuditLogsTableBody">
                 <tr>
-                  <td colspan="7" style="text-align:center; color:#627289; padding:24px;">Loading audit logs...</td>
+                  <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">Loading audit logs...</td>
                 </tr>
               </tbody>
             </table>
@@ -713,7 +707,7 @@
               <div style="margin-top:14px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
                   <label class="form-label" style="font-size:0.85rem; font-weight:600;">Decision Distance Threshold:</label>
-                  <span id="valThreshold" style="font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--teal-primary);">35.0</span>
+                  <span id="valThreshold" style="font-family:'JetBrains Mono', monospace; font-weight:600; color:var(--teal-primary);">35.0</span>
                 </div>
                 <input type="range" class="form-range" min="10" max="70" step="0.5" id="rangeThreshold" value="35.0">
                 <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:6px;">
@@ -723,7 +717,7 @@
 
               <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <label style="font-size:0.85rem; font-weight:600; color:#FFFFFF; cursor:pointer;" for="toggleLiveness">
+                  <label style="font-size:0.85rem; font-weight:600; color:var(--text-main); cursor:pointer;" for="toggleLiveness">
                     Enable Anti-Spoofing Liveness Verification
                   </label>
                   <small style="color:var(--text-muted); font-size:0.75rem; display:block;">
@@ -743,7 +737,7 @@
       <div id="tab-danger-zones" class="tab-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
           <div>
-            <h3 style="font-size:1.1rem; font-weight:700; color:#FFFFFF;">Configured Danger Geofence Zones</h3>
+            <h3 style="font-size:1.1rem; font-weight:600; color:var(--text-main);">Configured Danger Geofence Zones</h3>
             <p style="font-size:0.78rem; color:var(--text-secondary);">
               Geofences trigger live audio alerts and automatically send speed limit commands to the ESP32.
             </p>
@@ -768,7 +762,7 @@
             </thead>
             <tbody id="zones-table-body">
               <tr>
-                <td colspan="7" style="text-align:center; color:#627289; padding:24px;">Loading danger zones...</td>
+                <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">Loading danger zones...</td>
               </tr>
             </tbody>
           </table>
@@ -850,7 +844,7 @@
             </thead>
             <tbody id="events-table-body">
               <tr>
-                <td colspan="8" style="text-align:center; color:#627289; padding:24px;">Loading safety event history...</td>
+                <td colspan="8" style="text-align:center; color:var(--text-muted); padding:24px;">Loading safety event history...</td>
               </tr>
             </tbody>
           </table>

@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isCameraRunning: false,
         videoStream: null,
         activeTab: 'hud',
-        vehicleStatus: 'LOCKED', // 'LOCKED', 'UNLOCKED', 'SCANNING', 'WARNING'
+        vehicleStatus: 'LOCKED', // 'LOCKED', 'UNLOCKED', 'Scanning', 'WARNING'
         currentDriver: 'Unknown',
         currentDistance: 99.0,
         currentSimilarity: 0,
@@ -255,10 +255,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btnStartCamera.style.display = 'none';
             btnStopCamera.style.display = 'inline-flex';
             btnStartCamera.disabled = false;
-            btnStartCamera.innerHTML = '<i class="fas fa-camera"></i> Start Face Detector';
+            btnStartCamera.innerHTML = 'Start Face Detector';
 
             faceEngine.reset();
-            updateVehicleStatusUI('SCANNING', 'Scanning...', 0, 99.0, 'ACTIVE SCANNING');
+            updateVehicleStatusUI('Scanning', 'Scanning...', 0, 99.0, 'ACTIVE SCANNING');
             
             appendSerialLog({
                 timestamp: new Date().toLocaleTimeString(),
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             requestAnimationFrame(detectionLoop);
         } catch (err) {
             btnStartCamera.disabled = false;
-            btnStartCamera.innerHTML = '<i class="fas fa-camera"></i> Start Face Detector';
+            btnStartCamera.innerHTML = 'Start Face Detector';
             console.error('Camera access error:', err);
             alert(`Unable to open webcam: ${err.message}\n\nPlease allow camera access or use the "Demo Simulator" dropdown to test.`);
             appendSerialLog({
@@ -332,8 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
             drawNoFaceHUD();
             state.consecutiveMatches = 0;
             state.lastRecognisedCandidate = null;
-            if (state.vehicleStatus !== 'SCANNING' && state.vehicleStatus !== 'LOCKED') {
-                updateVehicleStatusUI('SCANNING', 'No Face Detected', 0, 99.0, 'SCANNING');
+            if (state.vehicleStatus !== 'Scanning' && state.vehicleStatus !== 'LOCKED') {
+                updateVehicleStatusUI('Scanning', 'No Face Detected', 0, 99.0, 'Scanning');
             }
             return;
         }
@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.vehicleStatus !== 'LOCKED' || state.currentDriver !== 'Unknown') {
                 updateVehicleStatusUI('LOCKED', 'Unknown Driver', match.similarity, match.distance, 'UNAUTHORISED - LOCKED');
                 serialController.sendAuth(false, 'Unknown');
-                appendAuditLog('UNAUTHORISED', 'HIGH', 'Unknown', match.similarity, `Unregistered face detected (dist: ${match.distance} > threshold)`);
+                appendAuditLog('Unauthorised', 'HIGH', 'Unknown', match.similarity, `Unregistered face detected (dist: ${match.distance} > threshold)`);
             }
         }
     }
@@ -667,42 +667,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checkDriverStatus) {
             if (isDriverEnrolled) {
                 checkDriverStatus.className = 'badge bg-success';
-                checkDriverStatus.innerHTML = `<i class="fas fa-check"></i> ${driverName}`;
+                checkDriverStatus.innerHTML = `${driverName}`;
             } else {
                 checkDriverStatus.className = 'badge bg-danger';
-                checkDriverStatus.innerHTML = `<i class="fas fa-times"></i> Unknown`;
+                checkDriverStatus.innerHTML = `Unknown`;
             }
         }
 
         if (checkLivenessStatus) {
             if (isLive) {
                 checkLivenessStatus.className = 'badge bg-success';
-                checkLivenessStatus.innerHTML = `<i class="fas fa-check"></i> LIVE HUMAN`;
+                checkLivenessStatus.innerHTML = `Live person`;
             } else if (faceEngine.livenessState.blinkDetected) {
                 checkLivenessStatus.className = 'badge bg-info';
-                checkLivenessStatus.innerHTML = `<i class="fas fa-eye"></i> Blink OK`;
+                checkLivenessStatus.innerHTML = `Blink OK`;
             } else {
                 checkLivenessStatus.className = 'badge bg-warning text-dark';
-                checkLivenessStatus.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Checking...`;
+                checkLivenessStatus.innerHTML = `Checking...`;
             }
         }
 
         if (vStatus === 'UNLOCKED') {
             vehicleStateBadge.className = 'status-badge badge-unlocked';
-            vehicleStateBadge.innerHTML = '<i class="fas fa-unlock"></i> VEHICLE UNLOCKED';
+            vehicleStateBadge.innerHTML = 'Vehicle unlocked';
             if (ignitionDial) ignitionDial.className = 'ignition-dial unlocked';
-            if (ignitionIcon) ignitionIcon.className = 'fas fa-power-off';
             ignitionStatusText.textContent = 'ENGINE START AUTHORISED';
             ignitionStatusText.className = 'ignition-main-banner text-success fw-bold';
             if (checkDecisionStatus) {
                 checkDecisionStatus.className = 'badge bg-success';
-                checkDecisionStatus.innerHTML = '<i class="fas fa-unlock"></i> UNLOCKED (Active)';
+                checkDecisionStatus.innerHTML = 'Unlocked';
             }
         } else if (vStatus === 'VERIFYING') {
             vehicleStateBadge.className = 'status-badge badge-verifying';
-            vehicleStateBadge.innerHTML = '<i class="fas fa-user-check"></i> VERIFYING LIVENESS';
+            vehicleStateBadge.innerHTML = 'Checking liveness';
             if (ignitionDial) ignitionDial.className = 'ignition-dial locked';
-            if (ignitionIcon) ignitionIcon.className = 'fas fa-shield-alt text-warning';
             ignitionStatusText.textContent = 'AWAITING BLINK / MOTION VERIFICATION';
             ignitionStatusText.className = 'ignition-main-banner text-warning fw-bold';
             if (checkDecisionStatus) {
@@ -711,20 +709,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (vStatus === 'WARNING') {
             vehicleStateBadge.className = 'status-badge badge-locked';
-            vehicleStateBadge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> SECURITY LOCK';
+            vehicleStateBadge.innerHTML = 'Security lock';
             if (ignitionDial) ignitionDial.className = 'ignition-dial locked shake-red';
-            if (ignitionIcon) ignitionIcon.className = 'fas fa-lock text-danger';
             ignitionStatusText.textContent = 'LOCKED (MULTIPLE FACES DETECTED)';
             ignitionStatusText.className = 'ignition-main-banner text-danger fw-bold';
             if (checkDecisionStatus) {
                 checkDecisionStatus.className = 'badge bg-danger';
                 checkDecisionStatus.innerHTML = 'LOCKED (Multi-Face)';
             }
-        } else if (vStatus === 'SCANNING') {
+        } else if (vStatus === 'Scanning') {
             vehicleStateBadge.className = 'status-badge badge-scanning';
-            vehicleStateBadge.innerHTML = '<i class="fas fa-satellite-dish"></i> SCANNING';
+            vehicleStateBadge.innerHTML = 'Scanning';
             if (ignitionDial) ignitionDial.className = 'ignition-dial locked';
-            if (ignitionIcon) ignitionIcon.className = 'fas fa-lock text-secondary';
             ignitionStatusText.textContent = 'VEHICLE LOCKED - SCANNING DRIVER';
             ignitionStatusText.className = 'ignition-main-banner text-secondary fw-bold';
             if (checkDecisionStatus) {
@@ -734,9 +730,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // LOCKED
             vehicleStateBadge.className = 'status-badge badge-locked';
-            vehicleStateBadge.innerHTML = '<i class="fas fa-lock"></i> VEHICLE LOCKED';
+            vehicleStateBadge.innerHTML = 'Vehicle locked';
             if (ignitionDial) ignitionDial.className = 'ignition-dial locked';
-            if (ignitionIcon) ignitionIcon.className = 'fas fa-lock text-danger';
             ignitionStatusText.textContent = isLive 
                 ? 'VEHICLE LOCKED: LIVE HUMAN BUT UNREGISTERED DRIVER'
                 : 'ENGINE DISABLED - UNAUTHORISED DRIVER';
@@ -764,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (liveness.passed) {
             if (livenessBadge) {
                 livenessBadge.className = 'badge bg-success text-white';
-                livenessBadge.innerHTML = '<i class="fas fa-check"></i> VERIFIED';
+                livenessBadge.innerHTML = 'Verified';
             }
             if (livenessProgressBar) {
                 livenessProgressBar.style.width = '100%';
@@ -773,7 +768,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (liveness.blinkDetected) {
             if (livenessBadge) {
                 livenessBadge.className = 'badge bg-info text-dark';
-                livenessBadge.innerHTML = '<i class="fas fa-eye"></i> BLINK OK';
+                livenessBadge.innerHTML = 'Blink ok';
             }
             if (livenessProgressBar) {
                 livenessProgressBar.style.width = '70%';
@@ -782,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             if (livenessBadge) {
                 livenessBadge.className = 'badge bg-warning text-dark';
-                livenessBadge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CHECKING';
+                livenessBadge.innerHTML = 'Checking';
             }
             if (livenessProgressBar) {
                 livenessProgressBar.style.width = '35%';
@@ -794,13 +789,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSerialStatusUI(connected, mode) {
         if (connected) {
             serialStatusBadge.className = 'badge bg-success';
-            serialStatusBadge.innerHTML = '<i class="fas fa-plug"></i> ESP32 USB CONNECTED (115200)';
-            btnConnectSerial.innerHTML = '<i class="fas fa-unlink"></i> Disconnect ESP32';
+            serialStatusBadge.innerHTML = 'ESP32 connected (115200)';
+            btnConnectSerial.innerHTML = 'Disconnect ESP32';
             btnConnectSerial.className = 'btn btn-outline-danger btn-sm';
         } else {
             serialStatusBadge.className = 'badge bg-warning text-dark';
-            serialStatusBadge.innerHTML = '<i class="fas fa-microchip"></i> VIRTUAL SERIAL (MOCK BRIDGE)';
-            btnConnectSerial.innerHTML = '<i class="fas fa-plug"></i> Connect ESP32 Hardware';
+            serialStatusBadge.innerHTML = 'Virtual serial (mock)';
+            btnConnectSerial.innerHTML = 'Connect ESP32';
             btnConnectSerial.className = 'btn btn-outline-info btn-sm';
         }
     }
@@ -864,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate telemetry metrics for the top summary strip
         const total = state.auditLogs.length;
         const authCount = state.auditLogs.filter(l => l.type === 'AUTH_OK').length;
-        const deniedCount = state.auditLogs.filter(l => l.type === 'UNAUTHORISED' || l.type === 'MULTIPLE_FACES').length;
+        const deniedCount = state.auditLogs.filter(l => l.type === 'Unauthorised' || l.type === 'MULTIPLE_FACES').length;
         const lastTime = total > 0 ? (state.auditLogs[0].timestamp.split(' ')[1] || state.auditLogs[0].timestamp) : '--:--:--';
 
         if (statTotalEvents) statTotalEvents.textContent = total;
@@ -876,8 +871,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let filtered = state.auditLogs;
         if (state.logFilter === 'AUTH_OK') {
             filtered = state.auditLogs.filter(l => l.type === 'AUTH_OK');
-        } else if (state.logFilter === 'UNAUTHORISED') {
-            filtered = state.auditLogs.filter(l => l.type === 'UNAUTHORISED' || l.type === 'MULTIPLE_FACES');
+        } else if (state.logFilter === 'Unauthorised') {
+            filtered = state.auditLogs.filter(l => l.type === 'Unauthorised' || l.type === 'MULTIPLE_FACES');
         }
 
         if (logCounterDisplay) {
@@ -887,7 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
         logTableBody.innerHTML = '';
 
         if (filtered.length === 0) {
-            logTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>No matching authentication events recorded.</td></tr>';
+            logTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No matching authentication events recorded.</td></tr>';
             return;
         }
 
@@ -902,17 +897,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Badges
             let eventBadge = '';
             if (item.type === 'AUTH_OK') {
-                eventBadge = '<span class="badge-cockpit auth-ok"><i class="fas fa-check-circle"></i> AUTH OK</span>';
-            } else if (item.type === 'UNAUTHORISED') {
-                eventBadge = '<span class="badge-cockpit unauth"><i class="fas fa-shield-alt"></i> UNAUTHORISED</span>';
+                eventBadge = '<span class="badge-cockpit auth-ok">AUTH OK</span>';
+            } else if (item.type === 'Unauthorised') {
+                eventBadge = '<span class="badge-cockpit unauth">UNAUTHORISED</span>';
             } else if (item.type === 'MULTIPLE_FACES') {
-                eventBadge = '<span class="badge-cockpit unauth"><i class="fas fa-users-slash"></i> MULTI-FACE</span>';
+                eventBadge = '<span class="badge-cockpit unauth">MULTI-FACE</span>';
             } else {
-                eventBadge = `<span class="badge-cockpit system-event"><i class="fas fa-info-circle"></i> ${item.type}</span>`;
+                eventBadge = `<span class="badge-cockpit system-event">${item.type}</span>`;
             }
 
             const sevBadge = item.severity === 'HIGH' 
-                ? '<span class="badge-severity-high"><i class="fas fa-exclamation-triangle me-1"></i>HIGH</span>'
+                ? '<span class="badge-severity-high">HIGH</span>'
                 : '<span class="badge-severity-info">INFO</span>';
 
             const isSuccess = item.similarity >= 60;
@@ -929,7 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${sevBadge}</td>
                 <td>
                     <div class="audit-driver-pill">
-                        <div class="audit-driver-avatar"><i class="fas fa-user"></i></div>
+                        <div class="audit-driver-avatar">${escapeHTML(String(item.driver || "?").charAt(0))}</div>
                         <span>${escapeHTML(item.driver)}</span>
                     </div>
                 </td>
@@ -943,7 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td>
                     <span class="badge ${item.liveness === 'PASSED' ? 'bg-success' : 'bg-secondary'}">
-                        <i class="fas fa-shield-alt me-1"></i> ${item.liveness}
+                        ${item.liveness}
                     </span>
                 </td>
                 <td>
@@ -1097,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Reset enrolment session
             state.enrolmentSession = null;
             btnStartEnrol.disabled = false;
-            btnStartEnrol.innerHTML = '<i class="fas fa-user-plus"></i> Enrol Driver';
+            btnStartEnrol.innerHTML = 'Enrol Driver';
             if (enrolProgress) {
                 enrolProgress.style.width = '0%';
                 enrolProgress.textContent = '0%';
@@ -1132,11 +1127,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex-grow-1">
                             <h6 class="mb-0 text-info fw-bold">${escapeHTML(profile.name)}</h6>
                             <small class="text-muted d-block">${escapeHTML(profile.role || 'Driver')}</small>
-                            <small class="text-secondary"><i class="fas fa-database"></i> ${profile.samples || 20} samples</small>
+                            <small class="text-secondary">${profile.samples || 20} samples</small>
                         </div>
-                        <button class="btn btn-sm btn-outline-danger btn-delete-driver" data-name="${escapeHTML(profile.name)}" title="Delete Driver">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete-driver" data-name="${escapeHTML(profile.name)}" title="Delete Driver">Delete</button>
                     </div>
                 </div>
             `;
@@ -1236,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // In demo mode simulate liveness as passed for real subjects
                     const liveness = {
                         passed: demoData.type === 'authorised',
-                        status: demoData.type === 'authorised' ? 'VERIFIED' : 'FAILED',
+                        status: demoData.type === 'authorised' ? 'Verified' : 'FAILED',
                         motionScore: 2.5,
                         blinkDetected: true
                     };
@@ -1252,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         updateVehicleStatusUI('LOCKED', 'Unknown Driver', matchResult.similarity, matchResult.distance, 'UNAUTHORISED (DEMO)');
                         serialController.sendAuth(false, 'Unknown');
-                        appendAuditLog('UNAUTHORISED', 'HIGH', 'Unknown', matchResult.similarity, `Demo test: Unknown driver rejected`);
+                        appendAuditLog('Unauthorised', 'HIGH', 'Unknown', matchResult.similarity, `Demo test: Unknown driver rejected`);
                     }
                 }
             };

@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AcciAlert - AI Face Recognition & Driver Authorisation</title>
+    <title>AcciAlert - Driver Face Login</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome 6 Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <!-- Custom Automotive Cockpit Stylesheet -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -16,32 +15,28 @@
     <nav class="navbar navbar-expand-lg navbar-cockpit">
         <div class="container-fluid">
             <a class="brand-wrapper" href="#">
-                <div class="brand-logo-icon">
-                    <i class="fas fa-car-shield"></i>
-                </div>
                 <div>
                     <div class="brand-title">
                         AcciAlert
-                        <span class="brand-version-pill">v2.4 AI OS</span>
                     </div>
-                    <div class="brand-subtitle">Driver Authorisation & Safety Subsystem</div>
+                    <div class="brand-subtitle">Driver face login</div>
                 </div>
             </a>
 
             <!-- Navigation Segmented Tabs -->
             <div class="nav-segmented mx-auto my-2 my-lg-0">
                 <button class="nav-link-custom active nav-tab" data-target="tab-hud">
-                    <i class="fas fa-video"></i> <span>Live Detector</span>
+                    <span>Live Detector</span>
                 </button>
                 <button class="nav-link-custom nav-tab" data-target="tab-enrol">
-                    <i class="fas fa-user-plus"></i> <span>Enrol Drivers</span>
+                    <span>Enrol Drivers</span>
                     <span id="enrolledCountBadge" class="badge rounded-pill bg-info ms-1">3</span>
                 </button>
                 <button class="nav-link-custom nav-tab" data-target="tab-logs">
-                    <i class="fas fa-clipboard-list"></i> <span>Audit Logs</span>
+                    <span>Audit Logs</span>
                 </button>
                 <button class="nav-link-custom nav-tab" data-target="tab-settings">
-                    <i class="fas fa-sliders-h"></i> <span>Calibration</span>
+                    <span>Calibration</span>
                 </button>
             </div>
 
@@ -52,7 +47,7 @@
                     <span id="serialStatusText">VIRTUAL SERIAL (MOCK)</span>
                 </div>
                 <button id="btnConnectSerial" class="btn btn-tactical">
-                    <i class="fas fa-plug text-info"></i> Connect ESP32
+                    Connect ESP32
                 </button>
             </div>
         </div>
@@ -62,20 +57,20 @@
     <main class="container-fluid py-4 px-lg-4">
 
         <!-- ========================================================= -->
-        <!-- TAB 1: LIVE HUD & DRIVER AUTHORISATION -->
+        <!-- TAB 1: LIVE DETECTOR -->
         <!-- ========================================================= -->
         <div id="tab-hud" class="tab-content active">
             <div class="row">
-                <!-- Left Column: Camera Viewport & Tactical HUD -->
+                <!-- Left Column: Camera view -->
                 <div class="col-lg-7 col-xl-8 mb-4">
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-camera text-info"></i> Driver Seat Optical Feed
+                                Driver camera
                             </h2>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-dark border border-secondary text-secondary">
-                                    <i class="fas fa-circle text-danger me-1"></i> 640x480 @ 15 FPS
+                                    640x480 @ 15 FPS
                                 </span>
                             </div>
                         </div>
@@ -89,24 +84,22 @@
                                 <!-- HUD Telemetry Status Overlays -->
                                 <div class="hud-telemetry-bar">
                                     <div class="telemetry-chip">
-                                        <i class="fas fa-microchip"></i> LBP-1024D CLASSIFIER
+                                        LBP-1024D CLASSIFIER
                                     </div>
                                     <div class="telemetry-chip">
-                                        <i class="fas fa-bolt"></i> LATENCY: <span id="hudLatencyVal">28ms</span>
+                                        LATENCY: <span id="hudLatencyVal">28ms</span>
                                     </div>
                                 </div>
 
                                 <!-- Floating HUD Controls -->
                                 <div class="camera-controls-floating">
                                     <button id="btnStartCamera" class="btn-start-detector">
-                                        <i class="fas fa-play"></i> Start Face Detector
+                                        Start Face Detector
                                     </button>
                                     <button id="btnStopCamera" class="btn-stop-detector" style="display: none;">
-                                        <i class="fas fa-stop"></i> Stop Camera
+                                        Stop Camera
                                     </button>
-                                    <button id="btnResetSystem" class="btn btn-secondary rounded-circle shadow px-3" title="Reset Authorisation">
-                                        <i class="fas fa-redo"></i>
-                                    </button>
+                                    <button id="btnResetSystem" class="btn btn-secondary btn-sm" title="Reset login">Reset</button>
                                 </div>
                             </div>
                         </div>
@@ -120,10 +113,10 @@
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-key text-warning"></i> Vehicle Ignition Gating
+                                Car status
                             </h2>
                             <span id="vehicleStateBadge" class="status-badge badge-locked">
-                                <i class="fas fa-lock"></i> VEHICLE LOCKED
+                                VEHICLE LOCKED
                             </span>
                         </div>
                         <div class="card-body text-center py-4">
@@ -131,8 +124,7 @@
                             <!-- Supercar Push-To-Start Dial -->
                             <div class="ignition-status-wrapper">
                                 <div id="ignitionDial" class="ignition-dial locked">
-                                    <i id="ignitionIcon" class="fas fa-lock"></i>
-                                    <span class="ignition-dial-text">ENGINE</span>
+                                                                        <span class="ignition-dial-text">ENGINE</span>
                                 </div>
                                 <div id="ignitionStatusText" class="ignition-main-banner text-danger">
                                     ENGINE DISABLED - UNAUTHORISED DRIVER
@@ -156,13 +148,13 @@
                             </div>
 
                             <!-- Liveness Anti-Spoofing Indicator -->
-                            <div id="livenessCard" class="bg-dark p-3 rounded border border-secondary text-start mt-3" style="background: rgba(15, 23, 42, 0.85) !important; border: 1px solid rgba(0, 240, 255, 0.3) !important;">
+                            <div id="livenessCard" class="p-3 text-start mt-3" style="border: 1px solid #D1D5DB;">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="small fw-bold text-white d-flex align-items-center" style="font-size: 0.85rem; letter-spacing: 0.02em;">
-                                        <i class="fas fa-eye text-info me-2"></i> liveness detection:
+                                        Liveness check:
                                     </span>
                                     <span id="livenessBadge" class="badge bg-success text-white">
-                                        <i class="fas fa-check"></i> VERIFIED
+                                        VERIFIED
                                     </span>
                                 </div>
                                 <div class="progress bg-black" style="height: 6px;">
@@ -179,7 +171,7 @@
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-terminal text-info"></i> ESP32 Serial Protocol (115200)
+                                ESP32 Serial Protocol (115200)
                             </h2>
                             <small class="text-muted">JSON-Line UART</small>
                         </div>
@@ -213,7 +205,7 @@
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-user-plus text-info"></i> Register New Authorised Driver
+                                Register New Authorised Driver
                             </h2>
                         </div>
                         <div class="card-body">
@@ -242,7 +234,7 @@
                             </div>
 
                             <button id="btnStartEnrol" class="btn btn-info w-100 fw-bold py-2">
-                                <i class="fas fa-camera me-1"></i> Start Face Enrolment
+                                Start Face Enrolment
                             </button>
                         </div>
                     </div>
@@ -253,10 +245,10 @@
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-id-card text-success"></i> Registered Drivers Directory
+                                Registered Drivers Directory
                             </h2>
                             <button id="btnResetDrivers" class="btn btn-outline-secondary btn-sm" title="Reset to Factory Defaults">
-                                <i class="fas fa-undo me-1"></i> Restore Defaults
+                                Restore Defaults
                             </button>
                         </div>
                         <div class="card-body">
@@ -277,8 +269,7 @@
             <div class="audit-stats-strip">
                 <div class="audit-stat-card">
                     <div class="audit-stat-icon cyan">
-                        <i class="fas fa-list-check"></i>
-                    </div>
+                                            </div>
                     <div>
                         <div class="audit-stat-label">Total Verifications</div>
                         <div id="statTotalEvents" class="audit-stat-number">0</div>
@@ -286,8 +277,7 @@
                 </div>
                 <div class="audit-stat-card">
                     <div class="audit-stat-icon emerald">
-                        <i class="fas fa-key"></i>
-                    </div>
+                                            </div>
                     <div>
                         <div class="audit-stat-label">Authorised Unlocks</div>
                         <div id="statAuthCount" class="audit-stat-number text-success">0</div>
@@ -295,8 +285,7 @@
                 </div>
                 <div class="audit-stat-card">
                     <div class="audit-stat-icon crimson">
-                        <i class="fas fa-ban"></i>
-                    </div>
+                                            </div>
                     <div>
                         <div class="audit-stat-label">Security Rejections</div>
                         <div id="statDeniedCount" class="audit-stat-number text-danger">0</div>
@@ -304,8 +293,7 @@
                 </div>
                 <div class="audit-stat-card">
                     <div class="audit-stat-icon violet">
-                        <i class="fas fa-clock"></i>
-                    </div>
+                                            </div>
                     <div>
                         <div class="audit-stat-label">Last Telemetry Event</div>
                         <div id="statLastTime" class="audit-stat-number text-light fs-6">--:--:--</div>
@@ -317,7 +305,7 @@
             <div class="cockpit-card">
                 <div class="cockpit-card-header flex-wrap gap-2">
                     <h2 class="cockpit-card-title">
-                        <i class="fas fa-shield-halved text-info"></i> Security & Ignition Authorisation Audit Trail
+                        Security & Ignition Authorisation Audit Trail
                     </h2>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <!-- Filter Chips -->
@@ -328,10 +316,10 @@
                         </div>
                         <!-- Action Buttons -->
                         <button id="btnExportCSV" class="btn btn-tactical btn-sm">
-                            <i class="fas fa-file-csv text-success"></i> Export CSV
+                            Export CSV
                         </button>
                         <button id="btnClearLogs" class="btn btn-tactical btn-sm border-danger text-danger">
-                            <i class="fas fa-trash"></i> Clear Logs
+                            Clear Logs
                         </button>
                     </div>
                 </div>
@@ -357,7 +345,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-dark border-top border-secondary py-2 px-3 small text-muted d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-database me-1 text-info"></i> Matches Prasanth's SQLite <code>events</code> schema and Muniyappan's Fleet API</span>
+                    <span>Matches Prasanth's SQLite <code>events</code> schema and Muniyappan's Fleet API</span>
                     <span id="logCounterDisplay">Showing 0 events</span>
                 </div>
             </div>
@@ -372,7 +360,7 @@
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-sliders-h text-warning"></i> Recognition & Threshold Settings
+                                Recognition & Threshold Settings
                             </h2>
                         </div>
                         <div class="card-body">
