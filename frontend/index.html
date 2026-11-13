@@ -14,8 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
+  
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
@@ -29,9 +28,6 @@
   <!-- ================================================================= -->
   <div id="alert-banner-container">
     <div class="alert-banner-content">
-      <div class="alert-icon-wrap">
-        <i id="alert-banner-icon" class="bi bi-exclamation-octagon-fill" style="font-size: 1.4rem;"></i>
-      </div>
       <div class="alert-text-wrap">
         <h3 id="alert-banner-title">CRITICAL SAFETY ALERT</h3>
         <p id="alert-banner-message">Warning condition detected by sensor array.</p>
@@ -39,7 +35,7 @@
     </div>
     <div class="alert-actions-wrap">
       <button id="btn-banner-ack" class="btn btn-outline btn-sm" style="border-color:#FFFFFF; color:#FFFFFF;">
-        <i class="bi bi-bell-slash"></i> Acknowledge
+        Acknowledge
       </button>
     </div>
   </div>
@@ -55,7 +51,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>AcciAlert <span style="font-size:0.75rem; color:var(--teal-primary); font-weight:600; border:1px solid var(--teal-primary); padding:2px 8px; border-radius:12px;">v2.0 PRO</span></h1>
+        <h1>AcciAlert</h1>
         <p>Smart Driver Safety & Accident Prevention System &bull; Lead: Muniyappan</p>
       </div>
     </div>
@@ -66,17 +62,16 @@
         <span id="header-status-text">INITIALIZING</span>
       </div>
       <div class="status-chip">
-        <i class="bi bi-cpu" style="color:var(--teal-primary);"></i>
-        <span id="header-mode-badge" class="badge badge-info">SIMULATION ACTIVE</span>
+                <span id="header-mode-badge" class="badge badge-info">SIMULATION ACTIVE</span>
       </div>
     </div>
 
     <div class="header-actions">
-      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm"><i class="bi bi-geo-alt-fill"></i> Zone Manager</button>
+      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm">Zone Manager</button>
       <button id="btn-mute-toggle" class="btn btn-outline btn-sm">
-        <i class="bi bi-volume-up-fill"></i> Sound ON
+        Sound ON
       </button>
-      <div style="display:flex; background:rgba(255,255,255,0.06); padding:3px; border-radius:8px;">
+      <div style="display:flex; background:#E5E7EB; padding:3px; border-radius:8px;">
         <button id="btn-mode-sim" class="btn btn-teal btn-sm" style="padding:4px 10px; font-size:0.75rem;">Simulation</button>
         <button id="btn-mode-serial" class="btn btn-outline btn-sm" style="padding:4px 10px; font-size:0.75rem;">ESP32 Serial</button>
       </div>
@@ -93,7 +88,7 @@
     <!-- ------------------------------------------------------------- -->
     <div>
       <div class="section-header">
-        <h2 class="section-title">Live Telemetry & Diagnostics</h2>
+        <h2 class="section-title">Live Readings</h2>
         <span style="font-size:0.8rem; color:var(--text-muted);">
           Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
           &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
@@ -107,7 +102,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">Vehicle Speed</span>
-            <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
           </div>
           <div class="card-body">
             <span id="val-speed" class="card-value">0.0</span>
@@ -126,7 +120,6 @@
         <div class="metric-card accent-orange">
           <div class="card-top">
             <span class="card-label">Alcohol Sensor</span>
-            <div class="card-icon"><i class="bi bi-shield-shaded"></i></div>
           </div>
           <div class="card-body">
             <span id="val-alcohol" class="card-value">180</span>
@@ -145,7 +138,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">Obstacle Distance</span>
-            <div class="card-icon"><i class="bi bi-radar"></i></div>
           </div>
           <div class="card-body">
             <span id="val-obstacle" class="card-value">180</span>
@@ -164,7 +156,6 @@
         <div class="metric-card accent-red">
           <div class="card-top">
             <span class="card-label">Accident / Tilt Status</span>
-            <div class="card-icon"><i class="bi bi-compass"></i></div>
           </div>
           <div class="card-body">
             <span id="val-tilt" class="card-value">3.2°</span>
@@ -182,7 +173,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">GPS Coordinates</span>
-            <div class="card-icon"><i class="bi bi-geo-alt"></i></div>
           </div>
           <div class="card-body" style="font-size:1.1rem; flex-direction:column; align-items:flex-start;">
             <span id="val-gps" style="font-size:1.35rem; font-weight:700; color:#FFFFFF;">13.0827, 80.2707</span>
@@ -191,7 +181,7 @@
           <div class="card-footer">
             <span>Accuracy: High</span>
             <button onclick="window.MapManager && window.MapManager.centerOnVehicle()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.7rem;">
-              <i class="bi bi-crosshair"></i> Locate
+              Locate
             </button>
           </div>
         </div>
@@ -200,7 +190,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">Driver Identity</span>
-            <div class="card-icon"><i class="bi bi-person-badge"></i></div>
           </div>
           <div class="card-body">
             <span id="val-driver" class="card-value" style="font-size:1.45rem;">Muniyappan</span>
@@ -215,7 +204,6 @@
         <div id="card-vehicle-state" class="metric-card">
           <div class="card-top">
             <span class="card-label">Vehicle Status</span>
-            <div class="card-icon"><i class="bi bi-car-front"></i></div>
           </div>
           <div class="card-body">
             <span id="val-vehicle-state" class="card-value" style="color:var(--teal-primary);">RUNNING</span>
@@ -230,11 +218,10 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">ESP32 Hardware</span>
-            <div class="card-icon"><i class="bi bi-usb-symbol"></i></div>
           </div>
           <div class="card-body" style="font-size:1.2rem; flex-direction:column; align-items:flex-start;">
             <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">SIMULATED</span>
-            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Virtual Driver Engine</span>
+            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Simulator</span>
           </div>
           <div class="card-footer">
             <span>Baud: 115200</span>
@@ -246,7 +233,6 @@
         <div class="metric-card">
           <div class="card-top">
             <span class="card-label">GPS Link</span>
-            <div class="card-icon"><i class="bi bi-broadcast-pin"></i></div>
           </div>
           <div class="card-body">
             <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D FIX</span>
@@ -268,9 +254,9 @@
       <!-- Left: Real-Time Charts (Speed & Alcohol) -->
       <div class="panel-card">
         <div class="panel-card-header">
-          <h2 class="section-title">Live Sensor Monitoring (Last 60 Seconds)</h2>
+          <h2 class="section-title">Sensors, last 60 seconds</h2>
           <span style="font-size:0.75rem; color:var(--text-muted);">
-            <i class="bi bi-arrow-repeat"></i> Auto-Updating
+            Updates live
           </span>
         </div>
 
@@ -278,7 +264,7 @@
           <!-- Speed Chart -->
           <div class="chart-subcard">
             <div class="chart-subcard-title">
-              <span><i class="bi bi-speedometer" style="color:var(--teal-primary);"></i> Speed Telemetry (km/h)</span>
+              <span>Speed Telemetry (km/h)</span>
               <span style="color:var(--teal-primary);">0 - 100 km/h</span>
             </div>
             <div class="chart-canvas-container">
@@ -289,7 +275,7 @@
           <!-- Alcohol Chart -->
           <div class="chart-subcard">
             <div class="chart-subcard-title">
-              <span><i class="bi bi-shield-exclamation" style="color:var(--orange-primary);"></i> Alcohol Sensor (MQ-3 ADC)</span>
+              <span>Alcohol Sensor (MQ-3 ADC)</span>
               <span style="color:var(--orange-primary);">0 - 1024 ADC</span>
             </div>
             <div class="chart-canvas-container">
@@ -302,16 +288,16 @@
       <!-- Right: Leaflet.js GPS Map -->
       <div class="panel-card">
         <div class="panel-card-header">
-          <h2 class="section-title orange">Vehicle GPS Tracking & Danger Zones</h2>
+          <h2 class="section-title orange">Vehicle map and danger zones</h2>
           <div style="display:flex; gap:6px;">
             <button id="btn-map-center" class="btn btn-outline btn-sm" title="Center on Vehicle">
-              <i class="bi bi-crosshair"></i> Center
+              Center
             </button>
             <button id="btn-map-follow" class="btn btn-teal btn-sm" title="Toggle Auto-Follow">
-              <i class="bi bi-crosshair2"></i> Following
+              Following
             </button>
             <button id="btn-map-clear-trail" class="btn btn-outline btn-sm" title="Clear Path Trail">
-              <i class="bi bi-trash"></i> Trail
+              Trail
             </button>
           </div>
         </div>
@@ -321,7 +307,7 @@
           
           <!-- Floating Coordinates Overlay -->
           <div class="map-floating-overlay">
-            <div><i class="bi bi-geo-alt-fill" style="color:var(--teal-primary);"></i> <span id="map-coords-readout">13.0827, 80.2707</span></div>
+            <div><span id="map-coords-readout">13.0827, 80.2707</span></div>
             <div style="border-left:1px solid rgba(255,255,255,0.1); padding-left:10px;">
               Zones: <span style="color:#22C55E;">■ Low</span> <span style="color:#FFD166;">■ Med</span> <span style="color:#F97316;">■ High</span> <span style="color:#E11D48;">■ Critical</span>
             </div>
@@ -337,13 +323,13 @@
     <div class="panel-card">
       <div class="tabs-navigation">
         <button class="tab-btn active" data-tab="tab-control-panel">
-          <i class="bi bi-sliders"></i> Control Panel & Hardware
+          Controls
         </button>
         <button class="tab-btn" data-tab="tab-danger-zones">
-          <i class="bi bi-shield-shaded"></i> Danger Zone Management
+          Danger Zone Management
         </button>
         <button class="tab-btn" data-tab="tab-event-history">
-          <i class="bi bi-clock-history"></i> Event History & Audit Log
+          Event history
         </button>
       </div>
 
@@ -354,27 +340,27 @@
           <!-- Critical Actions Group -->
           <div class="control-group-card">
             <span class="control-group-title">
-              <i class="bi bi-shield-slash-fill" style="color:var(--red-critical);"></i> Emergency Controls
+              Emergency Controls
             </span>
             <div class="btn-actions-row">
               <button id="btn-emergency-stop" class="btn btn-emergency-stop" style="flex:1;">
-                <i class="bi bi-sign-stop-fill"></i> EMERGENCY STOP
+                EMERGENCY STOP
               </button>
               <button id="btn-reset-system" class="btn btn-teal" style="flex:1;">
-                <i class="bi bi-arrow-counterclockwise"></i> RESET SYSTEM
+                RESET SYSTEM
               </button>
             </div>
             <div class="btn-actions-row">
               <button id="btn-ack-alert" class="btn btn-orange" style="width:100%;">
-                <i class="bi bi-check2-circle"></i> Acknowledge Alert (Mute Siren)
+                Acknowledge Alert (Mute Siren)
               </button>
             </div>
           </div>
 
-          <!-- Driver Authorization & Security -->
+          <!-- Driver authorization -->
           <div class="control-group-card">
             <span class="control-group-title">
-              <i class="bi bi-shield-lock-fill" style="color:var(--teal-primary);"></i> Driver Authorization & Security
+              Driver authorization
             </span>
             <p style="font-size:0.78rem; color:var(--text-secondary);">
               Toggle active vehicle ignition permissions for operator verification.
@@ -382,7 +368,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
               <span style="font-size:0.8rem; font-weight:600; color:var(--text-main);">Driver Permissions:</span>
               <button id="btn-auth-driver" class="btn btn-outline btn-sm">
-                <i class="bi bi-person-check-fill"></i> Toggle Auth (Lock/Unlock)
+                Toggle Auth (Lock/Unlock)
               </button>
             </div>
           </div>
@@ -393,36 +379,29 @@
           </div>
           <div id="demo-tools" class="control-group-card" style="grid-column: 1 / -1; display:none;">
             <span class="control-group-title">
-              <i class="bi bi-cpu-fill" style="color:var(--teal-primary);"></i> Simulation Scenario Test Bench (Quick Alert Triggers)
+              Test alerts
             </span>
             <div class="scenario-grid">
               <button class="btn-scenario accident" data-scenario="accident">
-                <i class="bi bi-exclamation-octagon-fill" style="color:#E11D48; font-size:1.2rem;"></i>
-                <span>Simulate Accident</span>
+                                <span>Simulate Accident</span>
               </button>
               <button class="btn-scenario" data-scenario="alcohol">
-                <i class="bi bi-shield-fill-x" style="color:#F97316; font-size:1.2rem;"></i>
-                <span>Simulate Alcohol</span>
+                                <span>Simulate Alcohol</span>
               </button>
               <button class="btn-scenario" data-scenario="obstacle">
-                <i class="bi bi-radar" style="color:#FFD166; font-size:1.2rem;"></i>
-                <span>Simulate Obstacle</span>
+                                <span>Simulate Obstacle</span>
               </button>
               <button class="btn-scenario" data-scenario="overspeed">
-                <i class="bi bi-speedometer2" style="color:#F97316; font-size:1.2rem;"></i>
-                <span>Simulate Overspeed</span>
+                                <span>Simulate Overspeed</span>
               </button>
               <button class="btn-scenario" data-scenario="unauthorized">
-                <i class="bi bi-person-x-fill" style="color:#E11D48; font-size:1.2rem;"></i>
-                <span>Unauthorized Driver</span>
+                                <span>Unauthorized Driver</span>
               </button>
               <button class="btn-scenario" data-scenario="danger_zone">
-                <i class="bi bi-geo-alt-fill" style="color:#E6C34A; font-size:1.2rem;"></i>
-                <span>Enter Danger Zone</span>
+                                <span>Enter Danger Zone</span>
               </button>
               <button class="btn-scenario" data-scenario="normal">
-                <i class="bi bi-check-circle-fill" style="color:#06D6A0; font-size:1.2rem;"></i>
-                <span>Normal Safe Drive</span>
+                                <span>Normal Safe Drive</span>
               </button>
             </div>
           </div>
@@ -430,7 +409,7 @@
           <!-- ESP32 Serial Hardware Configuration (Visible when Serial mode is active) -->
           <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1; display:none;">
             <span class="control-group-title">
-              <i class="bi bi-usb-plug-fill" style="color:var(--orange-primary);"></i> Physical ESP32 Serial Interface Setup
+              ESP32 serial setup
             </span>
             <div class="form-row">
               <div class="form-group">
@@ -449,7 +428,7 @@
               </div>
               <div class="form-group" style="justify-content:flex-end;">
                 <button onclick="window.DashboardApp.loadSerialPorts()" class="btn btn-outline btn-sm">
-                  <i class="bi bi-arrow-repeat"></i> Refresh Ports
+                  Refresh Ports
                 </button>
               </div>
             </div>
@@ -468,7 +447,7 @@
             </p>
           </div>
           <button id="btn-open-add-zone" class="btn btn-teal btn-sm">
-            <i class="bi bi-plus-circle-fill"></i> Add Danger Zone
+            Add Danger Zone
           </button>
         </div>
 
@@ -533,13 +512,13 @@
 
           <div style="display:flex; gap:8px;">
             <button id="btn-filter-apply" class="btn btn-teal btn-sm">
-              <i class="bi bi-funnel-fill"></i> Filter
+              Filter
             </button>
             <button id="btn-filter-reset" class="btn btn-outline btn-sm">
-              <i class="bi bi-x-circle"></i> Reset
+              Reset
             </button>
             <button id="btn-export-csv" class="btn btn-orange btn-sm">
-              <i class="bi bi-file-earmark-spreadsheet-fill"></i> Export CSV
+              Export CSV
             </button>
           </div>
         </div>
@@ -549,7 +528,7 @@
             Logged in SQLite Database: <span id="events-count-badge" class="badge badge-info">0 Total</span>
           </span>
           <button onclick="window.DashboardApp && window.DashboardApp.loadEvents()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.75rem;">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
+            Refresh
           </button>
         </div>
 
@@ -627,10 +606,10 @@
 
           <div style="display:flex; gap:8px; margin-bottom:14px;">
             <button type="button" id="btn-zone-use-gps" class="btn btn-outline btn-sm">
-              <i class="bi bi-crosshair"></i> Use Vehicle GPS
+              Use Vehicle GPS
             </button>
             <button type="button" id="btn-zone-pick-map" class="btn btn-outline btn-sm">
-              <i class="bi bi-map"></i> Pick on Map
+              Pick on Map
             </button>
           </div>
 
@@ -654,7 +633,7 @@
         <div class="modal-footer">
           <button type="button" id="btn-modal-cancel" class="btn btn-outline btn-sm">Cancel</button>
           <button type="submit" class="btn btn-teal btn-sm">
-            <i class="bi bi-check-lg"></i> Save Danger Zone
+            Save Danger Zone
           </button>
         </div>
       </form>
@@ -682,7 +661,7 @@
   <script src="static/js/zones.js"></script>
   <script src="static/js/dashboard.js"></script>
 
-<div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#0b1220;flex-direction:column;">
+<div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#F3F4F6;flex-direction:column;">
   <iframe id="zm-frame" title="Zone Manager" style="flex:1;border:0;width:100%;"></iframe>
 </div>
 <script>

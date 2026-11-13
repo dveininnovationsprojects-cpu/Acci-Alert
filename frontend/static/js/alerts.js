@@ -15,7 +15,6 @@ class AlertSystem {
     this.bannerEl = document.getElementById("alert-banner-container");
     this.bannerTitleEl = document.getElementById("alert-banner-title");
     this.bannerMsgEl = document.getElementById("alert-banner-message");
-    this.bannerIconEl = document.getElementById("alert-banner-icon");
 
     this.initAudioContext();
   }
@@ -48,8 +47,8 @@ class AlertSystem {
     const muteBtn = document.getElementById("btn-mute-toggle");
     if (muteBtn) {
       muteBtn.innerHTML = this.isMuted
-        ? '<i class="bi bi-volume-mute-fill"></i> Muted'
-        : '<i class="bi bi-volume-up-fill"></i> Sound ON';
+        ? 'Muted'
+        : 'Sound ON';
       muteBtn.classList.toggle("btn-orange", this.isMuted);
       muteBtn.classList.toggle("btn-outline", !this.isMuted);
     }
@@ -214,15 +213,6 @@ class AlertSystem {
       "TRAFFIC SIGNAL STOP": "SIGNAL VIOLATION: RED SIGNAL STOP"
     };
 
-    const icons = {
-      "ACCIDENT": "bi-exclamation-octagon-fill",
-      "ALCOHOL DETECTED": "bi-shield-fill-x",
-      "UNAUTHORISED DRIVER": "bi-person-x-fill",
-      "OBSTACLE DETECTED": "bi-radar",
-      "OVERSPEED": "bi-speedometer2",
-      "DANGER ZONE": "bi-geo-alt-fill",
-      "TRAFFIC SIGNAL STOP": "bi-stoplights-fill"
-    };
 
     if (this.bannerTitleEl) {
       this.bannerTitleEl.innerText = titles[alert.type] || alert.title || alert.type;
@@ -230,20 +220,16 @@ class AlertSystem {
     if (this.bannerMsgEl) {
       this.bannerMsgEl.innerText = alert.message || "Alert conditions detected by vehicle telemetry.";
     }
-    if (this.bannerIconEl) {
-      const iconClass = icons[alert.type] || "bi-exclamation-triangle-fill";
-      this.bannerIconEl.className = `bi ${iconClass}`;
-    }
 
     this.bannerEl.classList.add("show");
 
     // Dynamic styling based on severity
     if (alert.severity === "CRITICAL" || alert.type === "ACCIDENT") {
-      this.bannerEl.style.background = "linear-gradient(90deg, #990000, #D90429, #EF233C)";
+      this.bannerEl.style.background = "#B91C1C";
     } else if (alert.type === "ALCOHOL DETECTED" || alert.type === "UNAUTHORISED DRIVER") {
-      this.bannerEl.style.background = "linear-gradient(90deg, #C70039, #E63946, #FF5722)";
+      this.bannerEl.style.background = "#C2410C";
     } else {
-      this.bannerEl.style.background = "linear-gradient(90deg, #7F2B00, #E65100, #F97316)";
+      this.bannerEl.style.background = "#B45309";
     }
   }
 

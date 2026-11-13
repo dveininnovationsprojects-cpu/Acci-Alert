@@ -103,7 +103,7 @@ class ZoneManager {
     if (!zones || zones.length === 0) {
       this.tableBodyEl.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align:center; color:#627289; padding:24px;">
+          <td colspan="7" style="text-align:center; color:#6B7280; padding:24px;">
             No danger zones configured. Click "+ Add Danger Zone" to create one.
           </td>
         </tr>
@@ -121,23 +121,17 @@ class ZoneManager {
 
       rowsHtml += `
         <tr>
-          <td><strong style="color:#E6C34A;">${z.code}</strong></td>
-          <td><b>${z.name}</b><br/><small style="color:#627289;">${z.details || ''}</small></td>
-          <td><code style="color:#94A3B8;">${parseFloat(z.latitude).toFixed(4)}, ${parseFloat(z.longitude).toFixed(4)}</code></td>
+          <td><strong style="color:#A16207;">${z.code}</strong></td>
+          <td><b>${z.name}</b><br/><small style="color:#6B7280;">${z.details || ''}</small></td>
+          <td><code style="color:#4B5563;">${parseFloat(z.latitude).toFixed(4)}, ${parseFloat(z.longitude).toFixed(4)}</code></td>
           <td>${z.radius_meters} m</td>
-          <td><span style="color:#F97316; font-weight:700;">${z.speed_limit} km/h</span></td>
+          <td><span style="color:#EA580C; font-weight:700;">${z.speed_limit} km/h</span></td>
           <td><span class="badge ${badgeClass}">${sev}</span></td>
           <td>
             <div style="display:flex; gap:6px;">
-              <button class="btn btn-outline btn-sm btn-icon" title="Locate on Map" onclick="window.ZoneApp.locateZone(${z.id})">
-                <i class="bi bi-geo-alt"></i>
-              </button>
-              <button class="btn btn-outline btn-sm btn-icon" title="Edit Zone" onclick="window.ZoneApp.editZone(${z.id})">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <button class="btn btn-outline btn-sm btn-icon" style="color:#E11D48;" title="Delete Zone" onclick="window.ZoneApp.deleteZone(${z.id})">
-                <i class="bi bi-trash"></i>
-              </button>
+              <button class="btn btn-outline btn-sm" title="Locate on Map" onclick="window.ZoneApp.locateZone(${z.id})">Locate</button>
+              <button class="btn btn-outline btn-sm" title="Edit Zone" onclick="window.ZoneApp.editZone(${z.id})">Edit</button>
+              <button class="btn btn-outline btn-sm" style="color:#DC2626;" title="Delete Zone" onclick="window.ZoneApp.deleteZone(${z.id})">Delete</button>
             </div>
           </td>
         </tr>

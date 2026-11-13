@@ -1,6 +1,6 @@
 /* Zone manager + zone event table. Plain JS + Leaflet, talks to /api/zones and /api/events. */
 (function () {
-  const COLORS = { critical: "#e11d48", high: "#f97316", medium: "#ffd166", low: "#22c55e" };
+  const COLORS = { critical: "#e11d48", high: "#f97316", medium: "#ca8a04", low: "#22c55e" };
   // Defaults per zone type (requirements 8.1)
   const PRESETS = {
     blackspot:    { radius_m: 30, speed_limit: 10, severity: "high" },
@@ -132,7 +132,7 @@
     const lat = parseFloat(form.elements.lat.value), lon = parseFloat(form.elements.lon.value);
     const r = parseFloat(form.elements.radius_m.value);
     if (isNaN(lat) || isNaN(lon) || !(r > 0)) return;
-    draft = L.circle([lat, lon], { radius: r, color: "#e6c34a", dashArray: "4 4", fillOpacity: 0.15 }).addTo(map);
+    draft = L.circle([lat, lon], { radius: r, color: "#A16207", dashArray: "4 4", fillOpacity: 0.15 }).addTo(map);
   }
   function clearDraft() { if (draft) { map.removeLayer(draft); draft = null; } }
 

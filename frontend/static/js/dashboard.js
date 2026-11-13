@@ -452,7 +452,7 @@ class DashboardController {
     if (!events || events.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align:center; color:#627289; padding:24px;">
+          <td colspan="8" style="text-align:center; color:#6B7280; padding:24px;">
             No safety events recorded yet. Trigger a test scenario below to log events.
           </td>
         </tr>
@@ -479,14 +479,14 @@ class DashboardController {
       const badgeClass = typeBadges[ev.event_type] || "badge-info";
       html += `
         <tr>
-          <td><code style="color:#627289;">#${ev.id}</code></td>
+          <td><code style="color:#6B7280;">#${ev.id}</code></td>
           <td><span class="badge ${badgeClass}">${ev.event_type}</span></td>
-          <td style="color:#94A3B8; font-size:0.78rem;">${ev.timestamp}</td>
+          <td style="color:#4B5563; font-size:0.78rem;">${ev.timestamp}</td>
           <td><b>${ev.driver_name || 'Unknown'}</b></td>
-          <td><span style="color:#E6C34A; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
-          <td><code style="color:#94A3B8; font-size:0.75rem;">${ev.latitude}, ${ev.longitude}</code></td>
+          <td><span style="color:#A16207; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
+          <td><code style="color:#4B5563; font-size:0.75rem;">${ev.latitude}, ${ev.longitude}</code></td>
           <td>${ev.danger_zone_name || 'None'}</td>
-          <td style="color:#94A3B8; font-size:0.78rem;">${ev.details || ''}</td>
+          <td style="color:#4B5563; font-size:0.78rem;">${ev.details || ''}</td>
         </tr>
       `;
     });
@@ -626,10 +626,8 @@ class DashboardController {
 
     const toast = document.createElement("div");
     toast.className = `toast toast-${type}`;
-    const icon = type === "error" ? "bi-x-circle-fill" : type === "warning" ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill";
 
     toast.innerHTML = `
-      <i class="bi ${icon}" style="font-size:1.1rem;"></i>
       <span>${message}</span>
     `;
 
