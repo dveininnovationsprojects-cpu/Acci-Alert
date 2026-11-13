@@ -8,6 +8,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome 6 Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <!-- Custom Automotive Cockpit Stylesheet -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -33,6 +37,12 @@
                 <button class="nav-link-custom active nav-tab" data-target="tab-hud">
                     <i class="fas fa-video"></i> <span>Live Detector</span>
                 </button>
+                <button class="nav-link-custom nav-tab" data-target="tab-fleet">
+                    <i class="fas fa-gauge-high"></i> <span>Fleet Dashboard</span>
+                </button>
+                <a href="zones.html" class="nav-link-custom" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="fas fa-map-marked-alt"></i> <span>Danger Zones</span>
+                </a>
                 <button class="nav-link-custom nav-tab" data-target="tab-enrol">
                     <i class="fas fa-user-plus"></i> <span>Enrol Drivers</span>
                     <span id="enrolledCountBadge" class="badge rounded-pill bg-info ms-1">3</span>
@@ -67,148 +77,216 @@
         <div id="tab-hud" class="tab-content active">
             <div class="row">
                 <!-- Left Column: Camera Viewport & Tactical HUD -->
-                <div class="col-lg-7 col-xl-8 mb-4">
+                <div class="col-lg-8 mb-4">
                     <div class="cockpit-card">
-                        <div class="cockpit-card-header">
-                            <h2 class="cockpit-card-title">
+                        <div class="cockpit-card-header d-flex justify-content-between align-items-center">
+                            <span class="cockpit-card-title">
                                 <i class="fas fa-camera text-info"></i> Driver Seat Optical Feed
-                            </h2>
+                            </span>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-dark border border-secondary text-secondary">
-                                    <i class="fas fa-circle text-danger me-1"></i> 640x480 @ 15 FPS
-                                </span>
+                                <span class="badge-res">640&times;480 @ 15 FPS</span>
+                                <span id="cameraStatusIndicator" class="badge-indicator badge-live">LIVE</span>
                             </div>
                         </div>
 
-                        <div class="card-body p-0 position-relative">
-                            <!-- Camera Frame + Canvas HUD -->
-                            <div class="camera-hud-frame">
-                                <video id="driverVideo" playsinline autoplay muted></video>
-                                <canvas id="hudCanvas"></canvas>
-                                
-                                <!-- HUD Telemetry Status Overlays -->
-                                <div class="hud-telemetry-bar">
-                                    <div class="telemetry-chip">
-                                        <i class="fas fa-microchip"></i> LBP-1024D CLASSIFIER
-                                    </div>
-                                    <div class="telemetry-chip">
-                                        <i class="fas fa-bolt"></i> LATENCY: <span id="hudLatencyVal">28ms</span>
-                                    </div>
-                                </div>
+                        <!-- Video Container with Layered Canvas Overlay -->
+                        <div class="camera-viewport-wrap" id="cameraContainer">
+                            <video id="driverVideo" playsinline autoplay muted></video>
+                            <canvas id="hudCanvas"></canvas>
 
-                                <!-- Floating HUD Controls -->
-                                <div class="camera-controls-floating">
-                                    <button id="btnStartCamera" class="btn-start-detector">
-                                        <i class="fas fa-play"></i> Start Face Detector
-                                    </button>
-                                    <button id="btnStopCamera" class="btn-stop-detector" style="display: none;">
-                                        <i class="fas fa-stop"></i> Stop Camera
-                                    </button>
-                                    <button id="btnResetSystem" class="btn btn-secondary rounded-circle shadow px-3" title="Reset Authorisation">
-                                        <i class="fas fa-redo"></i>
+                            <!-- Optical Feed Overlay Markers -->
+                            <div class="hud-corner-bracket top-left"></div>
+                            <div class="hud-corner-bracket top-right"></div>
+                            <div class="hud-corner-bracket bottom-left"></div>
+                            <div class="hud-corner-bracket bottom-right"></div>
+
+                            <!-- Standby Blank Screen When Camera Off -->
+                            <div id="cameraStandby" class="camera-standby-screen">
+                                <div class="standby-content">
+                                    <i class="fas fa-eye-slash standby-icon"></i>
+                                    <h4 class="text-light fw-bold mt-3">Optical Sensor Offline</h4>
+                                    <p class="text-secondary small max-w-sm mb-4">
+                                        Activate camera feed to initialize driver facial scanning, CLAHE illumination normalization, and anti-spoofing verification.
+                                    </p>
+                                    <button id="btnStartCamera" class="btn btn-tactical btn-lg pulse-glow">
+                                        <i class="fas fa-camera me-2"></i> Start Face Detector
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Camera Action Bar -->
+                        <div class="cockpit-card-footer d-flex justify-content-between align-items-center">
+                            <div class="d-flex gap-2">
+                                <button id="btnStopCamera" class="btn btn-danger btn-sm px-3" style="display: none;">
+                                    <i class="fas fa-stop me-1"></i> Stop Camera
+                                </button>
+                                <button id="btnSwitchCamera" class="btn btn-tactical btn-sm" title="Toggle Front/Back Camera">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-dark border border-secondary text-info font-mono small">
+                                    <i class="fas fa-microchip me-1"></i> LBP-1024D CLASSIFIER
+                                </span>
+                                <span class="badge bg-dark border border-secondary text-warning font-mono small">
+                                    <i class="fas fa-bolt me-1"></i> LATENCY: <span id="valLatency">28ms</span>
+                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right Column: Vehicle Ignition Cockpit, Telemetry & Serial Console -->
-                <div class="col-lg-5 col-xl-4 mb-4">
-                    
-                    <!-- Card 1: Supercar Ignition & Gating Status -->
-                    <div class="cockpit-card">
-                        <div class="cockpit-card-header">
-                            <h2 class="cockpit-card-title">
+                <!-- Right Column: Safety Authorization & Ignition Gating Panel -->
+                <div class="col-lg-4 mb-4">
+                    <!-- Ignition Interlock State Widget -->
+                    <div class="cockpit-card mb-3">
+                        <div class="cockpit-card-header d-flex justify-content-between align-items-center">
+                            <span class="cockpit-card-title">
                                 <i class="fas fa-key text-warning"></i> Vehicle Ignition Gating
-                            </h2>
-                            <span id="vehicleStateBadge" class="status-badge badge-locked">
-                                <i class="fas fa-lock"></i> VEHICLE LOCKED
+                            </span>
+                            <span id="ignitionLockBadge" class="badge bg-danger">
+                                <i class="fas fa-lock me-1"></i> VEHICLE LOCKED
                             </span>
                         </div>
                         <div class="card-body text-center py-4">
-                            
-                            <!-- Supercar Push-To-Start Dial -->
-                            <div class="ignition-status-wrapper">
-                                <div id="ignitionDial" class="ignition-dial locked">
-                                    <i id="ignitionIcon" class="fas fa-lock"></i>
-                                    <span class="ignition-dial-text">ENGINE</span>
-                                </div>
-                                <div id="ignitionStatusText" class="ignition-main-banner text-danger">
-                                    ENGINE DISABLED - UNAUTHORISED DRIVER
+                            <!-- Circular Pulsing Engine Power Icon -->
+                            <div class="engine-indicator-wrap mx-auto mb-3">
+                                <div id="engineIndicator" class="engine-indicator locked">
+                                    <i class="fas fa-power-off"></i>
+                                    <div class="engine-label">ENGINE</div>
                                 </div>
                             </div>
 
-                            <!-- Driver Info & Telemetry Grid -->
-                            <div class="telemetry-grid">
-                                <div class="telemetry-cell">
-                                    <div class="telemetry-cell-label">Driver</div>
-                                    <div id="driverNameDisplay" class="telemetry-cell-value text-info fs-6 text-truncate">Unknown</div>
+                            <h3 id="engineStatusTitle" class="text-danger fw-bold mb-1">ENGINE START LOCKED</h3>
+                            <p id="engineSubStatus" class="text-secondary small mb-4">
+                                Waiting for biometric facial verification of registered driver.
+                            </p>
+
+                            <!-- Live Metric Readouts -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-4">
+                                    <div class="stat-tile">
+                                        <div class="stat-label">DRIVER</div>
+                                        <div id="valDriverName" class="stat-value text-info font-mono">Unknown</div>
+                                    </div>
                                 </div>
-                                <div class="telemetry-cell">
-                                    <div class="telemetry-cell-label">Similarity</div>
-                                    <div id="similarityScoreDisplay" class="telemetry-cell-value text-success fs-6">0%</div>
+                                <div class="col-4">
+                                    <div class="stat-tile">
+                                        <div class="stat-label">SIMILARITY</div>
+                                        <div id="valSimilarity" class="stat-value text-warning font-mono">0%</div>
+                                    </div>
                                 </div>
-                                <div class="telemetry-cell">
-                                    <div class="telemetry-cell-label">Distance</div>
-                                    <div id="distanceMetricDisplay" class="telemetry-cell-value text-warning fs-6">99.00</div>
+                                <div class="col-4">
+                                    <div class="stat-tile">
+                                        <div class="stat-label">DISTANCE</div>
+                                        <div id="valDistance" class="stat-value text-secondary font-mono">99.00</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Liveness Anti-Spoofing Indicator -->
-                            <div id="livenessCard" class="bg-dark p-3 rounded border border-secondary text-start mt-3" style="background: rgba(15, 23, 42, 0.85) !important; border: 1px solid rgba(0, 240, 255, 0.3) !important;">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="small fw-bold text-white d-flex align-items-center" style="font-size: 0.85rem; letter-spacing: 0.02em;">
-                                        <i class="fas fa-eye text-info me-2"></i> liveness detection:
-                                    </span>
-                                    <span id="livenessBadge" class="badge bg-success text-white">
-                                        <i class="fas fa-check"></i> VERIFIED
-                                    </span>
+                            <!-- Liveness Status Badge -->
+                            <div class="liveness-bar-wrap mb-3 p-2 bg-dark rounded border border-secondary text-start d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="small text-secondary"><i class="fas fa-eye text-info me-1"></i> liveness detection:</span>
+                                    <div id="valLivenessDetails" class="small text-light font-mono">Awaiting optical feed</div>
                                 </div>
-                                <div class="progress bg-black" style="height: 6px;">
-                                    <div id="livenessProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 100%;"></div>
-                                </div>
-                                <small class="text-secondary d-block mt-2" style="font-size: 0.72rem;">
-                                    Eye-blink & micro-motion anti-spoofing confirms you are a real living human.
-                                </small>
+                                <span id="txtLivenessStatus" class="badge bg-secondary font-mono">PENDING</span>
                             </div>
+                            <p class="text-secondary text-start mb-0" style="font-size: 0.72rem;">
+                                Eye-blink & micro-motion anti-spoofing confirms you are a real living human.
+                            </p>
                         </div>
                     </div>
-
-                    <!-- Card 2: ESP32 Hardware Serial Console -->
-                    <div class="cockpit-card">
-                        <div class="cockpit-card-header">
-                            <h2 class="cockpit-card-title">
-                                <i class="fas fa-terminal text-info"></i> ESP32 Serial Protocol (115200)
-                            </h2>
-                            <small class="text-muted">JSON-Line UART</small>
-                        </div>
-                        <div class="card-body p-2">
-                            <div id="serialConsole" class="terminal-window">
-                                <div class="terminal-line terminal-info">
-                                    <span class="terminal-ts">[INIT]</span> AcciAlert Driver Auth Serial Bridge active.
-                                </div>
-                                <div class="terminal-line terminal-info">
-                                    <span class="terminal-ts">[READY]</span> Awaiting face recognition events...
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer bg-dark border-top border-secondary py-2 px-3 small text-muted d-flex justify-content-between">
-                            <span>Authorised: <code>{"cmd":"AUTH","ok":1,"driver":"..."}</code></span>
-                            <span>Unknown: <code>{"cmd":"AUTH","ok":0}</code></span>
-                        </div>
-                    </div>
-
                 </div>
             </div>
         </div>
 
         <!-- ========================================================= -->
-        <!-- TAB 2: DRIVER ENROLMENT & REGISTRY -->
+        <!-- TAB 2: FLEET TELEMETRY & DANGER ZONES (Muniyappan & Prasanth) -->
+        <!-- ========================================================= -->
+        <div id="tab-fleet" class="tab-content">
+            <div class="cockpit-card mb-4">
+                <div class="cockpit-card-header d-flex justify-content-between align-items-center">
+                    <span class="cockpit-card-title">
+                        <i class="fas fa-satellite-dish text-info"></i> AcciAlert Fleet Telemetry & Geofencing Dashboard
+                    </span>
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="badge bg-dark border border-secondary text-info">Subsystem Lead: Muniyappan</span>
+                        <a href="/dashboard" class="btn btn-tactical btn-sm" target="_blank">
+                            <i class="fas fa-external-link-alt me-1"></i> Fullscreen Dashboard
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Top Telemetry Value Cards -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3 col-6">
+                            <div class="stat-tile p-3">
+                                <div class="stat-label"><i class="fas fa-tachometer-alt me-1 text-primary"></i> SPEED</div>
+                                <div class="d-flex align-items-baseline gap-1">
+                                    <span id="val-speed" class="stat-value text-info font-mono" style="font-size: 2rem;">0.0</span>
+                                    <span class="text-secondary small">km/h</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="stat-tile p-3">
+                                <div class="stat-label"><i class="fas fa-wine-bottle me-1 text-danger"></i> ALCOHOL SENSOR</div>
+                                <div class="d-flex align-items-baseline gap-1">
+                                    <span id="val-alcohol" class="stat-value text-success font-mono" style="font-size: 2rem;">0</span>
+                                    <span class="text-secondary small">ADC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="stat-tile p-3">
+                                <div class="stat-label"><i class="fas fa-ruler-horizontal me-1 text-warning"></i> OBSTACLE DISTANCE</div>
+                                <div class="d-flex align-items-baseline gap-1">
+                                    <span id="val-obstacle" class="stat-value text-info font-mono" style="font-size: 2rem;">150.0</span>
+                                    <span class="text-secondary small">cm</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="stat-tile p-3">
+                                <div class="stat-label"><i class="fas fa-compass me-1 text-info"></i> VEHICLE TILT</div>
+                                <div class="d-flex align-items-baseline gap-1">
+                                    <span id="val-tilt" class="stat-value text-light font-mono" style="font-size: 2rem;">0.0</span>
+                                    <span class="text-secondary small">&deg;</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Map and Live Charts -->
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <div class="stat-tile p-2" style="height: 380px;">
+                                <div class="stat-label mb-2"><i class="fas fa-map-marked-alt text-info me-1"></i> Live Chennai Corridor GPS & Danger Zones (Anna Salai / Guindy)</div>
+                                <div id="leaflet-map" style="width: 100%; height: 330px; border-radius: 8px; background: #0c1424;"></div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="stat-tile p-2 mb-2" style="height: 185px;">
+                                <div class="stat-label mb-1"><i class="fas fa-chart-line text-info me-1"></i> Rolling Vehicle Speed</div>
+                                <canvas id="speedChartCanvas" height="140"></canvas>
+                            </div>
+                            <div class="stat-tile p-2" style="height: 185px;">
+                                <div class="stat-label mb-1"><i class="fas fa-chart-area text-danger me-1"></i> Alcohol Sensor History</div>
+                                <canvas id="alcoholChartCanvas" height="140"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- TAB 3: ENROL DRIVERS WIZARD -->
         <!-- ========================================================= -->
         <div id="tab-enrol" class="tab-content">
             <div class="row">
-                <!-- Enrolment Form Wizard -->
                 <div class="col-lg-5 mb-4">
                     <div class="cockpit-card">
                         <div class="cockpit-card-header">
@@ -217,51 +295,50 @@
                             </h2>
                         </div>
                         <div class="card-body">
-                            <p class="text-secondary small mb-3">
-                                Enrol authorized drivers who have permission to unlock and operate the vehicle. Ensure the webcam is started on the Live Detector tab.
-                            </p>
-
-                            <div class="mb-3">
-                                <label for="enrolDriverName" class="form-label text-light small fw-bold">Driver Full Name *</label>
-                                <input type="text" id="enrolDriverName" class="form-control bg-dark text-light border-secondary" placeholder="e.g. Arsal, Arun, Kumar" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="enrolDriverRole" class="form-label text-light small fw-bold">Vehicle Role / Designation</label>
-                                <input type="text" id="enrolDriverRole" class="form-control bg-dark text-light border-secondary" placeholder="e.g. Primary Fleet Driver">
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label text-light small fw-bold">Enrolment Capture Progress</label>
-                                <div class="progress bg-black" style="height: 18px;">
-                                    <div id="enrolProgress" class="progress-bar bg-info progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
+                            <form id="formEnrolDriver" autocomplete="off">
+                                <div class="mb-3">
+                                    <label class="form-label text-light small fw-bold">Driver Full Name</label>
+                                    <input type="text" id="inputDriverName" class="form-control bg-dark border-secondary text-light font-mono" placeholder="e.g. Arun, Kumar, Ravi, Arsal" required>
                                 </div>
-                                <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">
-                                    The system automatically captures 15 diverse facial samples and compiles the 1024-D LBP signature.
-                                </small>
-                            </div>
-
-                            <button id="btnStartEnrol" class="btn btn-info w-100 fw-bold py-2">
-                                <i class="fas fa-camera me-1"></i> Start Face Enrolment
-                            </button>
+                                <div class="mb-3">
+                                    <label class="form-label text-light small fw-bold">License / ID Number</label>
+                                    <input type="text" id="inputLicenseNumber" class="form-control bg-dark border-secondary text-light font-mono" placeholder="e.g. DL-TN-2024-9843">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label text-light small fw-bold">Target Training Samples</label>
+                                    <input type="number" id="inputSampleCount" class="form-control bg-dark border-secondary text-light font-mono" value="25" min="5" max="100">
+                                    <small class="text-secondary">Capture 20-30 frontal & tilted face variations for >95% accuracy.</small>
+                                </div>
+                                <button type="submit" id="btnStartEnrolment" class="btn btn-tactical w-100">
+                                    <i class="fas fa-video me-2"></i> Start Enrolment Capture
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
-
-                <!-- Enrolled Drivers Directory -->
                 <div class="col-lg-7 mb-4">
                     <div class="cockpit-card">
-                        <div class="cockpit-card-header">
+                        <div class="cockpit-card-header d-flex justify-content-between align-items-center">
                             <h2 class="cockpit-card-title">
-                                <i class="fas fa-id-card text-success"></i> Registered Drivers Directory
+                                <i class="fas fa-users-cog text-warning"></i> Registered Driver Roster
                             </h2>
-                            <button id="btnResetDrivers" class="btn btn-outline-secondary btn-sm" title="Reset to Factory Defaults">
-                                <i class="fas fa-undo me-1"></i> Restore Defaults
-                            </button>
+                            <span class="badge bg-secondary font-mono" id="enrolRosterCount">Active: 3</span>
                         </div>
-                        <div class="card-body">
-                            <div id="enrolledDriversList" class="row">
-                                <!-- Enrolled driver cards rendered dynamically by app.js -->
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover mb-0 align-middle">
+                                    <thead>
+                                        <tr class="text-secondary font-mono small">
+                                            <th>Driver Name</th>
+                                            <th>Status</th>
+                                            <th>Descriptor Dimension</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="enrolledDriversTableBody">
+                                        <!-- Rendered dynamically by app.js -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -270,101 +347,50 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- TAB 3: SECURITY AUDIT & EVENT LOGS (UPGRADED COCKPIT UI) -->
+        <!-- TAB 4: AUDIT LOGS -->
         <!-- ========================================================= -->
         <div id="tab-logs" class="tab-content">
-            <!-- Dynamic Stats Summary Strip -->
-            <div class="audit-stats-strip">
-                <div class="audit-stat-card">
-                    <div class="audit-stat-icon cyan">
-                        <i class="fas fa-list-check"></i>
-                    </div>
-                    <div>
-                        <div class="audit-stat-label">Total Verifications</div>
-                        <div id="statTotalEvents" class="audit-stat-number">0</div>
-                    </div>
-                </div>
-                <div class="audit-stat-card">
-                    <div class="audit-stat-icon emerald">
-                        <i class="fas fa-key"></i>
-                    </div>
-                    <div>
-                        <div class="audit-stat-label">Authorised Unlocks</div>
-                        <div id="statAuthCount" class="audit-stat-number text-success">0</div>
-                    </div>
-                </div>
-                <div class="audit-stat-card">
-                    <div class="audit-stat-icon crimson">
-                        <i class="fas fa-ban"></i>
-                    </div>
-                    <div>
-                        <div class="audit-stat-label">Security Rejections</div>
-                        <div id="statDeniedCount" class="audit-stat-number text-danger">0</div>
-                    </div>
-                </div>
-                <div class="audit-stat-card">
-                    <div class="audit-stat-icon violet">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div>
-                        <div class="audit-stat-label">Last Telemetry Event</div>
-                        <div id="statLastTime" class="audit-stat-number text-light fs-6">--:--:--</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Log Data Grid -->
             <div class="cockpit-card">
-                <div class="cockpit-card-header flex-wrap gap-2">
-                    <h2 class="cockpit-card-title">
-                        <i class="fas fa-shield-halved text-info"></i> Security & Ignition Authorisation Audit Trail
-                    </h2>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <!-- Filter Chips -->
-                        <div class="btn-group btn-group-sm me-2" role="group">
-                            <button class="btn btn-outline-info active log-filter-btn" data-filter="ALL">All Events</button>
-                            <button class="btn btn-outline-success log-filter-btn" data-filter="AUTH_OK">Authorised</button>
-                            <button class="btn btn-outline-danger log-filter-btn" data-filter="UNAUTHORISED">Rejections</button>
-                        </div>
-                        <!-- Action Buttons -->
-                        <button id="btnExportCSV" class="btn btn-tactical btn-sm">
-                            <i class="fas fa-file-csv text-success"></i> Export CSV
+                <div class="cockpit-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="cockpit-card-title">
+                            <i class="fas fa-history text-info"></i> Security & Ignition Authorisation Audit Trail
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button id="btnExportCsv" class="btn btn-outline-success btn-sm font-mono">
+                            <i class="fas fa-file-csv me-1"></i> Export CSV
                         </button>
-                        <button id="btnClearLogs" class="btn btn-tactical btn-sm border-danger text-danger">
-                            <i class="fas fa-trash"></i> Clear Logs
+                        <button id="btnClearLogs" class="btn btn-outline-danger btn-sm font-mono">
+                            <i class="fas fa-trash-alt me-1"></i> Clear Logs
                         </button>
                     </div>
                 </div>
-
                 <div class="card-body p-0">
-                    <div class="table-cockpit-container table-responsive" style="max-height: 560px; overflow-y: auto;">
-                        <table class="table-cockpit">
-                            <thead>
-                                <tr>
+                    <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                        <table class="table table-dark table-hover mb-0 align-middle font-mono small">
+                            <thead class="sticky-top bg-dark border-secondary">
+                                <tr class="text-secondary">
                                     <th>Timestamp</th>
                                     <th>Event Type</th>
                                     <th>Severity</th>
                                     <th>Driver Name</th>
-                                    <th>Match Score</th>
-                                    <th>Liveness Result</th>
-                                    <th>ESP32 Serial Transmission</th>
+                                    <th>Match %</th>
+                                    <th>Liveness</th>
+                                    <th>ESP32 Transmission</th>
                                 </tr>
                             </thead>
-                            <tbody id="logTableBody">
-                                <!-- Rendered dynamically by app.js -->
+                            <tbody id="auditLogsTableBody">
+                                <!-- Populated dynamically by app.js -->
                             </tbody>
                         </table>
                     </div>
-                </div>
-                <div class="card-footer bg-dark border-top border-secondary py-2 px-3 small text-muted d-flex justify-content-between align-items-center">
-                    <span><i class="fas fa-database me-1 text-info"></i> Matches Prasanth's SQLite <code>events</code> schema and Muniyappan's Fleet API</span>
-                    <span id="logCounterDisplay">Showing 0 events</span>
                 </div>
             </div>
         </div>
 
         <!-- ========================================================= -->
-        <!-- TAB 4: SYSTEM CONFIG & CALIBRATION -->
+        <!-- TAB 5: CALIBRATION & RECOGNITION SETTINGS -->
         <!-- ========================================================= -->
         <div id="tab-settings" class="tab-content">
             <div class="row justify-content-center">
@@ -377,11 +403,11 @@
                         </div>
                         <div class="card-body">
                             <div class="mb-4">
-                                <label for="thresholdSlider" class="form-label d-flex justify-content-between text-light small fw-bold">
+                                <label for="rangeThreshold" class="form-label d-flex justify-content-between text-light small fw-bold">
                                     <span>Decision Distance Threshold:</span>
-                                    <span id="thresholdValueLabel" class="text-info fw-bold">18.5</span>
+                                    <span id="valThreshold" class="text-info fw-bold font-mono">35.0</span>
                                 </label>
-                                <input type="range" class="form-range" min="5" max="35" step="0.5" id="thresholdSlider" value="18.5">
+                                <input type="range" class="form-range" min="10" max="70" step="0.5" id="rangeThreshold" value="35.0">
                                 <small class="text-secondary d-block mt-1">
                                     A face distance below this value is accepted as an authorised driver. Lower is stricter; higher is more permissive. Calibrated range: 16.0–20.0.
                                 </small>
@@ -403,6 +429,11 @@
         </div>
 
     </main>
+
+    <!-- Socket.IO & Chart.js & Leaflet.js -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
     <!-- Scripts: Pre-enrolled Data -> Face Engine -> Serial Controller -> Main App -->
     <script src="js/enrolled_data.js"></script>

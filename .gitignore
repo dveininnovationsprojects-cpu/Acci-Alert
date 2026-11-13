@@ -1,8 +1,19 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
+*.pyo
+*.pyd
 .pytest_cache/
+.mypy_cache/
 *.log
 venv/
 .env
+.vscode/
+.idea/
 
+# runtime data and backups
+*.db-wal
+*.db-shm
+backend/data/
+backend/backups/
