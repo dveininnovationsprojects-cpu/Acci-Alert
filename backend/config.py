@@ -1,34 +1,81 @@
 """
-AcciAlert - Configuration Module
-Smart Driver Safety and Accident Prevention System
-Author: Muniyappan
+AcciAlert - Master Configuration Module
+Smart Driver Safety, Accident Prevention & Driver Authorisation System
+Unified Architecture: Arsal (AI Vision) & Prasanth / Muniyappan (Danger Zones & Fleet Telemetry)
 """
 
 import os
+from pathlib import Path
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-os.makedirs(DATA_DIR, exist_ok=True)
+# Base Paths
+BASE_DIR = Path(__file__).resolve().parent.parent  # Project root
+BACKEND_DIR = Path(__file__).resolve().parent      # backend/
+DATA_DIR = BACKEND_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+AI_DIR = BASE_DIR / "ai"
+MODELS_DIR = BASE_DIR / "models"
+DATASET_DIR = BASE_DIR / "dataset"
+DATASET_TEST_DIR = BASE_DIR / "dataset_test"
+DOCS_DIR = BASE_DIR / "docs"
+FRONTEND_DIR = BASE_DIR / "frontend"
+
+# Model & Cascade Paths (Arsal - Vision AI)
+HAAR_FACE_PATH = MODELS_DIR / "haarcascade_frontalface_default.xml"
+HAAR_EYE_PATH = MODELS_DIR / "haarcascade_eye.xml"
+MODEL_FILE = MODELS_DIR / "face_model.yml"
+LABELS_FILE = MODELS_DIR / "labels.json"
+
+# Face Detection Settings
+FACE_MIN_SIZE = (50, 50)
+FACE_SCALE_FACTOR = 1.05
+FACE_MIN_NEIGHBORS = 2
+FACE_TARGET_SIZE = (150, 150)  # Standardized ROI for LBPH
+
+# Face Recognition Settings (LBPH)
+LBPH_RADIUS = 1
+LBPH_NEIGHBORS = 8
+LBPH_GRID_X = 8
+LBPH_GRID_Y = 8
+
+# Recognition Thresholds
+MATCH_THRESHOLD = 50.0
+CONSECUTIVE_MATCH_FRAMES = 5
+TARGET_ACCURACY_PCT = 90.0
+MAX_LATENCY_SECONDS = 2.0
+
+# Liveness Detection Settings
+ENABLE_LIVENESS_BY_DEFAULT = True
+LIVENESS_BLINK_EYES_MIN = 1
+LIVENESS_TIMEOUT_SECONDS = 5.0
+LIVENESS_MOTION_THRESHOLD = 2.0
 
 # Database Configuration
-DATABASE_PATH = os.path.join(DATA_DIR, "accialert.db")
+DATABASE_PATH = str(DATA_DIR / "accialert.db")
+DB_PATH = Path(DATABASE_PATH)
 
-# Flask & SocketIO Configuration
+# Server Configuration (Strictly Port 5173)
 SECRET_KEY = os.environ.get("SECRET_KEY", "accialert-secret-key-2026-muniyappan")
 HOST = "0.0.0.0"
-PORT = 5000
+PORT = 5173
 DEBUG = False
 
 # Telemetry & Sampling
 TELEMETRY_INTERVAL = 1.0  # seconds between telemetry broadcasts
 CHART_HISTORY_SECONDS = 60  # seconds of rolling chart history
 
-# Serial Communication Defaults
+# Serial Communication Defaults (ESP32 UART 115200 baud)
 DEFAULT_SERIAL_BAUD = 115200
 DEFAULT_SERIAL_PORT = "COM3"
-SERIAL_TIMEOUT = 1.0  # seconds
+SERIAL_PORT = os.getenv("ACCIALERT_SERIAL_PORT", DEFAULT_SERIAL_PORT)
+SERIAL_BAUDRATE = 115200
+SERIAL_TIMEOUT = 1.0
 
-# Safety & Sensor Alert Thresholds
+# REST API Settings
+API_BASE_URL = os.getenv("ACCIALERT_API_URL", f"http://localhost:{PORT}")
+API_TIMEOUT = 1.5
+
+# Safety & Sensor Alert Thresholds (Fleet Telemetry)
 THRESHOLDS = {
     "speed": {
         "warning": 60.0,       # km/h
@@ -50,7 +97,7 @@ THRESHOLDS = {
     "impact_acceleration": 2.5  # g (vector magnitude sqrt(ax^2+ay^2+az^2))
 }
 
-# GPS Default Coordinates (Chennai, Tamil Nadu - Anna Salai / Guindy Corridor)
+# GPS Default Coordinates (Chennai Corridor)
 DEFAULT_LATITUDE = 13.0827
 DEFAULT_LONGITUDE = 80.2707
 
@@ -107,6 +154,30 @@ INITIAL_DRIVERS = [
         "notes": "Primary Certified Fleet Driver"
     },
     {
+        "name": "Arsal",
+        "license_number": "TN-09-2024-001290",
+        "authorized": 1,
+        "notes": "AI Vision Lead & Verified Driver"
+    },
+    {
+        "name": "Arun",
+        "license_number": "TN-01-2022-005612",
+        "authorized": 1,
+        "notes": "Fleet Driver Roster"
+    },
+    {
+        "name": "Kumar",
+        "license_number": "TN-03-2021-008945",
+        "authorized": 1,
+        "notes": "Fleet Driver Roster"
+    },
+    {
+        "name": "Ravi",
+        "license_number": "TN-05-2020-003319",
+        "authorized": 1,
+        "notes": "Fleet Driver Roster"
+    },
+    {
         "name": "Karthik Raja",
         "license_number": "TN-07-2021-004312",
         "authorized": 1,
@@ -120,3 +191,4 @@ INITIAL_DRIVERS = [
     }
 ]
 
+DEFAULT_AUTHORISED_DRIVERS = ["Arsal", "Muniyappan", "Arun", "Kumar", "Ravi"]

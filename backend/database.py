@@ -380,3 +380,25 @@ def log_command(command: str, source: str = "UI", status: str = "SENT"):
     conn.commit()
     conn.close()
 
+
+# Compatibility Aliases for Rest APIs & Test Suites
+def add_danger_zone(code: str, name: str, latitude: float, longitude: float,
+                    radius_meters: float, speed_limit: float,
+                    severity: str = "MEDIUM", details: str = "") -> int:
+    return add_zone(code, name, latitude, longitude, radius_meters, speed_limit, severity, details)
+
+
+def delete_danger_zone(zone_id: int) -> bool:
+    return delete_zone(zone_id)
+
+
+def get_recent_events(limit: int = 100, offset: int = 0, event_type: str = None):
+    res = get_events(limit=limit, offset=offset, event_type=event_type)
+    return res["events"]
+
+
+def get_events_count(event_type: str = None) -> int:
+    res = get_events(limit=1, offset=0, event_type=event_type)
+    return res["total"]
+
+

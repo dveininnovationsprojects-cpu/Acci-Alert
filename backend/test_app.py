@@ -6,9 +6,15 @@ Author: Muniyappan
 """
 
 import sys
+import os
+from pathlib import Path
 import json
 import unittest
 import time
+
+# Ensure backend directory is in sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from app import app, simulator, state, send_unified_command
 import database
 import geo_utils
