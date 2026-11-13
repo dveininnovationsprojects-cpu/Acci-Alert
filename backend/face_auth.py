@@ -1,22 +1,14 @@
-"""
-AcciAlert - AI Face Recognition & Driver Authorisation System
-Author: Arsal
-Module: Driver Authorisation Layer
+"""Driver face login.
 
-Core Responsibilities:
-  1. Captures live video stream from USB driver-facing webcam.
-  2. Detects driver's face and normalizes illumination (CLAHE).
-  3. Evaluates 5 operational cases:
-     - Case 1: One authorised face -> Unlock car, send AUTH_OK
-     - Case 2: Unknown face -> Keep car locked, send AUTH_DENIED
-     - Case 3: No face detected -> Vehicle remains locked
-     - Case 4: Multiple faces -> Reject access (security rule)
-     - Case 5: Low confidence / poor lighting -> Reject access
-  4. Anti-spoofing liveness check (blink & micro-movement).
-  5. Communicates result to ESP32 via serial JSON line:
-     {"cmd":"AUTH","ok":1,"driver":"<Name>"}
-     {"cmd":"AUTH","ok":0,"driver":"Unknown"}
-  6. Logs authentication events to SQLite (accialert.db) & dashboard API.
+Reads the webcam, finds the face, checks it against the enrolled drivers and
+runs a blink / movement liveness check. Rules:
+  one known face      -> unlock, send AUTH ok=1
+  unknown face        -> stay locked, send AUTH ok=0
+  no face             -> stay locked
+  more than one face  -> reject
+  low confidence      -> reject
+The result goes to the ESP32 as {"cmd":"AUTH","ok":1,"driver":"<name>"} and is
+logged to the database and the dashboard.
 """
 
 import argparse
@@ -32,7 +24,7 @@ try:
     from .face_detector import FaceDetector, FaceDetectionResult
     from .face_recognizer import FaceRecognizer, RecognitionResult
     from .liveness import LivenessDetector
-    from .serial_comm import ESP32SerialCommunicator
+    from .serial_link import ESP32SerialCommunicator
     from .db_logger import DatabaseLogger
     from .train_model import train_ai_model
 except ImportError:
@@ -40,7 +32,7 @@ except ImportError:
     from backend.face_detector import FaceDetector, FaceDetectionResult
     from backend.face_recognizer import FaceRecognizer, RecognitionResult
     from backend.liveness import LivenessDetector
-    from backend.serial_comm import ESP32SerialCommunicator
+    from backend.serial_link import ESP32SerialCommunicator
     from backend.db_logger import DatabaseLogger
     from backend.train_model import train_ai_model
 

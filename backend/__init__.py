@@ -1,12 +1,11 @@
-"""
-AcciAlert - Driver Authorisation & Safety Subsystem Backend Package
+"""Backend package.
 """
 
 from . import config
 from .face_detector import FaceDetector, FaceDetectionResult
 from .face_recognizer import FaceRecognizer, RecognitionResult
 from .liveness import LivenessDetector
-from .serial_comm import ESP32SerialCommunicator
+from .serial_link import ESP32SerialCommunicator
 from .db_logger import DatabaseLogger
 
 __all__ = [

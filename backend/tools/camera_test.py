@@ -1,12 +1,4 @@
-"""
-AcciAlert - Camera Diagnostic & Test Utility
-Module: AI Face Recognition & Driver Authorisation (Arsal)
-
-Purpose:
-  Step 2 in the Software Team Guide:
-  - Verifies webcam connectivity (tries index 0, then index 1)
-  - Displays live camera feed with resolution and FPS overlay
-  - Press 'q' or 'ESC' to close the test window
+"""Opens the webcam (tries camera 0, then 1) and shows the live picture. Press q or Esc to close.
 """
 
 import sys

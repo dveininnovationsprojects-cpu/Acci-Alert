@@ -1,15 +1,5 @@
-"""
-AcciAlert - Real Human Face Dataset Generator & Augmentation Pipeline
-Module: AI Face Recognition & Driver Authorisation (Arsal)
-
-Features:
-  - Generates photorealistic automotive datasets from real human drivers:
-    - 3 Authorised Drivers: Arun, Kumar, Ravi (25 training + 10 test images each)
-    - 5 Unknown Test Subjects: Unknown_1 .. Unknown_5 (10 test images each)
-  - Realistic multi-condition automotive variations:
-    - Vehicle interior lighting (direct sunlight, night cabin, lateral shadows)
-    - Natural driver head poses & angles (-6° to +6°)
-    - Natural distance scaling (0.94x to 1.06x)
+"""Builds the sample driver photos (dataset/ and dataset_test/) from the raw pictures in dataset_raw/.
+Adds small changes in light, head angle and distance so the model sees some variety.
 """
 
 import os
@@ -19,10 +9,7 @@ from typing import Dict, Any, List, Tuple
 import cv2
 import numpy as np
 
-try:
-    from . import config
-except ImportError:
-    from backend import config
+from backend import config
 
 # Real human face coordinates from raw driver images
 RAW_FACES: Dict[str, Tuple[str, Tuple[int, int, int, int]]] = {
@@ -38,7 +25,7 @@ RAW_FACES: Dict[str, Tuple[str, Tuple[int, int, int, int]]] = {
 
 
 def extract_master_crops() -> Dict[str, np.ndarray]:
-    """Extracts master real human face crops from dataset_raw."""
+    """Cuts one reference face for each person out of the raw pictures."""
     raw_dir = config.BACKEND_DIR / "dataset_raw"
     if not raw_dir.exists():
         raise FileNotFoundError(f"dataset_raw directory not found: {raw_dir}")

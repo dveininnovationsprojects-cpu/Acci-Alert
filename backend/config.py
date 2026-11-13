@@ -1,7 +1,4 @@
-"""
-AcciAlert - Master Configuration Module
-Smart Driver Safety, Accident Prevention & Driver Authorisation System
-Unified Architecture: Arsal (AI Vision) & Prasanth / Muniyappan (Danger Zones & Fleet Telemetry)
+"""Settings for the whole backend: paths, server port, serial port, limits and starting data.
 """
 
 import os
@@ -54,8 +51,8 @@ LIVENESS_MOTION_THRESHOLD = 2.0
 DATABASE_PATH = str(DATA_DIR / "accialert.db")
 DB_PATH = Path(DATABASE_PATH)
 
-# Server Configuration (Strictly Port 5173)
-SECRET_KEY = os.environ.get("SECRET_KEY", "accialert-secret-key-2026-muniyappan")
+# Server
+SECRET_KEY = os.environ.get("SECRET_KEY", "accialert-dev-key")
 HOST = "0.0.0.0"
 PORT = 5173
 DEBUG = False

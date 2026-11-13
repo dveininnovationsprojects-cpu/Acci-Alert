@@ -1,17 +1,9 @@
-"""
-AcciAlert - Driver Face Enrolment Tool
-Module: AI Face Recognition & Driver Authorisation (Arsal)
+"""Adds a new driver by taking face photos from the webcam, then retrains the model.
 
-Usage:
-  python -m ai.enrol_driver --name "Arun" --target 25
-  python -m ai.enrol_driver --name "Priya" --camera 0
+    python -m backend.tools.enrol_driver --name "Arun" --target 25
+    python -m backend.tools.enrol_driver --name "Priya" --camera 0
 
-Features:
-  - Real-time webcam guidance for driver enrolment
-  - Guides driver through head poses (straight, slight left, slight right, close, far)
-  - Press 'c' to capture or hold SPACE for burst capture
-  - Automatic cropping and quality validation
-  - Triggers retraining on completion
+Press c to take a photo or hold Space for a burst.
 """
 
 import argparse
@@ -20,14 +12,9 @@ import time
 from pathlib import Path
 import cv2
 
-try:
-    from . import config
-    from .face_detector import FaceDetector
-    from .train_model import train_ai_model
-except ImportError:
-    from backend import config
-    from backend.face_detector import FaceDetector
-    from backend.train_model import train_ai_model
+from backend import config
+from backend.face_detector import FaceDetector
+from backend.train_model import train_ai_model
 
 
 def enrol_driver(driver_name: str,

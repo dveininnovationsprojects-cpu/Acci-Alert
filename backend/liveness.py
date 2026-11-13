@@ -1,11 +1,4 @@
-"""
-AcciAlert - Anti-Spoofing Liveness Detection Module
-Module: AI Face Recognition & Driver Authorisation (Arsal)
-
-Features:
-  - Eye blink detection via temporal eye-state tracking (Open -> Closed -> Open)
-  - Micro-motion detection across consecutive frames to reject static printed photos
-  - Configurable timeout and interactive visual status messages
+"""Liveness check: a blink or small head movement shows the face is a real person, not a photo.
 """
 
 import time
