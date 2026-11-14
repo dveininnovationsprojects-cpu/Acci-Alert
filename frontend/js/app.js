@@ -817,16 +817,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Audit & Event Logging
     // -------------------------------------------------------------
     function appendAuditLog(type, severity, driver, similarity, details) {
+        const safeDriver = (driver && String(driver).trim()) ? String(driver).trim() : 'Unknown';
         const logItem = {
             id: state.auditLogs.length + 1,
             timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
             type: type,
             severity: severity,
-            driver: driver,
+            driver: safeDriver,
             similarity: similarity,
             liveness: faceEngine.livenessConfig.enabled ? (faceEngine.livenessState.passed ? 'PASSED' : 'PENDING') : 'BYPASSED',
             details: details,
-            espCommand: `{"cmd":"AUTH","ok":${type === 'AUTH_OK' ? 1 : 0},"driver":"${driver}"}`
+            espCommand: `{"cmd":"AUTH","ok":${type === 'AUTH_OK' ? 1 : 0},"driver":"${safeDriver}"}`
         };
 
         state.auditLogs.unshift(logItem);
@@ -925,7 +926,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>
                     <div class="audit-driver-pill">
                         <div class="audit-driver-avatar">${escapeHTML(String(item.driver || "?").charAt(0))}</div>
-                        <span>${escapeHTML(item.driver)}</span>
+                        <span>${escapeHTML(item.driver || "Unknown")}</span>
                     </div>
                 </td>
                 <td>

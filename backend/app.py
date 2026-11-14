@@ -686,6 +686,36 @@ def verify_face_api():
         elif recognised:
             liveness = "PASSED"
 
+        # Estimate physical distance from camera to person using pinhole face geometry
+        distance_cm = None
+        if box and len(box) >= 4 and box[2] > 0:
+            # Average adult face width ~14.5 cm, standard webcam FOV focal length F ~ 0.85 * frame_w
+            calc_dist = (14.5 * 0.85 * float(frame_w)) / float(box[2])
+            distance_cm = round(max(15.0, min(250.0, calc_dist)), 1)
+
+        # Eye tracking & vitality analysis
+        eyes_count = 0
+        eye_status = "No face"
+        if face_count == 1 and box:
+            try:
+                bx, by, bw, bh = [int(v) for v in box]
+                face_crop = frame[max(0, by):min(frame_h, by + bh), max(0, bx):min(frame_w, bx + bw)]
+                if face_crop.size > 0:
+                    gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY) if len(face_crop.shape) == 3 else face_crop
+                    eyes = face_detector.detect_eyes_in_face(gray_crop)
+                    eyes_count = len(eyes)
+            except Exception:
+                eyes_count = 0
+
+            if liveness == "PASSED":
+                eye_status = "PASSED"
+            elif eyes_count >= 2:
+                eye_status = "TRACKING (2 EYES)"
+            elif eyes_count == 1:
+                eye_status = "TRACKING (1 EYE)"
+            else:
+                eye_status = "BLINK DETECTED"
+
         unlocked = recognised and live
         shown_driver = driver_name if unlocked else "Unknown"
         if unlocked:
@@ -708,15 +738,27 @@ def verify_face_api():
                     details=f"Match {confidence:.0f}%, liveness {liveness.lower()}"
                 )
 
+        dist_str = f"{int(round(distance_cm))} cm" if distance_cm else "--"
+        dist_full_str = f"{int(round(distance_cm))} cm ({distance_cm/100.0:.2f} m)" if distance_cm else "--"
+
         return jsonify({
             "status": "success",
             "detected": face_count == 1,
             "face_count": face_count,
             "authorized": unlocked,
+            "auth_status": "AUTHORIZED" if unlocked else ("UNAUTHORIZED" if face_count > 0 else "STANDBY"),
             "driver": shown_driver,
-            "distance": round(100.0 - confidence, 2),
+            "driver_name": shown_driver,
+            "match_pct": round(confidence),
             "confidence": round(confidence, 1),
+            "distance": round(100.0 - confidence, 2),
+            "person_distance_cm": distance_cm,
+            "person_distance_m": round(distance_cm / 100.0, 2) if distance_cm else None,
+            "person_distance_str": dist_str,
+            "person_distance_full": dist_full_str,
             "liveness": liveness,
+            "eyes_count": eyes_count,
+            "eye_tracking": eye_status,
             "ignition": "UNLOCKED" if unlocked else "LOCKED",
             "box": [box[0] / frame_w, box[1] / frame_h, box[2] / frame_w, box[3] / frame_h] if box else None,
             "message": note,
@@ -996,15 +1038,25 @@ def drivers_api():
         return jsonify({"status": "success", "drivers": drivers})
 
     data = request.get_json() or {}
-    name = data.get("name")
-    license_number = data.get("license_number")
+    name = (data.get("name") or "").strip()
+    license_number = (data.get("license_number") or "").strip()
     authorized = int(data.get("authorized", 1))
     notes = data.get("notes", "")
 
-    if not name or not license_number:
-        return jsonify({"status": "error", "message": "name and license_number are required."}), 400
+    if not name:
+        return jsonify({"status": "error", "message": "name is required."}), 400
+
+    if not license_number:
+        import time
+        license_number = f"TN-09-{datetime.now().year}-{int(time.time()) % 10000:04d}"
 
     driver_id = database.add_or_update_driver(name, license_number, authorized, notes)
+
+    database.add_event(
+        event_type="DRIVER_ENROLLED",
+        driver_name=name,
+        details=f"Biometrically registered: {name} (License: {license_number})"
+    )
 
     if data.get("make_active", False):
         state.active_driver_name = name

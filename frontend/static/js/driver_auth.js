@@ -363,7 +363,7 @@ class DriverAuthController {
     if (btnStart) btnStart.style.display = "inline-flex";
     if (btnStop) btnStop.style.display = "none";
 
-    this.updateGatingUI(false, "Unknown", 99.0, 0);
+    this.updateGatingUI(false, "Unknown", null, 0, "Camera is off", { detected: false, liveness: "STANDBY" });
   }
 
   toggleCamera() {
@@ -499,13 +499,12 @@ class DriverAuthController {
             const dist = typeof res.distance === "number" ? res.distance : 99.0;
             const conf = typeof res.confidence === "number" ? res.confidence : 0.0;
 
-            // Proper Logic: only verify if detected as authorized AND present in enrolled drivers roster
             if (isAuth && detectedDriver && detectedDriver !== "Unknown") {
-              this.updateGatingUI(true, detectedDriver, dist, conf, res.message);
+              this.updateGatingUI(true, detectedDriver, dist, conf, res.message, res);
               return;
             } else {
               // Unrecognized subject or no face
-              this.updateGatingUI(false, "Unknown", dist, conf, res.message);
+              this.updateGatingUI(false, detectedDriver || "Unknown", dist, conf, res.message, res);
               return;
             }
           }
@@ -518,7 +517,7 @@ class DriverAuthController {
     }
 
     // No face result from the server: the car stays locked
-    this.updateGatingUI(false, "Unknown", 85.0, 32.0);
+    this.updateGatingUI(false, "Unknown", null, 0, "Looking for face...", { detected: false, liveness: "NO_FACE" });
   }
 
   runMockDetection() {
@@ -530,32 +529,137 @@ class DriverAuthController {
     if (btnStop) btnStop.style.display = "inline-flex";
 
     // Without a real camera nobody can be verified, so the car stays locked
-    this.updateGatingUI(false, "Unknown", 82.0, 35.0);
+    this.updateGatingUI(false, "Unknown", null, 0, "Virtual detector running", { detected: false, liveness: "STANDBY" });
   }
 
   // ===================================================================
   // VEHICLE GATING & IGNITION INTERLOCK
   // ===================================================================
-  updateGatingUI(isAuth, driverName, distance, similarity, note) {
+  updateGatingUI(isAuth, driverName, distance, similarity, note, extraData = {}) {
     const isRealMatch = isAuth && driverName !== "Unknown";
     const displayName = isRealMatch ? driverName : "Unknown";
+    const hasFace = Boolean(extraData.detected || (extraData.face_count && extraData.face_count > 0) || (this.faceBox && (Date.now() - this.faceBoxTime) < 2000));
 
+    // Element references for the 4 Telemetry Cards
+    const cardAuth = document.getElementById("cardDriverAuth");
     const nameEl = document.getElementById("valDriverName");
+    const authDot = document.getElementById("authStatusDot");
+    const authStatusText = document.getElementById("valAuthStatusText");
+
+    const cardMatch = document.getElementById("cardMatchScore");
     const simEl = document.getElementById("valSimilarity");
-    const distEl = document.getElementById("valDistance");
+    const simBar = document.getElementById("valSimilarityBar");
+
+    const cardLive = document.getElementById("cardLiveness");
     const livenessBadge = document.getElementById("txtLivenessStatus");
+    const eyeTrackingSub = document.getElementById("valEyeTrackingSub");
+
+    const cardDist = document.getElementById("cardDistance");
+    const distEl = document.getElementById("valDistance");
+    const distSub = document.getElementById("valDistanceSub");
+
     const lockBadge = document.getElementById("ignitionLockBadge");
     const engineIndicator = document.getElementById("engineIndicator");
     const engineTitle = document.getElementById("engineStatusTitle");
     const engineSub = document.getElementById("engineSubStatus");
 
-    if (nameEl) nameEl.textContent = displayName;
-    if (simEl) simEl.textContent = `${Math.round(similarity)}%`;
-    if (distEl) distEl.textContent = Number(distance).toFixed(2);
+    // 1. Driver Authorized / Unauthorized Card
+    if (nameEl) {
+      if (isRealMatch) {
+        nameEl.textContent = displayName;
+        nameEl.style.color = "var(--green-success, #059669)";
+        if (cardAuth) cardAuth.style.borderTopColor = "var(--green-success, #059669)";
+        if (authDot) authDot.style.background = "var(--green-success, #059669)";
+        if (authStatusText) authStatusText.innerHTML = '<span class="badge badge-success" style="font-size:0.7rem; padding:2px 6px;">AUTHORIZED</span>';
+      } else if (hasFace) {
+        nameEl.textContent = (driverName && driverName !== "Unknown") ? driverName : "UNAUTHORIZED";
+        nameEl.style.color = "var(--red-critical, #DC2626)";
+        if (cardAuth) cardAuth.style.borderTopColor = "var(--red-critical, #DC2626)";
+        if (authDot) authDot.style.background = "var(--red-critical, #DC2626)";
+        if (authStatusText) authStatusText.innerHTML = '<span class="badge badge-danger" style="font-size:0.7rem; padding:2px 6px;">UNAUTHORIZED</span>';
+      } else if (this.isRunning) {
+        nameEl.textContent = "SEARCHING...";
+        nameEl.style.color = "var(--text-muted, #6B7280)";
+        if (cardAuth) cardAuth.style.borderTopColor = "var(--border-color, #E5E7EB)";
+        if (authDot) authDot.style.background = "#9CA3AF";
+        if (authStatusText) authStatusText.textContent = "Looking for face";
+      } else {
+        nameEl.textContent = "STANDBY";
+        nameEl.style.color = "var(--text-muted, #6B7280)";
+        if (cardAuth) cardAuth.style.borderTopColor = "var(--border-color, #E5E7EB)";
+        if (authDot) authDot.style.background = "#9CA3AF";
+        if (authStatusText) authStatusText.textContent = "Camera is off";
+      }
+    }
 
+    // 2. Match % Card
+    const simVal = (similarity !== null && !isNaN(similarity)) ? Math.round(similarity) : 0;
+    if (simEl) {
+      if (hasFace && simVal > 0) {
+        simEl.textContent = `${simVal}%`;
+        const simColor = isRealMatch ? "var(--green-success, #059669)" : (simVal >= 50 ? "var(--yellow-warning, #D97706)" : "var(--red-critical, #DC2626)");
+        simEl.style.color = simColor;
+        if (simBar) {
+          simBar.style.width = `${Math.min(100, simVal)}%`;
+          simBar.style.background = simColor;
+        }
+        if (cardMatch) cardMatch.style.borderTopColor = isRealMatch ? "var(--green-success, #059669)" : "var(--border-color, #E5E7EB)";
+      } else {
+        simEl.textContent = "0%";
+        simEl.style.color = "var(--text-muted, #6B7280)";
+        if (simBar) simBar.style.width = "0%";
+        if (cardMatch) cardMatch.style.borderTopColor = "var(--border-color, #E5E7EB)";
+      }
+    }
+
+    // 3. Eye Tracking "Liveness" Card
+    const liveVal = extraData.liveness || (isRealMatch ? "PASSED" : (hasFace ? "PENDING" : "STANDBY"));
     if (livenessBadge) {
-      livenessBadge.className = isRealMatch ? "badge badge-success" : "badge badge-warning";
-      livenessBadge.textContent = isRealMatch ? "Verified" : "Pending";
+      if (liveVal === "PASSED" || isRealMatch) {
+        livenessBadge.className = "badge badge-success";
+        livenessBadge.textContent = "PASSED";
+        if (eyeTrackingSub) eyeTrackingSub.textContent = extraData.eye_tracking ? `Vitality OK • ${extraData.eye_tracking}` : "Eye blink & motion confirmed";
+        if (cardLive) cardLive.style.borderTopColor = "var(--green-success, #059669)";
+      } else if (hasFace) {
+        livenessBadge.className = "badge badge-warning";
+        livenessBadge.textContent = (extraData.eyes_count && extraData.eyes_count >= 1) ? `TRACKING (${extraData.eyes_count} EYES)` : "PENDING";
+        if (eyeTrackingSub) eyeTrackingSub.textContent = extraData.eye_tracking || "Blink or move head slightly";
+        if (cardLive) cardLive.style.borderTopColor = "var(--yellow-warning, #D97706)";
+      } else {
+        livenessBadge.className = "badge badge-muted";
+        livenessBadge.textContent = this.isRunning ? "NO FACE" : "STANDBY";
+        if (eyeTrackingSub) eyeTrackingSub.textContent = this.isRunning ? "Look at the camera" : "Vitality & blink tracking";
+        if (cardLive) cardLive.style.borderTopColor = "var(--border-color, #E5E7EB)";
+      }
+    }
+
+    // 4. Distance (Camera to Person) Card
+    if (distEl) {
+      if (hasFace && extraData.person_distance_str && extraData.person_distance_str !== "--") {
+        distEl.textContent = extraData.person_distance_str;
+        distEl.style.color = "var(--teal-primary, #0D9488)";
+        if (distSub) distSub.textContent = extraData.person_distance_m ? `${extraData.person_distance_m} m from camera` : "Camera to face";
+        if (cardDist) cardDist.style.borderTopColor = "var(--teal-primary, #0D9488)";
+      } else if (hasFace && this.faceBox) {
+        const boxW = (this.faceBox[2] > 1) ? this.faceBox[2] : (this.faceBox[2] * 640);
+        if (boxW > 10) {
+          const estCm = Math.round(Math.max(15, Math.min(250, (14.5 * 550.0) / boxW)));
+          distEl.textContent = `${estCm} cm`;
+          distEl.style.color = "var(--teal-primary, #0D9488)";
+          if (distSub) distSub.textContent = `${(estCm / 100).toFixed(2)} m from camera`;
+          if (cardDist) cardDist.style.borderTopColor = "var(--teal-primary, #0D9488)";
+        } else {
+          distEl.textContent = "--";
+          distEl.style.color = "var(--text-muted, #6B7280)";
+          if (distSub) distSub.textContent = "Camera to driver";
+          if (cardDist) cardDist.style.borderTopColor = "var(--border-color, #E5E7EB)";
+        }
+      } else {
+        distEl.textContent = "--";
+        distEl.style.color = "var(--text-muted, #6B7280)";
+        if (distSub) distSub.textContent = "Camera to driver";
+        if (cardDist) cardDist.style.borderTopColor = "var(--border-color, #E5E7EB)";
+      }
     }
 
     if (lockBadge) {

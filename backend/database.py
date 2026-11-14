@@ -160,8 +160,8 @@ def init_db():
 
 # Event operations
 
-def add_event(event_type: str, driver_name: str, vehicle_speed: float,
-              latitude: float, longitude: float, danger_zone_name: str = None,
+def add_event(event_type: str, driver_name: str, vehicle_speed: float = 0.0,
+              latitude: float = 13.0827, longitude: float = 80.2707, danger_zone_name: str = None,
               details: str = None, timestamp: str = None) -> int:
     """Insert a new safety or system event."""
     if timestamp is None:
@@ -328,23 +328,30 @@ def get_all_drivers():
     return rows
 
 
-def add_or_update_driver(name: str, license_number: str, authorized: int = 1, notes: str = ""):
-    """Add a new driver or update existing driver's auth status by license number."""
+def add_or_update_driver(name: str, license_number: str = None, authorized: int = 1, notes: str = ""):
+    """Add a new driver or update existing driver's auth status by license number or name."""
     conn = get_db_connection()
     cursor = conn.cursor()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    cursor.execute("SELECT id FROM drivers WHERE license_number = ?", (license_number,))
+    if license_number:
+        cursor.execute("SELECT id, license_number FROM drivers WHERE license_number = ? OR name = ?", (license_number, name))
+    else:
+        cursor.execute("SELECT id, license_number FROM drivers WHERE name = ?", (name,))
     existing = cursor.fetchone()
 
     if existing:
+        final_license = license_number if license_number else existing["license_number"]
         cursor.execute("""
             UPDATE drivers
-            SET name = ?, authorized = ?, notes = ?
+            SET name = ?, license_number = ?, authorized = ?, notes = ?
             WHERE id = ?
-        """, (name, authorized, notes, existing["id"]))
+        """, (name, final_license, authorized, notes, existing["id"]))
         driver_id = existing["id"]
     else:
+        if not license_number:
+            import time
+            license_number = f"TN-09-{datetime.now().year}-{int(time.time()) % 10000:04d}"
         cursor.execute("""
             INSERT INTO drivers (name, license_number, authorized, notes, created_at)
             VALUES (?, ?, ?, ?, ?)

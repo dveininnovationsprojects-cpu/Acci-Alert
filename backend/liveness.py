@@ -32,6 +32,12 @@ class LivenessDetector:
         self.is_passed = False
         self.status_message = "Please blink to verify driver liveness..."
 
+    def manual_pass(self) -> bool:
+        """Manually mark liveness check as passed."""
+        self.is_passed = True
+        self.status_message = "Liveness check passed manually."
+        return True
+
     def update(self, frame: np.ndarray, face_roi: np.ndarray, face_box: Tuple[int, int, int, int]) -> Tuple[bool, str]:
         """
         Processes a single frame for liveness cues.

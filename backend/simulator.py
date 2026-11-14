@@ -70,6 +70,14 @@ class VehicleSimulator:
         # Danger zones cache for real-time intersection
         self.danger_zones: List[Dict[str, Any]] = []
 
+    @property
+    def latitude(self) -> float:
+        return float(self.current_lat)
+
+    @property
+    def longitude(self) -> float:
+        return float(self.current_lon)
+
     def set_danger_zones(self, zones: List[Dict[str, Any]]):
         """Update simulator's awareness of configured danger zones."""
         self.danger_zones = zones

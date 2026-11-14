@@ -494,6 +494,64 @@
                   <span>LATENCY: 28ms</span>
                 </div>
               </div>
+
+              <!-- Live Biometric & Gating Telemetry Bar (4 Marked Data Cards) -->
+              <div class="camera-telemetry-strip" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-top:14px;">
+                
+                <!-- 1. Driver Authorized / Unauthorized -->
+                <div class="control-group-card" style="padding:10px 12px; margin-bottom:0; text-align:left; border-top:3px solid var(--border-color, #E5E7EB); transition:border-color 0.3s ease;" id="cardDriverAuth">
+                  <div style="font-size:0.68rem; text-transform:uppercase; font-weight:700; color:var(--text-muted, #6B7280); letter-spacing:0.5px; margin-bottom:4px;">
+                    Driver Status
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span id="authStatusDot" style="width:8px; height:8px; border-radius:50%; background:#9CA3AF; display:inline-block; flex-shrink:0;"></span>
+                    <span id="valDriverName" style="font-size:0.95rem; font-weight:700; color:var(--text-muted, #6B7280); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">STANDBY</span>
+                  </div>
+                  <div id="valAuthStatusText" style="font-size:0.72rem; color:var(--text-secondary, #6B7280); margin-top:2px;">
+                    Awaiting face
+                  </div>
+                </div>
+
+                <!-- 2. Match % -->
+                <div class="control-group-card" style="padding:10px 12px; margin-bottom:0; text-align:left; border-top:3px solid var(--border-color, #E5E7EB); transition:border-color 0.3s ease;" id="cardMatchScore">
+                  <div style="font-size:0.68rem; text-transform:uppercase; font-weight:700; color:var(--text-muted, #6B7280); letter-spacing:0.5px; margin-bottom:4px;">
+                    Match Score
+                  </div>
+                  <div style="display:flex; align-items:baseline; gap:4px;">
+                    <span id="valSimilarity" style="font-size:1.15rem; font-weight:800; font-family:'JetBrains Mono', monospace; color:var(--text-muted, #6B7280);">0%</span>
+                  </div>
+                  <div class="mini-progress-bar" style="width:100%; height:4px; background:#E5E7EB; border-radius:2px; margin-top:6px; overflow:hidden;">
+                    <div id="valSimilarityBar" style="width:0%; height:100%; background:var(--teal-primary, #0D9488); transition:width 0.3s ease;"></div>
+                  </div>
+                </div>
+
+                <!-- 3. Eye Tracking "Liveness" -->
+                <div class="control-group-card" style="padding:10px 12px; margin-bottom:0; text-align:left; border-top:3px solid var(--border-color, #E5E7EB); transition:border-color 0.3s ease;" id="cardLiveness">
+                  <div style="font-size:0.68rem; text-transform:uppercase; font-weight:700; color:var(--text-muted, #6B7280); letter-spacing:0.5px; margin-bottom:4px;">
+                    Eye Tracking (Liveness)
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span id="txtLivenessStatus" class="badge badge-muted" style="font-size:0.75rem; padding:3px 8px; font-weight:700;">STANDBY</span>
+                  </div>
+                  <div id="valEyeTrackingSub" style="font-size:0.72rem; color:var(--text-secondary, #6B7280); margin-top:4px;">
+                    Vitality &amp; blink tracking
+                  </div>
+                </div>
+
+                <!-- 4. Distance (Camera to Person) -->
+                <div class="control-group-card" style="padding:10px 12px; margin-bottom:0; text-align:left; border-top:3px solid var(--border-color, #E5E7EB); transition:border-color 0.3s ease;" id="cardDistance">
+                  <div style="font-size:0.68rem; text-transform:uppercase; font-weight:700; color:var(--text-muted, #6B7280); letter-spacing:0.5px; margin-bottom:4px;">
+                    Camera Distance
+                  </div>
+                  <div style="display:flex; align-items:baseline; gap:4px;">
+                    <span id="valDistance" style="font-size:1.15rem; font-weight:800; font-family:'JetBrains Mono', monospace; color:var(--text-muted, #6B7280);">--</span>
+                  </div>
+                  <div id="valDistanceSub" style="font-size:0.72rem; color:var(--text-secondary, #6B7280); margin-top:2px;">
+                    Camera to driver
+                  </div>
+                </div>
+
+              </div>
             </div>
 
             <!-- Right: Capture Image Card -->
@@ -538,10 +596,6 @@
                 <div id="engineIndicator" class="engine-indicator locked"><span>ENGINE</span></div>
                 <h4 id="engineStatusTitle">ENGINE START LOCKED</h4>
                 <p id="engineSubStatus"></p>
-                <div id="valDriverName">Unknown</div>
-                <div id="valSimilarity">0%</div>
-                <div id="valDistance">99.00</div>
-                <span id="txtLivenessStatus">Pending</span>
               </div>
 
               <p style="font-size:0.72rem; color:var(--text-muted); margin-top:14px; text-align:center;">
