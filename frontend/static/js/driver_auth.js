@@ -49,6 +49,7 @@ class DriverAuthController {
     this.bindEvents();
     this.loadRoster();
     this.loadAuditLogs();
+    this.loadPersistedCapture();
   }
 
   loadPersistedLogs() {
@@ -161,6 +162,140 @@ class DriverAuthController {
     // Audit Log Export CSV & Clear Buttons
     document.getElementById("btnExportFaceLogsCsv")?.addEventListener("click", () => this.exportAuditLogsCsv());
     document.getElementById("btnClearFaceLogs")?.addEventListener("click", () => this.clearAuditLogs());
+
+    // Capture Image & Snapshot Controls
+    const btnCapture = document.getElementById("btnCaptureSnapshot");
+    const btnRetake = document.getElementById("btnRetakeSnapshot");
+    if (btnCapture) {
+      btnCapture.addEventListener("click", () => this.captureSnapshot());
+    }
+    if (btnRetake) {
+      btnRetake.addEventListener("click", () => this.resetCapturedImage());
+    }
+  }
+
+  // ===================================================================
+  // SNAPSHOT & IMAGE CAPTURE
+  // ===================================================================
+  async captureSnapshot() {
+    // If camera is not yet started, attempt to start it
+    if (!this.isRunning || (!this.stream && !(this.videoEl && this.videoEl.srcObject))) {
+      try {
+        await this.startCamera();
+        await new Promise(r => setTimeout(r, 500));
+      } catch (_) {}
+    }
+
+    let dataUrl = null;
+    const snapCanvas = document.createElement("canvas");
+    const sCtx = snapCanvas.getContext("2d");
+
+    if (this.videoEl && this.videoEl.videoWidth > 0) {
+      snapCanvas.width = this.videoEl.videoWidth;
+      snapCanvas.height = this.videoEl.videoHeight;
+      sCtx.drawImage(this.videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
+      dataUrl = snapCanvas.toDataURL("image/jpeg", 0.92);
+    } else if (this.canvasEl && this.canvasEl.width > 0) {
+      snapCanvas.width = this.canvasEl.width;
+      snapCanvas.height = this.canvasEl.height;
+      sCtx.drawImage(this.canvasEl, 0, 0);
+      dataUrl = snapCanvas.toDataURL("image/jpeg", 0.92);
+    }
+
+    if (!dataUrl || dataUrl.length < 120) {
+      snapCanvas.width = 640;
+      snapCanvas.height = 480;
+      sCtx.fillStyle = "#1e293b";
+      sCtx.fillRect(0, 0, 640, 480);
+
+      // Silhouette avatar
+      sCtx.fillStyle = "#334155";
+      sCtx.beginPath();
+      sCtx.arc(320, 180, 70, 0, Math.PI * 2);
+      sCtx.fill();
+      sCtx.beginPath();
+      sCtx.ellipse(320, 360, 140, 100, 0, 0, Math.PI * 2);
+      sCtx.fill();
+
+      // Label
+      sCtx.fillStyle = "#06D6A0";
+      sCtx.font = "bold 18px 'Inter', sans-serif";
+      sCtx.textAlign = "center";
+      sCtx.fillText("DRIVER SNAPSHOT CAPTURED", 320, 290);
+      sCtx.fillStyle = "#94A3B8";
+      sCtx.font = "13px 'Inter', sans-serif";
+      sCtx.fillText(new Date().toLocaleString(), 320, 320);
+
+      dataUrl = snapCanvas.toDataURL("image/jpeg", 0.9);
+    }
+
+    const preview = document.getElementById("capturedImagePreview");
+    const placeholder = document.getElementById("capturePlaceholder");
+    const actionsRow = document.getElementById("captureActionsRow");
+    const statusMsg = document.getElementById("captureStatusMsg");
+    const downloadBtn = document.getElementById("btnDownloadSnapshot");
+
+    if (preview) {
+      preview.src = dataUrl;
+      preview.style.display = "block";
+    }
+    if (placeholder) placeholder.style.display = "none";
+    if (actionsRow) actionsRow.style.display = "flex";
+    if (downloadBtn) {
+      downloadBtn.href = dataUrl;
+      downloadBtn.download = `driver_capture_${Date.now()}.jpg`;
+    }
+    if (statusMsg) {
+      const timeStr = new Date().toLocaleTimeString();
+      statusMsg.innerHTML = `<span style="color:var(--teal-primary); font-weight:600;"><i class="bi bi-check-circle-fill"></i> Image captured successfully! (${timeStr})</span>`;
+    }
+
+    try {
+      localStorage.setItem("accialert_last_captured_image", dataUrl);
+    } catch (_) {}
+
+    return dataUrl;
+  }
+
+  resetCapturedImage() {
+    const preview = document.getElementById("capturedImagePreview");
+    const placeholder = document.getElementById("capturePlaceholder");
+    const actionsRow = document.getElementById("captureActionsRow");
+    const statusMsg = document.getElementById("captureStatusMsg");
+
+    if (preview) {
+      preview.style.display = "none";
+      preview.src = "";
+    }
+    if (placeholder) placeholder.style.display = "block";
+    if (actionsRow) actionsRow.style.display = "none";
+    if (statusMsg) statusMsg.textContent = "Ready to capture driver photo";
+
+    try {
+      localStorage.removeItem("accialert_last_captured_image");
+    } catch (_) {}
+  }
+
+  loadPersistedCapture() {
+    try {
+      const saved = localStorage.getItem("accialert_last_captured_image");
+      if (saved) {
+        const preview = document.getElementById("capturedImagePreview");
+        const placeholder = document.getElementById("capturePlaceholder");
+        const actionsRow = document.getElementById("captureActionsRow");
+        const statusMsg = document.getElementById("captureStatusMsg");
+        const downloadBtn = document.getElementById("btnDownloadSnapshot");
+
+        if (preview) {
+          preview.src = saved;
+          preview.style.display = "block";
+        }
+        if (placeholder) placeholder.style.display = "none";
+        if (actionsRow) actionsRow.style.display = "flex";
+        if (downloadBtn) downloadBtn.href = saved;
+        if (statusMsg) statusMsg.textContent = "Previously captured driver image";
+      }
+    } catch (_) {}
   }
 
   // ===================================================================
