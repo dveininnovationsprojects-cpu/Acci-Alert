@@ -102,6 +102,19 @@ def init_db():
         )
     """)
 
+    # Indexes: the event table is filtered and sorted all the time and only ever grows
+    for statement in (
+        "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)",
+        "CREATE INDEX IF NOT EXISTS idx_events_driver ON events(driver_name)",
+        "CREATE INDEX IF NOT EXISTS idx_commands_timestamp ON commands_log(timestamp)",
+    ):
+        cursor.execute(statement)
+
+    # The server used the spelling UNAUTHORIZED while the dashboard filter and alerts use UNAUTHORISED,
+    # so the filter missed those events. Old rows are renamed once.
+    cursor.execute("UPDATE events SET event_type = 'UNAUTHORISED DRIVER' WHERE event_type = 'UNAUTHORIZED DRIVER'")
+
     conn.commit()
 
     # Seed Danger Zones if none exist

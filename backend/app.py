@@ -94,7 +94,6 @@ state = SystemState()
 
 # Initialize Simulator and Serial Manager
 simulator = VehicleSimulator()
-simulator.set_danger_zones(database.get_all_zones())
 
 # Initialize AI Face Recognition Singletons (Arsal Subsystem)
 face_detector = FaceDetector()
@@ -121,8 +120,76 @@ serial_mgr = SerialManager(
 zone_conn = zone_db.connect()  # backend/data/accialert_zones.db (zones + zone events)
 zone_db.seed_zones_from_json(zone_conn, os.path.join(os.path.dirname(os.path.abspath(__file__)), "zones.json"))
 zone_engine = ZoneEngine(zone_db.list_zones(zone_conn))
-mount_zone_manager(app, zone_conn, zone_engine, prefix="/zm")
+mount_zone_manager(app, zone_conn, zone_engine, on_zones_changed=lambda *_: zones_changed(), prefix="/zm")
 zone_db.start_purge_scheduler()
+
+
+# ---------------------------------------------------------------- one zone list
+# The zone manager's database is the only list of danger zones. The dashboard (map, zone tab),
+# the simulator and the zone engine all read it. The old dashboard table is imported once.
+ZONE_TYPE_LABELS = {
+    "blackspot": "Accident black spot", "curve": "Sharp curve", "school": "School", "hospital": "Hospital",
+    "construction": "Construction", "restricted": "Restricted / no-entry",
+}
+
+
+def guess_zone_type(name: str) -> str:
+    text = name.lower()
+    for word, zone_type in (("school", "school"), ("curve", "curve"), ("hospital", "hospital"),
+                            ("construction", "construction"), ("no-entry", "restricted"), ("restricted", "restricted")):
+        if word in text:
+            return zone_type
+    return "blackspot"
+
+
+def zone_for_dashboard(z: dict) -> dict:
+    """A zone in the shape the dashboard expects (numeric id, code, latitude, longitude, ...)."""
+    return {
+        "id": z["num"], "code": z["id"], "name": z["name"],
+        "latitude": z["lat"], "longitude": z["lon"], "radius_meters": z["radius_m"],
+        "speed_limit": z["speed_limit"], "severity": str(z["severity"]).upper(),
+        "details": ZONE_TYPE_LABELS.get(z["type"], z["type"]), "created_at": "",
+    }
+
+
+dashboard_zone_cache = []
+
+
+def refresh_zone_cache():
+    """Reload the zones used by the simulator and the dashboard (only active zones are in force)."""
+    dashboard_zone_cache[:] = [zone_for_dashboard(z) for z in zone_db.list_zone_rows(zone_conn, active_only=True)]
+    simulator.set_danger_zones(list(dashboard_zone_cache))
+
+
+def zones_changed(*_):
+    """Called after any change to the zones, from the zone manager or from the dashboard's zone tab."""
+    zone_engine.set_zones(zone_db.list_zones(zone_conn))
+    refresh_zone_cache()
+    socketio.emit("zones_updated", {})
+
+
+def import_dashboard_zones_once():
+    """The dashboard used to keep its own zones. Add them to the zone manager's list one time (as Z07, Z08, ...)."""
+    if zone_db.get_meta(zone_conn, "dashboard_zones_imported"):
+        return
+    known = {z["name"].lower() for z in zone_db.list_zones(zone_conn)}
+    for old in database.get_all_zones():
+        if old["name"].lower() in known:
+            continue
+        try:
+            zone_db.upsert_zone(zone_conn, {
+                "id": zone_db.next_zone_id(zone_conn), "name": old["name"], "type": guess_zone_type(old["name"]),
+                "lat": old["latitude"], "lon": old["longitude"], "radius_m": old["radius_meters"],
+                "speed_limit": old["speed_limit"], "severity": str(old["severity"]).lower(), "active": 1,
+            })
+        except ValueError as err:
+            logger.warning(f"Dashboard zone '{old['name']}' was not imported: {err}")
+    zone_db.set_meta(zone_conn, "dashboard_zones_imported", "1")
+    zone_engine.set_zones(zone_db.list_zones(zone_conn))
+
+
+import_dashboard_zones_once()
+refresh_zone_cache()
 
 
 # Telemetry processing & alert logic
@@ -210,7 +277,7 @@ def evaluate_and_dispatch_alerts(telemetry: dict):
         })
 
     # 5. DANGER ZONE ENTRANCE & SPEED RESTRICTION
-    zone_match, zone_dist = find_active_danger_zone(lat, lon, database.get_all_zones())
+    zone_match, zone_dist = find_active_danger_zone(lat, lon, dashboard_zone_cache)
     if zone_match:
         state.current_zone_code = zone_match["code"]
         state.current_zone_name = zone_match["name"]
@@ -246,10 +313,10 @@ def evaluate_and_dispatch_alerts(telemetry: dict):
             send_unified_command("LIMIT", 0, source="ZONE_ENGINE")
             state.zone_speed_limit_applied = None
 
-    # 6. UNAUTHORIZED DRIVER Check
+    # 6. UNAUTHORISED DRIVER Check
     if auth == 0 or state.active_driver_auth == 0:
         current_alerts.append({
-            "type": "UNAUTHORIZED DRIVER",
+            "type": "UNAUTHORISED DRIVER",
             "severity": "CRITICAL",
             "title": "SECURITY BREACH",
             "message": f"Vehicle operated by unauthorized subject ({state.active_driver_name})!",
@@ -629,7 +696,7 @@ def verify_face_api():
             send_unified_command("AUTH", 1 if unlocked else 0, source="AI_FACIAL_RECOGNITION")
             if unlocked or face_count == 1:
                 database.add_event(
-                    event_type="AUTH_OK" if unlocked else "UNAUTHORISED",
+                    event_type="AUTH_OK" if unlocked else "UNAUTHORISED DRIVER",
                     driver_name=shown_driver,
                     vehicle_speed=simulator.speed if simulator else 0.0,
                     latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
@@ -878,39 +945,42 @@ def export_events_csv_api():
 
 @app.route("/api/zones", methods=["GET", "POST"])
 def danger_zones_api():
-    """GET: Return all danger zones. POST: Add or update a danger zone."""
+    """GET: all danger zones in force. POST: add a zone, or update the zone with the same code."""
     if request.method == "GET":
-        zones = database.get_all_zones()
-        return jsonify({"status": "success", "zones": zones})
+        return jsonify({"status": "success", "zones": list(dashboard_zone_cache)})
 
-    # POST new zone
-    data = request.get_json() or {}
-    code = data.get("code")
-    name = data.get("name")
-    lat = data.get("latitude")
-    lon = data.get("longitude")
-    radius = data.get("radius_meters", 150.0)
-    speed_limit = data.get("speed_limit", 40.0)
-    severity = data.get("severity", "MEDIUM")
-    details = data.get("details", "")
-
-    if not code or not name or lat is None or lon is None:
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("code") or "").strip()
+    name = str(data.get("name") or "").strip()
+    if not code or not name or data.get("latitude") is None or data.get("longitude") is None:
         return jsonify({"status": "error", "message": "code, name, latitude, and longitude are required."}), 400
 
-    zone_id = database.add_danger_zone(code, name, float(lat), float(lon), float(radius), float(speed_limit), severity, details)
+    existing = zone_db.get_zone(zone_conn, code)
+    try:
+        zone = zone_db.upsert_zone(zone_conn, {
+            "id": code, "name": name,
+            "type": existing["type"] if existing else guess_zone_type(name),
+            "lat": data["latitude"], "lon": data["longitude"],
+            "radius_m": data.get("radius_meters", 150.0), "speed_limit": data.get("speed_limit", 40.0),
+            "severity": str(data.get("severity", "MEDIUM")).lower(), "active": 1,
+        })
+    except (ValueError, TypeError, KeyError) as err:
+        return jsonify({"status": "error", "message": str(err)}), 400
 
-    # Refresh simulator's zones
-    simulator.set_danger_zones(database.get_all_zones())
-
-    return jsonify({"status": "success", "id": zone_id, "message": "Danger zone registered."})
+    zones_changed()
+    saved = next(z for z in zone_db.list_zone_rows(zone_conn) if z["id"] == zone["id"])
+    return jsonify({"status": "success", "id": saved["num"], "message": "Danger zone saved."})
 
 
 @app.route("/api/zones/<int:zone_id>", methods=["DELETE"])
 def delete_danger_zone_api(zone_id):
-    """Delete a danger zone by ID."""
-    database.delete_danger_zone(zone_id)
-    simulator.set_danger_zones(database.get_all_zones())
-    return jsonify({"status": "success", "message": f"Zone {zone_id} deleted."})
+    """Delete a danger zone by its number."""
+    zone = zone_db.get_zone_by_num(zone_conn, zone_id)
+    if zone is None:
+        return jsonify({"status": "error", "message": "Zone not found."}), 404
+    zone_db.delete_zone(zone_conn, zone["id"])
+    zones_changed()
+    return jsonify({"status": "success", "message": f"Zone {zone['id']} deleted."})
 
 
 @app.route("/api/drivers", methods=["GET", "POST"])

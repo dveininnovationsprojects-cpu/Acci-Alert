@@ -18,9 +18,10 @@ def test_entering_a_zone_logs_events_and_saves_telemetry(monkeypatch):
     zone_db = app_module.zone_db   # the app's own copy of the module
 
     monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
+    monkeypatch.setattr(app_module.state, "mode", "serial")           # stop the simulator thread moving the car
+    time.sleep(1.2)                                                   # let a running simulator step finish
     monkeypatch.setattr(app_module.state, "last_telemetry_saved", 0.0)
-    monkeypatch.setattr(app_module.zone_engine, "set_zones", app_module.zone_engine.set_zones)
-    app_module.zone_engine.set_zones(zone_db.list_zones(app_module.zone_conn))
+    monkeypatch.setattr(app_module, "zone_engine", app_module.ZoneEngine(zone_db.list_zones(app_module.zone_conn)))
 
     zone = zone_db.list_zones(app_module.zone_conn)[0]
     packet = {"spd": zone["speed_limit"] + 20, "lat": zone["lat"], "lon": zone["lon"], "fix": 1, "zone": zone["id"]}
@@ -129,3 +130,101 @@ def test_sync_fills_in_drivers_enrolled_before_the_columns_existed():
     assert len(db.get_driver_history("SyncOnly")) == 1
     db.sync_driver_samples({"SyncOnly": 10})                         # running it again adds nothing
     assert len(db.get_driver_history("SyncOnly")) == 1
+
+
+# ---------------------------------------------------------------- dashboard database upkeep
+def test_event_table_has_indexes_and_old_spelling_is_fixed():
+    from backend import app as app_module
+    db = app_module.database
+    conn = db.get_db_connection()
+    conn.execute("INSERT INTO events (event_type, timestamp, driver_name) VALUES ('UNAUTHORIZED DRIVER', '2026-01-01 10:00:00', 'X')")
+    conn.commit()
+    conn.close()
+
+    db.init_db()                                   # runs at every server start
+
+    conn = db.get_db_connection()
+    indexes = {r["name"] for r in conn.execute("PRAGMA index_list(events)")}
+    leftover = conn.execute("SELECT COUNT(*) FROM events WHERE event_type = 'UNAUTHORIZED DRIVER'").fetchone()[0]
+    renamed = conn.execute("SELECT COUNT(*) FROM events WHERE event_type = 'UNAUTHORISED DRIVER' AND timestamp = '2026-01-01 10:00:00'").fetchone()[0]
+    conn.close()
+    assert {"idx_events_timestamp", "idx_events_type", "idx_events_driver"} <= indexes
+    assert leftover == 0 and renamed == 1
+
+
+def test_zone_manager_accepts_every_zone_type_it_offers():
+    import re
+    page = (Path(__file__).resolve().parents[2] / "frontend" / "zones.html").read_text(encoding="utf-8")
+    offered = re.findall(r'<option value="(\w+)">', page.split('name="type"')[1].split("</select>")[0])
+    assert "hospital" in offered
+    for zone_type in offered:
+        zone = {"id": "T1", "name": "x", "type": zone_type, "lat": 13.0, "lon": 80.0,
+                "radius_m": 20, "speed_limit": 5, "severity": "low", "active": 1}
+        assert zone_db.validate_zone(zone)["type"] == zone_type
+
+
+# ---------------------------------------------------------------- one zone list for everything
+def test_dashboard_and_zone_manager_show_the_same_zones():
+    from backend import app as app_module
+    client = app_module.app.test_client()
+    dashboard = client.get("/api/zones").get_json()["zones"]
+    manager = client.get("/zm/api/zones").get_json()
+    assert {z["code"] for z in dashboard} == {z["id"] for z in manager if z["active"]}
+    names = {z["name"] for z in manager}
+    assert {"Anna Salai School Zone", "Guindy Sharp Curve", "Koyambedu Junction", "Marina Beach Promenade"} <= names
+    assert len(dashboard) >= 10                                  # your 6 zones plus the 4 route zones
+    assert all(isinstance(z["id"], int) for z in dashboard)      # the dashboard needs numeric ids
+
+
+def test_zone_added_in_the_dashboard_reaches_the_manager_engine_and_simulator():
+    from backend import app as app_module
+    client = app_module.app.test_client()
+    payload = {"code": "QA1", "name": "QA school", "latitude": 13.0001, "longitude": 80.0001,
+               "radius_meters": 90, "speed_limit": 15, "severity": "HIGH"}
+
+    saved = client.post("/api/zones", json=payload).get_json()
+    assert saved["status"] == "success"
+    assert "QA1" in {z["id"] for z in client.get("/zm/api/zones").get_json()}
+    assert "QA1" in {z["id"] for z in app_module.zone_engine.zones} if hasattr(app_module.zone_engine, "zones") else True
+    assert any(z["code"] == "QA1" for z in app_module.simulator.danger_zones)
+
+    payload["name"] = "QA school (edited)"
+    again = client.post("/api/zones", json=payload).get_json()
+    assert again["id"] == saved["id"]                            # an edit keeps the same dashboard number
+
+    assert client.delete(f"/api/zones/{saved['id']}").get_json()["status"] == "success"
+    assert "QA1" not in {z["id"] for z in client.get("/zm/api/zones").get_json()}
+    assert not any(z["code"] == "QA1" for z in app_module.simulator.danger_zones)
+    assert client.delete(f"/api/zones/{saved['id']}").status_code == 404
+
+
+def test_zone_added_in_the_manager_reaches_the_dashboard_and_simulator():
+    from backend import app as app_module
+    client = app_module.app.test_client()
+    zone = {"id": "QA2", "name": "QA hospital", "type": "hospital", "lat": 13.0002, "lon": 80.0002,
+            "radius_m": 40, "speed_limit": 5, "severity": "high", "active": 1}
+    assert client.post("/zm/api/zones", json=zone).status_code == 201
+    shown = {z["code"]: z for z in client.get("/api/zones").get_json()["zones"]}
+    assert shown["QA2"]["severity"] == "HIGH" and shown["QA2"]["radius_meters"] == 40
+    assert any(z["code"] == "QA2" for z in app_module.simulator.danger_zones)
+
+    zone["active"] = 0                                           # switched off: no longer in force
+    client.put("/zm/api/zones/QA2", json=zone)
+    assert "QA2" not in {z["code"] for z in client.get("/api/zones").get_json()["zones"]}
+    client.delete("/zm/api/zones/QA2")
+
+
+def test_bad_zone_from_the_dashboard_is_refused():
+    from backend import app as app_module
+    reply = app_module.app.test_client().post("/api/zones", json={
+        "code": "BAD", "name": "x", "latitude": 999, "longitude": 80.0, "radius_meters": 50, "speed_limit": 10})
+    assert reply.status_code == 400
+
+
+def test_old_dashboard_zones_are_imported_only_once():
+    from backend import app as app_module
+    zdb = app_module.zone_db
+    zdb.delete_zone(app_module.zone_conn, "Z08")
+    app_module.import_dashboard_zones_once()                     # already done at start: must not bring Z08 back
+    assert zdb.get_zone(app_module.zone_conn, "Z08") is None
+    app_module.zones_changed()

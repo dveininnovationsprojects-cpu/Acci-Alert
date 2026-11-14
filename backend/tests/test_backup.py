@@ -54,3 +54,50 @@ def test_purge_scheduler_removes_old_telemetry(tmp_path):
     stop()
     assert [r[0] for r in c.execute("SELECT speed FROM telemetry")] == [2]
     c.close()
+
+
+def test_backup_all_covers_both_databases_and_the_face_file(tmp_path):
+    import numpy as np
+    data = tmp_path / "data"
+    data.mkdir()
+    zone_conn = db.connect(data / "accialert_zones.db")
+    db.log_event(zone_conn, "ZONE_ENTER", "high", driver="Arun")
+    dash = sqlite3.connect(str(data / "accialert.db"))
+    dash.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, event_type TEXT)")
+    dash.execute("INSERT INTO events (event_type) VALUES ('OVERSPEED')")
+    dash.commit()
+    np.savez(data / "face_gallery.npz", Arun=np.ones((3, 128), np.float32))
+
+    written = backup.backup_all(data, tmp_path / "bk", now=datetime(2026, 1, 1, 10, 0, 0))
+
+    assert written["dashboard"].name == "accialert_20260101_100000.db"
+    assert written["zones"].name == "zones_20260101_100000.db"
+    assert written["faces"].name == "face_gallery_20260101_100000.npz"
+    def first_value(path, sql):
+        conn = sqlite3.connect(str(path))
+        try:
+            return conn.execute(sql).fetchone()[0]
+        finally:
+            conn.close()                                   # Windows cannot delete a file that is still open
+
+    assert first_value(written["dashboard"], "SELECT event_type FROM events") == "OVERSPEED"
+    assert first_value(written["zones"], "SELECT type FROM events") == "ZONE_ENTER"
+    assert np.load(written["faces"])["Arun"].shape == (3, 128)
+
+    for minute in (1, 2):                                   # keep=2 prunes each kind separately
+        backup.backup_all(data, tmp_path / "bk", keep=2, now=datetime(2026, 1, 1, 10, minute, 0))
+    for pattern in ("accialert_*.db", "zones_*.db", "face_gallery_*.npz"):
+        assert len(list((tmp_path / "bk").glob(pattern))) == 2
+    zone_conn.close()
+    dash.close()
+
+
+def test_one_damaged_database_does_not_stop_the_other_backups(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    sqlite3.connect(str(data / "accialert.db")).close()
+    (data / "accialert_zones.db").write_bytes(b"this is not a database" * 500)
+    with pytest.raises(RuntimeError, match="accialert_zones.db"):
+        backup.backup_all(data, tmp_path / "bk")
+    assert len(list((tmp_path / "bk").glob("accialert_*.db"))) == 1       # the healthy one was still saved
+    assert not list((tmp_path / "bk").glob("zones_*.db"))                 # and no half-written backup is left

@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS danger_zones (
     severity    TEXT NOT NULL CHECK (severity IN ('low','medium','high','critical')),
     active      INTEGER NOT NULL DEFAULT 1
 );
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 """
 
 
@@ -150,7 +151,7 @@ def _repair(path):
             conn.execute("ATTACH DATABASE ? AS damaged", (str(kept),))
         except sqlite3.DatabaseError:
             return conn
-    for table in ("danger_zones", "drivers", "events"):
+    for table in ("danger_zones", "drivers", "events", "meta"):
         try:
             conn.execute(f"INSERT OR IGNORE INTO main.{table} SELECT * FROM damaged.{table}")
             conn.commit()
@@ -352,8 +353,10 @@ def upsert_zone(conn, zone):
     """Validate and insert/replace a zone. Raises ValueError on bad input."""
     z = validate_zone(zone)
     conn.execute(
-        "INSERT OR REPLACE INTO danger_zones(id,name,type,lat,lon,radius_m,speed_limit,severity,active)"
-        " VALUES (:id,:name,:type,:lat,:lon,:radius_m,:speed_limit,:severity,:active)", z)
+        "INSERT INTO danger_zones(id,name,type,lat,lon,radius_m,speed_limit,severity,active)"
+        " VALUES (:id,:name,:type,:lat,:lon,:radius_m,:speed_limit,:severity,:active)"
+        " ON CONFLICT(id) DO UPDATE SET name=:name, type=:type, lat=:lat, lon=:lon, radius_m=:radius_m,"
+        " speed_limit=:speed_limit, severity=:severity, active=:active", z)   # keeps the row number the dashboard uses
     conn.commit()
     return z
 
@@ -368,6 +371,41 @@ def get_zone(conn, zone_id):
 def list_zones(conn, active_only=False):
     sql = "SELECT * FROM danger_zones" + (" WHERE active=1" if active_only else "") + " ORDER BY id"
     return [dict(r) for r in conn.execute(sql)]
+
+
+@_locked
+def list_zone_rows(conn, active_only=False):
+    """Zones with their row number as "num". The dashboard identifies zones by this number."""
+    sql = "SELECT rowid AS num, * FROM danger_zones" + (" WHERE active=1" if active_only else "") + " ORDER BY num"
+    return [dict(r) for r in conn.execute(sql)]
+
+
+@_locked
+def get_zone_by_num(conn, num):
+    r = conn.execute("SELECT rowid AS num, * FROM danger_zones WHERE rowid=?", (int(num),)).fetchone()
+    return dict(r) if r else None
+
+
+@_locked
+def next_zone_id(conn):
+    """First free id of the form Z01, Z02, ..."""
+    used = {r[0] for r in conn.execute("SELECT id FROM danger_zones")}
+    n = 1
+    while f"Z{n:02d}" in used:
+        n += 1
+    return f"Z{n:02d}"
+
+
+@_locked
+def get_meta(conn, key):
+    r = conn.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+    return r[0] if r else None
+
+
+@_locked
+def set_meta(conn, key, value):
+    conn.execute("INSERT INTO meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, str(value)))
+    conn.commit()
 
 
 @_locked

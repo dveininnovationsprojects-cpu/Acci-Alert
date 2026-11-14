@@ -121,8 +121,8 @@ class ZoneManager {
 
       rowsHtml += `
         <tr>
-          <td><strong style="color:#A16207;">${z.code}</strong></td>
-          <td><b>${z.name}</b><br/><small style="color:#6B7280;">${z.details || ''}</small></td>
+          <td><strong style="color:#A16207;">${escapeHtml(z.code)}</strong></td>
+          <td><b>${escapeHtml(z.name)}</b><br/><small style="color:#6B7280;">${escapeHtml(z.details)}</small></td>
           <td><code style="color:#4B5563;">${parseFloat(z.latitude).toFixed(4)}, ${parseFloat(z.longitude).toFixed(4)}</code></td>
           <td>${z.radius_meters} m</td>
           <td><span style="color:#EA580C; font-weight:700;">${z.speed_limit} km/h</span></td>

@@ -133,7 +133,7 @@ def test_verify_unlocks_only_after_movement_and_logs_once(monkeypatch):
     assert [r["authorized"] for r in replies] == [False, False, True, True]
     assert replies[0]["message"] == "Move your head slightly."
     assert replies[2]["driver"] == "Arun"
-    assert events == ["UNAUTHORISED", "AUTH_OK"]   # one entry per change, not one per frame
+    assert events == ["UNAUTHORISED DRIVER", "AUTH_OK"]   # one entry per change, not one per frame
     assert len(commands) == 2
 
 

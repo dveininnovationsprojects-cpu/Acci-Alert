@@ -82,6 +82,11 @@ class DashboardController {
         this.handleIncomingTelemetry(telemetry);
       });
 
+      // A zone was added, edited or deleted (in the zone manager or in the zone tab)
+      this.socket.on("zones_updated", () => {
+        if (window.ZoneApp) window.ZoneApp.loadZones();
+      });
+
       this.socket.on("alert", (alertData) => {
         if (window.AlertManager) {
           window.AlertManager.triggerAlert(alertData);

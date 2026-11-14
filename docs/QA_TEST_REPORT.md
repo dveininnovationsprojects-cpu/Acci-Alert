@@ -116,3 +116,27 @@ They are **not** the T8 result.
    `/api/drivers/select`). It is meant for the local demo only.
 7. **Biometric data.** `backend/data/face_gallery.npz` and `backend/dataset/` hold face data. Git ignores both.
    Keep them private.
+
+## 8. Second review: zone modules, maps and databases (14 Nov 2026)
+
+Tests after this review: **150 passed, 5 skipped, 0 failed** (run three times in a row, same result).
+
+| # | Problem | Fix |
+|---|---|---|
+| 15 | **Two zone lists.** The dashboard map and zone tab used Muniyappan's 4 route zones. The zone manager and the engine used 6 placeholder zones. The simulated car drove past the dashboard zones, so engine events rarely appeared. | One list. The zone manager's database is the only list. The map, the zone tab, the simulator and the engine all read it. Zones added or deleted in the dashboard tab go into the same list. The 4 route zones were imported once as Z07 to Z10. A zone changed anywhere updates the other screens through a `zones_updated` message. |
+| 16 | `UNAUTHORIZED DRIVER` events (119 rows) were saved with a different spelling from the dashboard filter (`UNAUTHORISED DRIVER`), so the filter missed them. | Server uses the dashboard spelling. Old rows are renamed at start. |
+| 17 | The dashboard event table had **no indexes** and only grows. | Indexes on time, type and driver. |
+| 18 | **`backup.py` saved only the zone database**, not the dashboard database or the face signatures. | One run now saves both databases and `face_gallery.npz`. A damaged file does not stop the others, and no half-written backup is left. |
+| 19 | The Hospital zone could not be edited: the zone manager had no "hospital" type, so the type was blanked. | "Hospital" added. A test checks every offered type is accepted. |
+| 20 | Zone names and notes were put into map popups and the zone table without escaping (a name such as `<img onerror=...>` would run). | Escaped. Checked in the browser: the name shows as text. |
+| 21 | The map popup showed "Muniyappan" when no driver name was known. | Shows "Unknown". |
+| 22 | Zone manager kept reading events every 3 s while hidden, and redrew the whole table each time. | Skips when hidden, redraws only when rows change. |
+| 23 | A zone edit replaced the database row, so its number changed. | Edits keep the row (and the dashboard number). |
+
+Database check on copies of your real files:
+- `accialert.db`: integrity ok, 555 events, 311 commands, 4 drivers, WAL mode. Needed indexes (fixed).
+- `accialert_zones.db`: damaged in the telemetry table. It is repaired by the server at the next start
+  (6 zones and 25 events were recovered in the test on a copy).
+
+Left alone: the 6 placeholder zones (Z01 to Z06) lie on top of the imported Anna Salai zone (Z07) at the start
+of the simulated route. Delete them when the real track zone map is ready.

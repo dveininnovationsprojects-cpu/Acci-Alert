@@ -8,6 +8,7 @@
     school:       { radius_m: 30, speed_limit: 5,  severity: "high" },
     construction: { radius_m: 25, speed_limit: 5,  severity: "medium" },
     restricted:   { radius_m: 20, speed_limit: 0,  severity: "critical" },
+    hospital:     { radius_m: 30, speed_limit: 5,  severity: "high" },
   };
 
   const $ = (id) => document.getElementById(id);
@@ -137,6 +138,7 @@
   function clearDraft() { if (draft) { map.removeLayer(draft); draft = null; } }
 
   map.on("click", (e) => startNew(e.latlng.lat, e.latlng.lng));
+  window.addEventListener("resize", () => map.invalidateSize());
 
   form.elements.type.addEventListener("change", () => {
     if (editingId) return;
@@ -184,11 +186,22 @@
     return p.toString();
   }
 
+  let lastRows = "";
+
+  // True when nobody can see this page (browser tab hidden, or the dashboard has closed the overlay)
+  function isHidden() {
+    return document.hidden || (window.frameElement && window.frameElement.offsetParent === null);
+  }
+
   async function loadEvents() {
+    if (isHidden()) return;
     const q = evQuery();
     $("csvLink").href = BASE + "/api/events.csv" + (q ? "?" + q : "");
     try {
       const rows = await api("GET", "/api/events" + (q ? "?" + q : ""));
+      const fingerprint = q + "|" + rows.length + "|" + (rows[0] ? rows[0].id : "");
+      if (fingerprint === lastRows) return;      // nothing new: keep the table as it is
+      lastRows = fingerprint;
       $("evBody").innerHTML = rows.map((r) =>
         "<tr><td>" + new Date(r.timestamp * 1000).toLocaleString() + "</td><td>" + esc(r.type) +
         '</td><td class="sev-' + esc(r.severity) + '">' + esc(r.severity) + "</td><td>" + esc(r.driver) +

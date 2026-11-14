@@ -4,6 +4,12 @@
  * Author: Muniyappan
  */
 
+// Zone names and notes are typed by users, so they are escaped before they go into the popups
+// (zones.js uses this function too)
+function escapeHtml(text) {
+  return String(text == null ? "" : text).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
 class VehicleMapManager {
   constructor() {
     this.map = null;
@@ -156,7 +162,7 @@ class VehicleMapManager {
     const popupContent = `
       <div style="font-size:0.82rem; line-height:1.4;">
         <strong style="color:#A16207; font-size:0.9rem;">AcciAlert Vehicle</strong><br/>
-        <b>Driver:</b> ${driverName || "Muniyappan"}<br/>
+        <b>Driver:</b> ${escapeHtml(driverName || "Unknown")}<br/>
         <b>Speed:</b> ${speed ? speed.toFixed(1) : 0.0} km/h<br/>
         <b>State:</b> <span class="badge ${state === 'RUNNING' ? 'badge-success' : 'badge-danger'}">${state || 'READY'}</span><br/>
         <b>GPS:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}
@@ -260,13 +266,13 @@ class VehicleMapManager {
       const popupHtml = `
         <div style="font-size:0.82rem; line-height:1.45;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <strong style="color:${style.color}; font-size:0.9rem;">${zone.name}</strong>
+            <strong style="color:${style.color}; font-size:0.9rem;">${escapeHtml(zone.name)}</strong>
             <span class="badge ${sev === 'CRITICAL' ? 'badge-danger' : sev === 'HIGH' ? 'badge-warning' : 'badge-info'}" style="font-size:0.65rem;">${sev}</span>
           </div>
-          <b>Zone Code:</b> ${zone.code}<br/>
+          <b>Zone Code:</b> ${escapeHtml(zone.code)}<br/>
           <b>Speed Limit:</b> <span style="color:#A16207; font-weight:700;">${zone.speed_limit} km/h</span><br/>
           <b>Radius:</b> ${zone.radius_meters} m<br/>
-          <div style="margin-top:6px; color:#4B5563; font-size:0.75rem;">${zone.details || ''}</div>
+          <div style="margin-top:6px; color:#4B5563; font-size:0.75rem;">${escapeHtml(zone.details)}</div>
           <button onclick="window.DashboardApp.applySpeedLimit(${zone.speed_limit})" class="btn btn-teal btn-sm" style="width:100%; margin-top:8px; padding:4px 8px; font-size:0.75rem;">
             Enforce Limit (${zone.speed_limit} km/h)
           </button>
