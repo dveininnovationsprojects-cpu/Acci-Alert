@@ -27,7 +27,6 @@ class DriverAuthController {
     this.matchThreshold = 35.0;
     this.livenessEnabled = true;
 
-    this.selectedDriver = null; // No driver pre-selected; must be enrolled or verified
     this.lastAuthState = null;
     this.lastAuthDriver = null;
     this.currentFilter = "ALL";
@@ -391,14 +390,8 @@ class DriverAuthController {
       }
     }
 
-    // 2. Fallback for mock/simulation:
-    // Only show an authorized name if the user explicitly enrolled or selected that driver!
-    if (this.selectedDriver && this.enrolledDrivers[this.selectedDriver]) {
-      this.updateGatingUI(true, this.selectedDriver, 17.5, 88.0);
-    } else {
-      // DEFAULT IS UNKNOWN - NEVER HARDCODE ARSAL
-      this.updateGatingUI(false, "Unknown", 85.0, 32.0);
-    }
+    // No face result from the server: the car stays locked
+    this.updateGatingUI(false, "Unknown", 85.0, 32.0);
   }
 
   runMockDetection() {
@@ -409,13 +402,8 @@ class DriverAuthController {
     if (btnStart) btnStart.style.display = "none";
     if (btnStop) btnStop.style.display = "inline-flex";
 
-    // Only authenticate if user has already enrolled/selected an active driver
-    if (this.selectedDriver && this.enrolledDrivers[this.selectedDriver]) {
-      this.updateGatingUI(true, this.selectedDriver, 18.0, 85.0);
-    } else {
-      // Safe default: Unknown
-      this.updateGatingUI(false, "Unknown", 82.0, 35.0);
-    }
+    // Without a real camera nobody can be verified, so the car stays locked
+    this.updateGatingUI(false, "Unknown", 82.0, 35.0);
   }
 
   // ===================================================================
@@ -608,7 +596,7 @@ class DriverAuthController {
 
     const drivers = Object.values(this.enrolledDrivers);
     if (drivers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#627289; padding:20px;">No drivers enrolled.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">No drivers enrolled.</td></tr>';
       return;
     }
 
@@ -616,42 +604,17 @@ class DriverAuthController {
       <tr>
         <td style="font-weight:600; color:var(--text-main, #111827);">
           ${d.name}
-          ${d.name === this.selectedDriver ? '<span class="badge badge-info" style="margin-left:6px; font-size:0.65rem;">ACTIVE</span>' : ''}
         </td>
         <td><span class="badge ${d.count > 0 ? "badge-success" : "badge-warning"}">${d.count > 0 ? "Live enrolled" : "Needs live enrolment"}</span></td>
         <td style="color:var(--text-secondary);">${d.count} samples</td>
-        <td>
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-teal btn-sm" onclick="window.DriverAuth.selectActiveDriver('${d.name}')" style="padding:2px 8px; font-size:0.75rem;">
-              Select
-            </button>
-          </div>
-        </td>
       </tr>
     `).join("");
 
     const badge = document.getElementById("enrolledCountBadge");
-    if (badge) badge.textContent = `${drivers.length} Active Drivers`;
+    if (badge) badge.textContent = `${drivers.length} drivers`;
 
     const subtabBadge = document.getElementById("subtab-enrol-badge");
     if (subtabBadge) subtabBadge.textContent = drivers.length;
-  }
-
-  selectActiveDriver(name) {
-    if (!this.enrolledDrivers[name]) return;
-    this.selectedDriver = name;
-    this.renderRosterTable();
-    this.updateGatingUI(true, name, 17.5, 88.0);
-
-    if (window.DashboardApp) {
-      window.DashboardApp.showToast(`Active driver switched to: ${name}`, "info");
-    }
-
-    fetch("/api/drivers/select", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, authorized: 1 })
-    }).catch(() => {});
   }
 
 
