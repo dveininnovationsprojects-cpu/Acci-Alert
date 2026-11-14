@@ -8,6 +8,10 @@ from backend.face_detector import FaceDetector, FaceDetectionResult
 from backend import config
 
 
+needs_photos = pytest.mark.skipif(not (config.DATASET_TEST_DIR / "Arun").exists(),
+                                reason="test photos are not in the project (backend/dataset_test)")
+
+
 @pytest.fixture
 def detector():
     return FaceDetector()
@@ -36,6 +40,7 @@ def test_detect_faces_blank_image(detector):
     assert res.face_count == 0
 
 
+@needs_photos
 def test_detect_single_face(detector):
     # Load one of the generated training images
     test_img_path = config.DATASET_DIR / "Arun" / "01.jpg"
@@ -49,6 +54,7 @@ def test_detect_single_face(detector):
     assert res.primary_roi.shape == config.FACE_TARGET_SIZE
 
 
+@needs_photos
 def test_detect_multiple_faces(detector):
     import cv2
     # Create an image containing two faces side-by-side

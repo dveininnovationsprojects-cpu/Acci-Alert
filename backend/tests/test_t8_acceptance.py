@@ -7,9 +7,15 @@ Verifies:
 """
 
 import pytest
+from backend import config
 from backend.tools.t8_acceptance import run_t8_acceptance_tests
 
 
+needs_photos = pytest.mark.skipif(not (config.DATASET_TEST_DIR / "Arun").exists(),
+                                reason="test photos are not in the project (backend/dataset_test)")
+
+
+@needs_photos
 def test_t8_acceptance_criteria():
     report = run_t8_acceptance_tests()
     assert report["overall_status"] == "PASS", "Acceptance Test T8 must pass all criteria"

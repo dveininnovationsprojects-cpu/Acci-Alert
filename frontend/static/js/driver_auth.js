@@ -34,11 +34,7 @@ class DriverAuthController {
     this.isEvaluatingFrame = false;
 
     // Enrolled drivers roster (stored and managed)
-    this.enrolledDrivers = {
-      "Arun": { name: "Arun", license: "TN-01-2022-005612", count: 25 },
-      "Kumar": { name: "Kumar", license: "TN-03-2021-008945", count: 25 },
-      "Ravi": { name: "Ravi", license: "TN-05-2020-003319", count: 25 }
-    };
+    this.enrolledDrivers = {};   // filled from /api/enrolled
 
     this.auditLogs = [];
 
@@ -50,29 +46,10 @@ class DriverAuthController {
       capturedSamples: 0
     };
 
-    this.loadPersistedDrivers();
     this.loadPersistedLogs();
     this.bindEvents();
-    this.renderRosterTable();
+    this.loadRoster();
     this.loadAuditLogs();
-  }
-
-  loadPersistedDrivers() {
-    try {
-      const saved = localStorage.getItem("accialert_enrolled_drivers");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed === "object" && parsed !== null) {
-          this.enrolledDrivers = Object.assign(this.enrolledDrivers, parsed);
-        }
-      }
-    } catch (_) {}
-  }
-
-  savePersistedDrivers() {
-    try {
-      localStorage.setItem("accialert_enrolled_drivers", JSON.stringify(this.enrolledDrivers));
-    } catch (_) {}
   }
 
   loadPersistedLogs() {
@@ -376,11 +353,11 @@ class DriverAuthController {
         if (!this._captureCanvas) {
           this._captureCanvas = document.createElement("canvas");
         }
-        this._captureCanvas.width = 320;
-        this._captureCanvas.height = 240;
+        this._captureCanvas.width = 640;
+        this._captureCanvas.height = 480;
         const capCtx = this._captureCanvas.getContext("2d");
-        capCtx.drawImage(this.videoEl, 0, 0, 320, 240);
-        const frameDataUrl = this._captureCanvas.toDataURL("image/jpeg", 0.7);
+        capCtx.drawImage(this.videoEl, 0, 0, 640, 480);
+        const frameDataUrl = this._captureCanvas.toDataURL("image/jpeg", 0.8);
 
         const response = await fetch("/api/verify", {
           method: "POST",
@@ -533,95 +510,94 @@ class DriverAuthController {
   }
 
   // ===================================================================
-  // DRIVER ENROLMENT
+  // DRIVER ENROLMENT (live camera frames are sent to the server)
   // ===================================================================
-  startEnrolment() {
-    const inputName = document.getElementById("inputDriverName");
-    const inputLicense = document.getElementById("inputLicenseNumber");
-    const inputCount = document.getElementById("inputSampleCount");
+  async loadRoster() {
+    try {
+      const res = await fetch("/api/enrolled");
+      const data = await res.json();
+      this.enrolledDrivers = {};
+      (data.drivers || []).forEach(d => {
+        this.enrolledDrivers[d.name] = { name: d.name, count: d.samples };
+      });
+    } catch (_) {
+      this.enrolledDrivers = {};
+    }
+    this.renderRosterTable();
+  }
 
-    const name = inputName?.value.trim();
+  cameraIsLive() {
+    return Boolean(this.stream && this.videoEl && this.videoEl.videoWidth > 0);
+  }
+
+  setEnrolStatus(text, isError) {
+    const el = document.getElementById("enrolProgressText");
+    if (el) {
+      el.textContent = text;
+      el.style.color = isError ? "var(--red-critical)" : "var(--teal-primary)";
+    }
+  }
+
+  async startEnrolment() {
+    if (this.enrolmentState.isEnrolling) return;
+    const name = document.getElementById("inputDriverName")?.value.trim();
     if (!name) {
-      alert("Please enter driver's full name to enrol.");
+      alert("Enter the driver's name first.");
+      return;
+    }
+    const wanted = Math.min(100, Math.max(10, parseInt(document.getElementById("inputSampleCount")?.value || 25, 10)));
+
+    const wrap = document.getElementById("enrolProgressWrap");
+    if (wrap) wrap.style.display = "block";
+    this.setEnrolStatus("Starting the camera...", false);
+
+    await this.startCamera();
+    if (!this.cameraIsLive()) {
+      this.setEnrolStatus("Camera is not available. Allow camera access and try again.", true);
       return;
     }
 
-    this.enrolmentState = {
-      isEnrolling: true,
-      driverName: name,
-      license: inputLicense?.value.trim() || `TN-09-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      targetSamples: parseInt(inputCount?.value || 25, 10),
-      capturedSamples: 0
-    };
+    this.enrolmentState = { isEnrolling: true, driverName: name, targetSamples: wanted, capturedSamples: 0 };
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext("2d");
+    const frames = [];
+    const fill = document.getElementById("enrolProgressFill");
 
-    if (!this.isRunning) {
-      this.startCamera();
+    // One frame every 400 ms, so the driver has time to turn the head a little between frames.
+    while (frames.length < wanted) {
+      ctx.drawImage(this.videoEl, 0, 0, 640, 480);
+      frames.push(canvas.toDataURL("image/jpeg", 0.85));
+      this.enrolmentState.capturedSamples = frames.length;
+      if (fill) fill.style.width = `${Math.round((frames.length / wanted) * 100)}%`;
+      this.setEnrolStatus(`Capturing ${name}: ${frames.length} / ${wanted}. Look at the camera and turn your head slowly.`, false);
+      await new Promise(resolve => setTimeout(resolve, 400));
     }
 
-    const progContainer = document.getElementById("enrolProgressWrap");
-    if (progContainer) progContainer.style.display = "block";
-
-    // Auto-tick progress
-    const interval = setInterval(() => {
-      if (!this.enrolmentState.isEnrolling) {
-        clearInterval(interval);
-        return;
-      }
-      this.captureEnrolmentTick();
-      if (this.enrolmentState.capturedSamples >= this.enrolmentState.targetSamples) {
-        clearInterval(interval);
-      }
-    }, 60);
-  }
-
-  captureEnrolmentTick() {
-    this.enrolmentState.capturedSamples += 1;
-    const pct = Math.min(100, Math.round((this.enrolmentState.capturedSamples / this.enrolmentState.targetSamples) * 100));
-
-    const fillEl = document.getElementById("enrolProgressFill");
-    const textEl = document.getElementById("enrolProgressText");
-    if (fillEl) fillEl.style.width = `${pct}%`;
-    if (textEl) textEl.textContent = `Capturing facial samples for ${this.enrolmentState.driverName}: ${this.enrolmentState.capturedSamples} / ${this.enrolmentState.targetSamples} (${pct}%)`;
-
-    if (this.enrolmentState.capturedSamples >= this.enrolmentState.targetSamples) {
-      this.finishEnrolment();
+    this.setEnrolStatus("Saving face samples...", false);
+    try {
+      const res = await fetch("/api/enrol", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, frames: frames })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Enrolment failed.");
+      this.finishEnrolment(data);
+    } catch (err) {
+      this.setEnrolStatus(err.message, true);
+    } finally {
+      this.enrolmentState.isEnrolling = false;
     }
   }
 
-  finishEnrolment() {
-    this.enrolmentState.isEnrolling = false;
-    const name = this.enrolmentState.driverName;
-    const license = this.enrolmentState.license;
-
-    this.enrolledDrivers[name] = {
-      name: name,
-      license: license,
-      count: this.enrolmentState.targetSamples
-    };
-
-    this.savePersistedDrivers();
-    this.renderRosterTable();
-
-    // Select the enrolled driver and authorize
-    this.selectedDriver = name;
-
-    // Post to backend database and set as active driver
-    fetch("/api/drivers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, license_number: license, authorized: 1, make_active: true })
-    }).catch(() => {});
-
-    // Authenticate and show on dashboard Card 6!
-    this.updateGatingUI(true, name, 17.5, 92.0);
-
+  async finishEnrolment(result) {
+    await this.loadRoster();
     if (window.DashboardApp) {
-      window.DashboardApp.showToast(`Driver '${name}' successfully enrolled & verified!`, "success");
+      window.DashboardApp.showToast(`${result.name} enrolled: ${result.accepted} samples saved.`, "success");
     }
-
-    const progContainer = document.getElementById("enrolProgressWrap");
-    if (progContainer) progContainer.style.display = "none";
-
+    this.setEnrolStatus(`${result.name} enrolled with ${result.total_samples} samples. Skipped frames: ${result.skipped}.`, false);
     const nameInput = document.getElementById("inputDriverName");
     if (nameInput) nameInput.value = "";
   }
@@ -642,15 +618,12 @@ class DriverAuthController {
           ${d.name}
           ${d.name === this.selectedDriver ? '<span class="badge badge-info" style="margin-left:6px; font-size:0.65rem;">ACTIVE</span>' : ''}
         </td>
-        <td><span class="badge badge-success">ACTIVE &bull; 100%</span></td>
-        <td style="font-family:monospace; color:var(--text-secondary);">${d.count || 25} samples (1024-D)</td>
+        <td><span class="badge ${d.count > 0 ? "badge-success" : "badge-warning"}">${d.count > 0 ? "Live enrolled" : "Needs live enrolment"}</span></td>
+        <td style="color:var(--text-secondary);">${d.count} samples</td>
         <td>
           <div style="display:flex; gap:6px;">
             <button class="btn btn-teal btn-sm" onclick="window.DriverAuth.selectActiveDriver('${d.name}')" style="padding:2px 8px; font-size:0.75rem;">
               Select
-            </button>
-            <button class="btn btn-outline btn-sm" onclick="window.DriverAuth.deleteDriver('${d.name}')" style="padding:2px 6px; font-size:0.75rem; color:var(--red-critical); border-color:rgba(225,29,72,0.4);" title="Delete Driver">
-              Delete
             </button>
           </div>
         </td>
@@ -681,22 +654,6 @@ class DriverAuthController {
     }).catch(() => {});
   }
 
-  deleteDriver(name) {
-    if (Object.keys(this.enrolledDrivers).length <= 1) {
-      alert("At least one authorized driver must remain in the roster.");
-      return;
-    }
-    delete this.enrolledDrivers[name];
-    if (this.selectedDriver === name) {
-      this.selectedDriver = null;
-      this.updateGatingUI(false, "Unknown", 85.0, 30.0);
-    }
-    this.savePersistedDrivers();
-    this.renderRosterTable();
-    if (window.DashboardApp) {
-      window.DashboardApp.showToast(`Removed driver: ${name}`, "info");
-    }
-  }
 
   // ===================================================================
   // SECURITY & IGNITION AUDIT TRAIL

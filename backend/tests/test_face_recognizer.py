@@ -9,6 +9,10 @@ from backend.face_detector import FaceDetector
 from backend import config
 
 
+needs_photos = pytest.mark.skipif(not (config.DATASET_TEST_DIR / "Arun").exists(),
+                                reason="test photos are not in the project (backend/dataset_test)")
+
+
 @pytest.fixture
 def recognizer():
     rec = FaceRecognizer()
@@ -29,6 +33,7 @@ def test_recognizer_loaded(recognizer):
     assert "Ravi" in recognizer.labels_map.values()
 
 
+@needs_photos
 def test_recognize_authorised_driver(recognizer, detector):
     img = cv2.imread(str(config.DATASET_TEST_DIR / "Arun" / "test_01.jpg"))
     assert img is not None
@@ -42,6 +47,7 @@ def test_recognize_authorised_driver(recognizer, detector):
     assert rec.similarity_pct > 60.0
 
 
+@needs_photos
 def test_recognize_unknown_subject(recognizer, detector):
     folder = config.DATASET_TEST_DIR / "Unknown_1"
     assert folder.exists()

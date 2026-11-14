@@ -30,17 +30,14 @@ code/
     db.py              Zone database: zone events, telemetry, zones
     db_logger.py       Saves face login results
     face_detector.py   Finds faces and eyes
-    face_recognizer.py Recognises enrolled drivers (LBPH)
+    face_recognizer.py Recognises drivers: LBPH model and the pretrained SFace model
     liveness.py        Blink and movement check
     face_auth.py       Face login flow (webcam to result)
     train_model.py     Trains the face model from dataset/
     backup.py          Database backup script
-    tools/             One-off scripts: enrol a driver, camera test, T8 accuracy check, dataset builder
+    tools/             Scripts: get_models, enrol a driver, camera test, T8 accuracy check
     tests/             All automated tests
-    dataset/           Photos of enrolled drivers
-    dataset_test/      Photos for testing recognition
-    dataset_raw/       Raw pictures used to build the sample datasets
-    models/            Trained face model and Haar cascade files
+    models/            Face models (LBPH model, Haar files, SFace and YuNet .onnx files)
     data/              Database files (not in Git)
   frontend/
     index.html         Dashboard (main page)
@@ -85,12 +82,25 @@ python -m pytest backend -q
 
 The T8 face test writes `docs/T8_test_report.md` and `docs/accuracy_report.json` every time it runs.
 
-## Face tools
+## Face login
+
+The face check uses OpenCV's pretrained YuNet and SFace models. Download them once:
+
+```bash
+python -m backend.tools.get_models
+```
+
+Then start the server, open the **Face Recognition** tab, choose **Enrol Drivers**, type a name and click
+**Start Enrolment Capture**. The browser camera takes live frames and the server saves the face signatures in
+`backend/data/face_gallery.npz`. There is no photo set and no training step. Once one driver is enrolled the
+face check uses SFace. Drivers that were only in the old LBPH model must be enrolled live again.
+
+Other face tools:
 
 ```bash
 python -m backend.tools.enrol_driver --name "Arun" --target 25
 python -m backend.tools.camera_test
-python -m backend.train_model
+python -m backend.train_model     # old LBPH model, needs photos in backend/dataset/<name>/
 ```
 
 ## Zone rules

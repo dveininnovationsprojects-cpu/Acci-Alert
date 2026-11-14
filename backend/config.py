@@ -23,6 +23,11 @@ HAAR_EYE_PATH = MODELS_DIR / "haarcascade_eye.xml"
 MODEL_FILE = MODELS_DIR / "face_model.yml"
 LABELS_FILE = MODELS_DIR / "labels.json"
 
+# Pretrained OpenCV face models (download with: python -m backend.tools.get_models)
+YUNET_FILE = MODELS_DIR / "face_detection_yunet_2023mar.onnx"
+SFACE_FILE = MODELS_DIR / "face_recognition_sface_2021dec.onnx"
+FACE_GALLERY_FILE = DATA_DIR / "face_gallery.npz"   # face signatures saved at enrolment (not in Git)
+
 # Face Detection Settings
 FACE_MIN_SIZE = (50, 50)
 FACE_SCALE_FACTOR = 1.05
@@ -34,6 +39,13 @@ LBPH_RADIUS = 1
 LBPH_NEIGHBORS = 8
 LBPH_GRID_X = 8
 LBPH_GRID_Y = 8
+
+# SFace settings: cosine similarity, higher is a better match (OpenCV suggests 0.363)
+SFACE_THRESHOLD = 0.40
+SFACE_MIN_DETECT_SCORE = 0.80   # ignore weak face detections
+SFACE_MIN_FACE_PX = 80          # ignore faces smaller than this many pixels wide
+ENROL_MIN_FRAMES = 10           # live enrolment needs at least this many usable frames
+DEFAULT_FACE_ENGINE = "auto"    # "auto" = SFace when models and enrolled drivers exist, else LBPH
 
 # Recognition Thresholds
 MATCH_THRESHOLD = 50.0

@@ -1,9 +1,14 @@
-"""Recognises enrolled drivers with the OpenCV LBPH face recogniser.
-The trained model is saved in models/face_model.yml and the names in models/labels.json.
+"""Recognises enrolled drivers.
+
+FaceRecognizer      OpenCV LBPH model trained from photos (models/face_model.yml, models/labels.json)
+SFaceRecognizer     pretrained OpenCV SFace model; drivers are enrolled live from the camera and
+                    their face signatures are saved in data/face_gallery.npz
 """
 
 import json
 import os
+import re
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import cv2
@@ -159,3 +164,118 @@ class FaceRecognizer:
             "threshold": res.threshold
         }
 
+
+class SFaceRecognizer:
+    """Face login with OpenCV's pretrained YuNet (detector) and SFace (recogniser).
+
+    The models are already trained on millions of faces, so a driver is enrolled just by
+    saving face signatures from live camera frames. No retraining step is needed.
+    """
+
+    def __init__(self, detector_path=None, model_path=None, gallery_path=None, threshold=None):
+        self.detector_path = Path(detector_path or config.YUNET_FILE)
+        self.model_path = Path(model_path or config.SFACE_FILE)
+        self.gallery_path = Path(gallery_path or config.FACE_GALLERY_FILE)
+        self.threshold = config.SFACE_THRESHOLD if threshold is None else threshold
+        self.lock = threading.Lock()
+        self.gallery: Dict[str, np.ndarray] = {}
+        self.detector = None
+        self.recognizer = None
+        self.models_ready = False
+
+        if self.detector_path.exists() and self.model_path.exists() and hasattr(cv2, "FaceDetectorYN"):
+            try:
+                self.detector = cv2.FaceDetectorYN.create(
+                    str(self.detector_path), "", (320, 320), config.SFACE_MIN_DETECT_SCORE, 0.3, 5000)
+                self.recognizer = cv2.FaceRecognizerSF.create(str(self.model_path), "")
+                self.models_ready = True
+            except cv2.error as err:
+                print(f"SFace models could not be loaded: {err}")
+        self._load_gallery()
+
+    @property
+    def ready(self) -> bool:
+        """True when the models are loaded and at least one driver is enrolled."""
+        return self.models_ready and bool(self.gallery)
+
+    def _load_gallery(self):
+        if not self.gallery_path.exists():
+            return
+        data = np.load(self.gallery_path, allow_pickle=False)
+        self.gallery = {name: data[name] for name in data.files}
+
+    def _save_gallery(self):
+        self.gallery_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(self.gallery_path, **self.gallery)
+
+    def _faces(self, frame: np.ndarray):
+        """Faces found in the frame that are big and clear enough to use."""
+        h, w = frame.shape[:2]
+        self.detector.setInputSize((w, h))
+        _, faces = self.detector.detect(frame)
+        if faces is None:
+            return []
+        return [f for f in faces if f[2] >= config.SFACE_MIN_FACE_PX and f[14] >= config.SFACE_MIN_DETECT_SCORE]
+
+    def _signature(self, frame: np.ndarray, face) -> np.ndarray:
+        return self.recognizer.feature(self.recognizer.alignCrop(frame, face))[0]
+
+    def _best_match(self, sig: np.ndarray) -> Tuple[str, float]:
+        best_name, best_score = "Unknown", -1.0
+        for name, sigs in self.gallery.items():
+            scores = [self.recognizer.match(sig.reshape(1, -1), s.reshape(1, -1), cv2.FaceRecognizerSF_FR_COSINE)
+                      for s in sigs]
+            top = float(np.mean(sorted(scores, reverse=True)[:3]))  # average of the 3 closest samples
+            if top > best_score:
+                best_name, best_score = name, top
+        return best_name, best_score
+
+    def identify(self, frame: np.ndarray) -> Dict[str, any]:
+        """Look at one camera frame. A driver is accepted only if exactly one face is
+        visible and its score reaches the threshold."""
+        if not self.ready:
+            raise RuntimeError("SFace is not ready: models missing or no driver enrolled.")
+        faces = self._faces(frame)
+        if len(faces) != 1:
+            return {"face_count": len(faces), "driver": "Unknown", "authorized": False, "score": 0.0, "box": None}
+        face = faces[0]
+        with self.lock:
+            name, score = self._best_match(self._signature(frame, face))
+        ok = score >= self.threshold
+        return {"face_count": 1, "driver": name if ok else "Unknown", "authorized": ok,
+                "score": round(score, 3), "box": [int(v) for v in face[:4]]}
+
+    @staticmethod
+    def clean_name(name: str) -> str:
+        """Letters, digits, spaces, dots, dashes and underscores only, up to 40 characters."""
+        name = re.sub(r"[^A-Za-z0-9 ._-]", "", str(name)).strip()[:40]
+        if not name or name.lower() == "unknown":
+            raise ValueError("Enter a valid driver name.")
+        return name
+
+    def enrol(self, name: str, frames: List[np.ndarray]) -> Dict[str, any]:
+        """Save face signatures for a driver from live camera frames.
+        Frames with no face, several faces or a small face are skipped."""
+        if not self.models_ready:
+            raise RuntimeError("SFace models are missing. Run: python -m backend.tools.get_models")
+        name = self.clean_name(name)
+        sigs, skipped = [], 0
+        for frame in frames:
+            faces = self._faces(frame)
+            if len(faces) != 1:
+                skipped += 1
+                continue
+            sigs.append(self._signature(frame, faces[0]))
+        if len(sigs) < config.ENROL_MIN_FRAMES:
+            raise ValueError(f"Only {len(sigs)} usable frames (need {config.ENROL_MIN_FRAMES}). "
+                             "Face the camera alone, with good light, and try again.")
+        with self.lock:
+            old = self.gallery.get(name)
+            self.gallery[name] = np.vstack([old, sigs]) if old is not None else np.array(sigs)
+            self._save_gallery()
+            total = len(self.gallery[name])
+        return {"name": name, "accepted": len(sigs), "skipped": skipped, "total_samples": total}
+
+    def enrolled(self) -> Dict[str, int]:
+        """Driver name -> number of saved face signatures."""
+        return {name: len(sigs) for name, sigs in self.gallery.items()}

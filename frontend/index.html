@@ -557,16 +557,12 @@
               <form id="formEnrolDriver" autocomplete="off" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
                 <div class="form-group" style="margin-bottom:0;">
                   <label class="form-label">Driver Full Name</label>
-                  <input type="text" id="inputDriverName" class="form-control" placeholder="e.g. Arun, Kumar, Ravi, Arsal" required>
+                  <input type="text" id="inputDriverName" class="form-control" placeholder="Driver name" required>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
-                  <label class="form-label">License Number</label>
-                  <input type="text" id="inputLicenseNumber" class="form-control" placeholder="e.g. TN-09-2024-9843">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                  <label class="form-label">Target Training Samples</label>
+                  <label class="form-label">Face samples to capture</label>
                   <input type="number" id="inputSampleCount" class="form-control" value="25" min="5" max="100">
-                  <small style="color:var(--text-muted); font-size:0.72rem;">Captures 20-30 frontal &amp; tilted face variations for 100% accuracy.</small>
+                  <small style="color:var(--text-muted); font-size:0.72rem;">One frame every 0.4 s, 10 to 100 frames. Keep good light on your face and turn your head slowly.</small>
                 </div>
 
                 <div id="enrolProgressWrap" style="display:none; margin-top:6px;">

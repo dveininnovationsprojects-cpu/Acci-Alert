@@ -20,3 +20,7 @@ backend/backups/
 chap_*.py
 main_builder.py
 style_helpers.py
+
+# live-captured face data and downloaded models
+backend/dataset/
+backend/models/*.onnx

@@ -42,7 +42,7 @@ try:
     from zones import ZoneEngine, zones_to_esp32_cmd, haversine_distance, find_active_danger_zone
     from zone_api import mount_zone_manager
     from face_detector import FaceDetector
-    from face_recognizer import FaceRecognizer
+    from face_recognizer import FaceRecognizer, SFaceRecognizer
     from liveness import LivenessDetector
     from db_logger import DatabaseLogger
 except ImportError:
@@ -54,7 +54,7 @@ except ImportError:
     from backend.zones import ZoneEngine, zones_to_esp32_cmd, haversine_distance, find_active_danger_zone
     from backend.zone_api import mount_zone_manager
     from backend.face_detector import FaceDetector
-    from backend.face_recognizer import FaceRecognizer
+    from backend.face_recognizer import FaceRecognizer, SFaceRecognizer
     from backend.liveness import LivenessDetector
     from backend.db_logger import DatabaseLogger
 
@@ -101,6 +101,7 @@ simulator.set_danger_zones(database.get_all_zones())
 # Initialize AI Face Recognition Singletons (Arsal Subsystem)
 face_detector = FaceDetector()
 face_recognizer = FaceRecognizer()
+face_sface = SFaceRecognizer()   # pretrained model, drivers enrolled live from the camera
 liveness_detector = LivenessDetector()
 db_logger = DatabaseLogger()
 
@@ -463,6 +464,56 @@ def health_check_api():
     })
 
 
+def use_sface() -> bool:
+    """Use the SFace recogniser when it is ready (models present and a driver enrolled)."""
+    return config.DEFAULT_FACE_ENGINE in ("auto", "sface") and face_sface.ready
+
+
+def decode_frame(data: str):
+    """Base64 image (with or without the data: prefix) -> OpenCV image, or None."""
+    if "," in data:
+        data = data.split(",", 1)[1]
+    buf = np.frombuffer(base64.b64decode(data), np.uint8)
+    return cv2.imdecode(buf, cv2.IMREAD_COLOR)
+
+
+@app.route("/api/enrolled", methods=["GET"])
+def enrolled_drivers_api():
+    """Drivers the face login knows, with the number of saved face samples."""
+    drivers = dict(face_sface.enrolled())
+    for name in face_recognizer.labels_map.values():
+        drivers.setdefault(name, 0)
+    return jsonify({
+        "engine": "sface" if use_sface() else "lbph",
+        "models_ready": face_sface.models_ready,
+        "drivers": [{"name": n, "samples": c} for n, c in sorted(drivers.items())],
+    })
+
+
+@app.route("/api/enrol", methods=["POST"])
+def enrol_driver_api():
+    """Enrol a driver from live camera frames: {"name": "Arun", "frames": ["data:image/jpeg;base64,...", ...]}."""
+    payload = request.get_json(silent=True) or {}
+    frames = payload.get("frames")
+    if not payload.get("name") or not isinstance(frames, list) or not frames:
+        return jsonify({"status": "error", "message": "name and frames are required."}), 400
+    if len(frames) > 200:
+        return jsonify({"status": "error", "message": "Send at most 200 frames."}), 400
+    try:
+        images = [decode_frame(f) for f in frames]
+        result = face_sface.enrol(payload["name"], [img for img in images if img is not None])
+    except (ValueError, RuntimeError) as err:
+        return jsonify({"status": "error", "message": str(err)}), 400
+    except Exception as err:
+        logger.error(f"Error in /api/enrol: {err}")
+        return jsonify({"status": "error", "message": "Enrolment failed."}), 500
+
+    db_logger.register_enrolled_driver(result["name"], result["total_samples"])
+    database.add_event("DRIVER_ENROLLED", result["name"], 0.0, config.DEFAULT_LATITUDE, config.DEFAULT_LONGITUDE,
+                       "None", f"Enrolled from live camera: {result['accepted']} frames")
+    return jsonify({"status": "success", **result})
+
+
 @app.route("/api/verify", methods=["POST"])
 def verify_face_api():
     """
@@ -485,9 +536,25 @@ def verify_face_api():
         if frame is None:
             return jsonify({"status": "error", "message": "Invalid image format."}), 400
 
-        # Run Face Detection
-        det = face_detector.detect_faces(frame)
-        if det.face_count == 0 or det.primary_roi is None:
+        # Find the face and match it against the enrolled drivers
+        if use_sface():
+            found = face_sface.identify(frame)
+            detected = found["face_count"] == 1
+            is_auth = found["authorized"]
+            driver_name = found["driver"]
+            similarity = max(0.0, found["score"]) * 100.0
+            distance = round(100.0 - similarity, 2)
+        else:
+            det = face_detector.detect_faces(frame)
+            detected = det.face_count >= 1 and det.primary_roi is not None
+            if detected:
+                rec_res = face_recognizer.recognize(det.primary_roi)
+                distance = float(rec_res.get("distance", 99.0))
+                similarity = float(rec_res.get("confidence", 0.0))
+                is_auth = bool(rec_res.get("authorized", False))
+                driver_name = str(rec_res.get("driver", "Unknown"))
+
+        if not detected:
             return jsonify({
                 "status": "success",
                 "detected": False,
@@ -498,14 +565,6 @@ def verify_face_api():
                 "liveness": "NO_FACE",
                 "ignition": "LOCKED"
             })
-
-        # Process primary face
-        roi = det.primary_roi
-        rec_res = face_recognizer.recognize(roi)
-        distance = float(rec_res.get("distance", 99.0))
-        similarity = float(rec_res.get("confidence", 0.0))
-        is_auth = bool(rec_res.get("authorized", False))
-        driver_name = str(rec_res.get("driver", "Unknown"))
 
         # Liveness verification
         liveness_ok = True
@@ -533,8 +592,8 @@ def verify_face_api():
             event_type=event_type,
             driver_name=driver_name,
             vehicle_speed=simulator.speed if simulator else 0.0,
-            latitude=simulator.latitude if simulator else config.DEFAULT_LATITUDE,
-            longitude=simulator.longitude if simulator else config.DEFAULT_LONGITUDE,
+            latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
+            longitude=simulator.current_lon if simulator else config.DEFAULT_LONGITUDE,
             details=f"Distance: {distance:.2f}, Confidence: {similarity:.1f}%, Liveness: {'PASS' if liveness_ok else 'FAIL'}"
         )
 
@@ -584,8 +643,8 @@ def audit_logs_api():
             event_type=event_type,
             driver_name=driver_name,
             vehicle_speed=simulator.speed if simulator else 0.0,
-            latitude=simulator.latitude if simulator else config.DEFAULT_LATITUDE,
-            longitude=simulator.longitude if simulator else config.DEFAULT_LONGITUDE,
+            latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
+            longitude=simulator.current_lon if simulator else config.DEFAULT_LONGITUDE,
             details=details
         )
         return jsonify({"status": "success", "message": "Log entry created."})
