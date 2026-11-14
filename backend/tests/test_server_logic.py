@@ -232,9 +232,9 @@ def test_old_dashboard_zones_are_imported_only_once():
 
 # ---------------------------------------------------------------- event history: filters, paging, repeated alerts
 def add_test_events(db):
-    db.add_event("OVERSPEED", "EvDriver", 70.0, 13.0, 80.0, "None", "going fast on the bypass", timestamp="2026-02-01 09:00:00")
-    db.add_event("ACCIDENT", "EvDriver", 5.0, 13.0, 80.0, "None", "hard impact", timestamp="2026-02-02 09:00:00")
-    db.add_event("OVERSPEED", "EvOther", 80.0, 13.0, 80.0, "None", "second overspeed", timestamp="2026-02-03 09:00:00")
+    db.add_event("OVERSPEED", "ZqEvAlpha", 70.0, 13.0, 80.0, "None", "going fast on the bypass", timestamp="2026-02-01 09:00:00")
+    db.add_event("ACCIDENT", "ZqEvAlpha", 5.0, 13.0, 80.0, "None", "hard impact", timestamp="2026-02-02 09:00:00")
+    db.add_event("OVERSPEED", "ZqEvBeta", 80.0, 13.0, 80.0, "None", "second overspeed", timestamp="2026-02-03 09:00:00")
 
 
 def test_event_filters_paging_and_limits_work():
@@ -245,24 +245,24 @@ def test_event_filters_paging_and_limits_work():
     def events(query):
         return client.get("/api/events?" + query).get_json()["data"]
 
-    assert {e["event_type"] for e in events("type=OVERSPEED&search=EvDriver&limit=50")["events"]} == {"OVERSPEED"}
-    assert events("search=EvDriver&type=OVERSPEED")["total"] == 1
-    window = events("start=2026-02-02&end=2026-02-02&search=Ev")
+    assert {e["event_type"] for e in events("type=OVERSPEED&search=ZqEvAlpha&limit=50")["events"]} == {"OVERSPEED"}
+    assert events("search=ZqEvAlpha&type=OVERSPEED")["total"] == 1
+    window = events("start=2026-02-02&end=2026-02-02&search=ZqEv")
     assert [e["event_type"] for e in window["events"]] == ["ACCIDENT"]
     assert events("search=bypass")["total"] == 1                      # searches the details text too
 
-    page = events("search=Ev&limit=2&offset=0")
+    page = events("search=ZqEv&limit=2&offset=0")
     assert len(page["events"]) == 2 and page["total"] == 3
-    assert len(events("search=Ev&limit=2&offset=2")["events"]) == 1
+    assert len(events("search=ZqEv&limit=2&offset=2")["events"]) == 1
     assert len(events("limit=100000")["events"]) <= 500                # the page size is capped
     assert client.get("/api/events?limit=abc").status_code == 400
-    assert events("start=not-a-date&search=EvDriver")["total"] == 2    # a bad date is ignored, not an error
+    assert events("start=not-a-date&search=ZqEvAlpha")["total"] == 2    # a bad date is ignored, not an error
 
 
 def test_csv_export_uses_the_same_filters():
     from backend import app as app_module
     add_test_events(app_module.database)
-    body = app_module.app.test_client().get("/api/events/export?type=ACCIDENT&search=EvDriver").data.decode()
+    body = app_module.app.test_client().get("/api/events/export?type=ACCIDENT&search=ZqEvAlpha").data.decode()
     assert "hard impact" in body and "going fast on the bypass" not in body
 
 
