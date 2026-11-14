@@ -6,8 +6,6 @@ Start with:  python backend/app.py
 """
 
 import base64
-import csv
-import io
 import json
 import logging
 import math
@@ -18,11 +16,10 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
 
 import cv2
 import numpy as np
-from flask import Flask, render_template, request, jsonify, Response, send_file, send_from_directory
+from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 
@@ -37,10 +34,10 @@ if str(PROJECT_ROOT) not in sys.path:
 try:
     import config
     import database
-    from serial_link import SerialManager, ESP32SerialCommunicator
+    from serial_link import SerialManager
     from simulator import VehicleSimulator
     import db as zone_db
-    from zones import ZoneEngine, zones_to_esp32_cmd, haversine_distance, find_active_danger_zone
+    from zones import ZoneEngine, find_active_danger_zone
     from zone_api import mount_zone_manager
     from face_detector import FaceDetector
     from face_recognizer import FaceRecognizer, SFaceRecognizer
@@ -49,10 +46,10 @@ try:
 except ImportError:
     from backend import config
     from backend import database
-    from backend.serial_link import SerialManager, ESP32SerialCommunicator
+    from backend.serial_link import SerialManager
     from backend.simulator import VehicleSimulator
     from backend import db as zone_db
-    from backend.zones import ZoneEngine, zones_to_esp32_cmd, haversine_distance, find_active_danger_zone
+    from backend.zones import ZoneEngine, find_active_danger_zone
     from backend.zone_api import mount_zone_manager
     from backend.face_detector import FaceDetector
     from backend.face_recognizer import FaceRecognizer, SFaceRecognizer
@@ -329,29 +326,36 @@ def process_telemetry_packet(packet: dict, source: str = "SIMULATOR"):
     # Broadcast over Socket.IO to connected browsers
     socketio.emit("telemetry", telemetry)
 
-    # Forward to Prasanth's danger-zone engine
+    # Save one telemetry row per second (the ESP32 sends about 5 per second)
+    if telemetry["epoch"] - state.last_telemetry_saved >= 1.0:
+        state.last_telemetry_saved = telemetry["epoch"]
+        try:
+            zone_db.log_telemetry(zone_conn, speed=telemetry["spd"], alcohol=telemetry["alc"],
+                                  distance=telemetry["dist"], tilt=telemetry["tilt"],
+                                  lat=telemetry["lat"], lon=telemetry["lon"],
+                                  state=telemetry["state"], zone_id=telemetry["zone"])
+        except Exception as err:
+            logger.warning(f"Telemetry could not be saved: {err}")
+
+    # Danger-zone engine: zone enter / exit / pre-warning / overspeed events
     try:
-        zone_events = zone_engine.update(
-            lat=telemetry["lat"],
-            lon=telemetry["lon"],
-            speed=telemetry["spd"],
-            driver=state.active_driver_name,
-            timestamp=telemetry["epoch"],
-        )
-        for ev in zone_events:
-            zone_db.log_event(zone_conn, ev)
-            database.add_event(
-                event_type=ev.get("type", "ZONE_EVENT"),
-                driver_name=state.active_driver_name,
-                vehicle_speed=telemetry["spd"],
-                latitude=telemetry["lat"],
-                longitude=telemetry["lon"],
-                danger_zone_name=ev.get("zone") or state.current_zone_name,
-                details=f"Zone event: {ev.get('type')}"
-            )
+        for ev in zone_engine.update(telemetry["lat"], telemetry["lon"], telemetry["spd"], telemetry["fix"]):
+            zone_db.log_event(zone_conn, ev["type"], ev["severity"], driver=state.active_driver_name,
+                              speed=ev["speed"], lat=ev["lat"], lon=ev["lon"],
+                              zone_id=ev["zone_id"], details=ev["details"])
+            if ev["type"] in ("ZONE_ENTER", "ZONE_EXIT", "OVERSPEED_IN_ZONE"):   # shown in the dashboard event table
+                database.add_event(
+                    event_type=ev["type"],
+                    driver_name=state.active_driver_name,
+                    vehicle_speed=ev["speed"],
+                    latitude=ev["lat"],
+                    longitude=ev["lon"],
+                    danger_zone_name=ev["zone_name"],
+                    details=ev["details"],
+                )
             socketio.emit("zone_event", ev)
-    except Exception as e:
-        logger.debug(f"Zone engine step: {e}")
+    except Exception as err:
+        logger.warning(f"Zone engine step failed: {err}")
 
 
 def background_telemetry_loop():

@@ -6,7 +6,6 @@ SFaceRecognizer     pretrained OpenCV SFace model; drivers are enrolled live fro
 """
 
 import json
-import os
 import re
 import threading
 from pathlib import Path

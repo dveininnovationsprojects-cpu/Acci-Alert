@@ -2,12 +2,10 @@
 Moves a car along the road, produces sensor values and reacts to the control buttons.
 """
 
-import math
 import random
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from zones import haversine_distance, calculate_bearing, move_coordinate, find_active_danger_zone
-from config import THRESHOLDS, DEFAULT_LATITUDE, DEFAULT_LONGITUDE
 
 
 # Predefined realistic driving circuit around Chennai connecting Anna Salai,

@@ -16,17 +16,21 @@ Integration contract (what other modules rely on):
 import functools
 import json
 import logging
+import os
 import math
 import sqlite3
 import threading
 import time
 from pathlib import Path
 
-from zones import ZONE_FIELDS, validate_zone  # noqa: F401  (ZONE_FIELDS re-exported)
+try:
+    from zones import ZONE_FIELDS, validate_zone  # noqa: F401  (ZONE_FIELDS re-exported)
+except ImportError:
+    from backend.zones import ZONE_FIELDS, validate_zone  # noqa: F401
 
 log = logging.getLogger("accialert.db")
 
-DEFAULT_DB = Path(__file__).resolve().parent / "data" / "accialert_zones.db"
+DEFAULT_DB = Path(os.environ.get("ACCIALERT_DATA_DIR") or Path(__file__).resolve().parent / "data") / "accialert_zones.db"
 TELEMETRY_KEEP_SECONDS = 24 * 3600
 VALID_SEVERITIES = ("low", "medium", "high", "critical")
 MAX_EVENT_ROWS = 5000
@@ -106,18 +110,88 @@ def _text(v, maxlen):
 
 
 @_locked
-def connect(path=DEFAULT_DB):
-    """Open a connection (creates file + schema if needed)."""
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
+def _open(path):
     conn = sqlite3.connect(str(path), check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=FULL")  # accident events must survive power loss
     conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def _is_healthy(conn):
+    try:
+        return conn.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+    except sqlite3.DatabaseError:
+        return False
+
+
+def _repair(path):
+    """The file is damaged: keep it as <name>.corrupt-<time>, start a new file and copy back
+    every table that can still be read (zones, events, drivers). Telemetry is only a rolling
+    24 hour log, so it is simply started again."""
+    path = Path(path)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    kept = path.with_name(f"{path.name}.corrupt-{stamp}")
+    for suffix in ("", "-wal", "-shm"):
+        old = Path(str(path) + suffix)
+        if old.exists():
+            old.replace(Path(str(kept) + suffix))
+    log.warning("Zone database was damaged. Kept it as %s and created a new one.", kept.name)
+
+    conn = _open(path)
+    conn.executescript(SCHEMA)
+    conn.commit()
+    try:
+        conn.execute("ATTACH DATABASE ? AS damaged", (f"file:{kept}?mode=ro",))
+    except sqlite3.DatabaseError:
+        try:
+            conn.execute("ATTACH DATABASE ? AS damaged", (str(kept),))
+        except sqlite3.DatabaseError:
+            return conn
+    for table in ("danger_zones", "drivers", "events"):
+        try:
+            conn.execute(f"INSERT OR IGNORE INTO main.{table} SELECT * FROM damaged.{table}")
+            conn.commit()
+        except sqlite3.DatabaseError as err:
+            log.warning("Could not recover table %s: %s", table, err)
+            conn.rollback()
+    try:
+        conn.execute("DETACH DATABASE damaged")
+    except sqlite3.DatabaseError:
+        pass
+    return conn
+
+
+def connect(path=DEFAULT_DB):
+    """Open a connection (creates file + schema if needed). A damaged file is repaired automatically."""
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    try:
+        conn = _open(path)
+        healthy = _is_healthy(conn)
+    except sqlite3.DatabaseError:
+        healthy = False
+    if not healthy:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return _repair(path)
     conn.executescript(SCHEMA)
     conn.commit()
     return conn
+
+
+@_locked
+def zone_status(conn, since_ts):
+    """For the dashboard counter: zones entered since since_ts, and when the current zone was entered."""
+    entered = conn.execute("SELECT COUNT(*) FROM events WHERE type='ZONE_ENTER' AND timestamp>=?",
+                           (since_ts,)).fetchone()[0]
+    last = conn.execute("SELECT type, timestamp FROM events WHERE type IN ('ZONE_ENTER','ZONE_EXIT') "
+                        "ORDER BY timestamp DESC, id DESC LIMIT 1").fetchone()
+    inside_since = last["timestamp"] if last and last["type"] == "ZONE_ENTER" else None
+    return {"entered_today": entered, "inside_since": inside_since}
 
 
 # ---------------------------------------------------------------- drivers

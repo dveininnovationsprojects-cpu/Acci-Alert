@@ -247,7 +247,7 @@ class DriverAuthController {
     }
     if (statusMsg) {
       const timeStr = new Date().toLocaleTimeString();
-      statusMsg.innerHTML = `<span style="color:var(--teal-primary); font-weight:600;"><i class="bi bi-check-circle-fill"></i> Image captured successfully! (${timeStr})</span>`;
+      statusMsg.innerHTML = `<span style="color:var(--teal-primary); font-weight:600;">Image captured successfully! (${timeStr})</span>`;
     }
 
     try {

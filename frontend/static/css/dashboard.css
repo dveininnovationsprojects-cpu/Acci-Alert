@@ -224,6 +224,13 @@ body {
   gap: 12px;
 }
 
+/* the fleet page has 10 cards: two rows of five on wide screens */
+@media (min-width: 1200px) {
+  .cards-grid-five {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
 .metric-card {
   background: var(--bg-card);
   border: 1px solid var(--border-glow);

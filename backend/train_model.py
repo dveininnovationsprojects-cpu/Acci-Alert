@@ -4,10 +4,9 @@ Saves models/face_model.yml and models/labels.json, then updates the driver
 list in the database. Run with:  python -m backend.train_model
 """
 
-import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 import cv2
 import numpy as np
 

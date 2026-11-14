@@ -1,7 +1,7 @@
 """Finds faces and eyes in a camera frame and prepares the face for recognition.
 """
 
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional
 from pathlib import Path
 import cv2
 import numpy as np

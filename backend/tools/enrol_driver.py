@@ -9,7 +9,6 @@ Press c to take a photo or hold Space for a burst.
 import argparse
 import sys
 import time
-from pathlib import Path
 import cv2
 
 from backend import config

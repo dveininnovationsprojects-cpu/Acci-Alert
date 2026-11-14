@@ -42,7 +42,7 @@
     <div class="brand-section">
       <div class="brand-text">
         <h1>AcciAlert</h1>
-        <p>Smart Driver Safety & Accident Prevention System • Muniyappan & Arsal</p>
+        <p>Smart Driver Safety & Accident Prevention System</p>
       </div>
     </div>
 
@@ -500,31 +500,30 @@
             <div class="control-group-card" style="display:flex; flex-direction:column; justify-content:space-between; text-align:center;">
               <div>
                 <span class="control-group-title" style="justify-content:center; margin-bottom:14px;">
-                  <i class="bi bi-camera-fill" style="margin-right:6px; color:var(--teal-primary);"></i> Capture Image
+                  Capture Image
                 </span>
 
                 <!-- Captured Image Preview Frame -->
                 <div id="capturePreviewContainer" style="width:100%; height:230px; background:rgba(0,0,0,0.02); border:2px dashed var(--border-color); border-radius:var(--radius-md); display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; position:relative; margin-bottom:14px;">
                   <img id="capturedImagePreview" src="" alt="Captured Image" style="display:none; width:100%; height:100%; object-fit:cover;" />
                   <div id="capturePlaceholder" style="text-align:center; padding:16px; color:var(--text-muted);">
-                    <i class="bi bi-person-bounding-box" style="font-size:3rem; display:block; margin-bottom:8px; color:var(--teal-primary); opacity:0.6;"></i>
-                    <div style="font-size:0.88rem; font-weight:600; color:var(--text-main);">No Image Captured</div>
+                                        <div style="font-size:0.88rem; font-weight:600; color:var(--text-main);">No Image Captured</div>
                     <p style="font-size:0.75rem; margin:4px 0 0; color:var(--text-muted);">Click Capture Image to take a photo</p>
                   </div>
                 </div>
 
                 <!-- Primary Action Button -->
                 <button id="btnCaptureSnapshot" class="btn btn-teal" style="width:100%; padding:10px 14px; font-weight:600; font-size:0.92rem; display:flex; align-items:center; justify-content:center; gap:8px;">
-                  <i class="bi bi-camera"></i> Capture Image
+                  Capture Image
                 </button>
 
                 <!-- Retake & Save Actions -->
                 <div id="captureActionsRow" style="display:none; gap:8px; margin-top:8px;">
                   <button id="btnRetakeSnapshot" class="btn btn-outline btn-sm" style="flex:1;">
-                    <i class="bi bi-arrow-repeat"></i> Retake
+                    Retake
                   </button>
                   <a id="btnDownloadSnapshot" class="btn btn-outline btn-sm" download="driver_snapshot.jpg" style="flex:1; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:4px;">
-                    <i class="bi bi-download"></i> Save Image
+                    Save Image
                   </a>
                 </div>
 
@@ -965,18 +964,16 @@ function closeZoneManager(){document.getElementById("zm-overlay").style.display=
   var since=null;
   function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+"m "+("0"+s%60).slice(-2)+"s";}
   function poll(){
-    var d=new Date();d.setHours(0,0,0,0);
-    fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
-      if(!Array.isArray(ev))return;
-      document.getElementById("zm-count").textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
-      var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
-      since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
+    fetch("/zm/api/zone-status").then(function(r){return r.json();}).then(function(d){
+      var zmCount=document.getElementById("zm-count");
+      if(zmCount) zmCount.textContent=d.entered_today;
+      since=d.inside_since;
     }).catch(function(){});
   }
   setInterval(function(){
     document.getElementById("zm-inside").textContent=since?fmt(Date.now()/1000-since):"--";
   },1000);
-  poll();setInterval(poll,2000);
+  poll();setInterval(poll,3000);
 })();
 </script>
 </body>

@@ -7,7 +7,7 @@ from pathlib import Path
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent.parent  # Project root
 BACKEND_DIR = Path(__file__).resolve().parent      # backend/
-DATA_DIR = BACKEND_DIR / "data"
+DATA_DIR = Path(os.environ.get("ACCIALERT_DATA_DIR") or BACKEND_DIR / "data")   # tests point this at a temp folder
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 AI_DIR = BACKEND_DIR

@@ -90,7 +90,7 @@
         </span>
       </div>
 
-      <div class="cards-grid">
+      <div class="cards-grid cards-grid-five">
 
         <!-- Card 1: Speed -->
         <div class="metric-card">
@@ -713,18 +713,16 @@ function closeZoneManager(){document.getElementById("zm-overlay").style.display=
   var since=null;
   function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+"m "+("0"+s%60).slice(-2)+"s";}
   function poll(){
-    var d=new Date();d.setHours(0,0,0,0);
-    fetch("/zm/api/events?limit=500&from="+(d.getTime()/1000)).then(function(r){return r.json();}).then(function(ev){
-      if(!Array.isArray(ev))return;
-      document.getElementById("zm-count").textContent=ev.filter(function(e){return e.type==="ZONE_ENTER";}).length;
-      var last=ev.find(function(e){return e.type==="ZONE_ENTER"||e.type==="ZONE_EXIT";});
-      since=(last&&last.type==="ZONE_ENTER")?last.timestamp:null;
+    fetch("/zm/api/zone-status").then(function(r){return r.json();}).then(function(d){
+      var zmCount=document.getElementById("zm-count");
+      if(zmCount) zmCount.textContent=d.entered_today;
+      since=d.inside_since;
     }).catch(function(){});
   }
   setInterval(function(){
     document.getElementById("zm-inside").textContent=since?fmt(Date.now()/1000-since):"--";
   },1000);
-  poll();setInterval(poll,2000);
+  poll();setInterval(poll,3000);
 })();
 </script>
 </body>

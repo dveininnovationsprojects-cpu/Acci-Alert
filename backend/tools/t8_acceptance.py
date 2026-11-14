@@ -7,8 +7,7 @@ docs/T8_test_report.md and docs/accuracy_report.json.
 
 import json
 import time
-from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, Any
 import cv2
 import numpy as np
 

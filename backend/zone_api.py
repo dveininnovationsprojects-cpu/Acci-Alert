@@ -17,13 +17,18 @@ import logging
 import math
 import sqlite3
 import sys
+import time
 from pathlib import Path
 
 from flask import Blueprint, Flask, Response, jsonify, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import db  # noqa: E402
-from zones import ZoneEngine, zones_to_esp32_cmd  # noqa: E402
+try:
+    import db  # noqa: E402
+    from zones import ZoneEngine, zones_to_esp32_cmd  # noqa: E402
+except ImportError:
+    from backend import db  # noqa: E402
+    from backend.zones import ZoneEngine, zones_to_esp32_cmd  # noqa: E402
 
 log = logging.getLogger("accialert.api")
 
@@ -138,6 +143,16 @@ def create_zone_blueprint(conn, engine=None, on_zones_changed=None):
             return _err("bad filter value")
         except sqlite3.Error:
             log.exception("get_events failed")
+            return _err("database error", 500)
+
+    @bp.get("/api/zone-status")
+    def zone_status():
+        """Small reply for the dashboard counter: zones entered today and when the current zone was entered."""
+        midnight = time.mktime(time.localtime()[:3] + (0, 0, 0, 0, 0, -1))
+        try:
+            return jsonify(db.zone_status(conn, midnight))
+        except sqlite3.Error:
+            log.exception("zone_status failed")
             return _err("database error", 500)
 
     @bp.get("/api/events.csv")

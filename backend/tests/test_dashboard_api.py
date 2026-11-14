@@ -32,7 +32,7 @@ class TestAcciAlertSystem(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.data.decode("utf-8")
         self.assertIn("AcciAlert", html)
-        self.assertIn("Muniyappan", html)
+        self.assertIn("Accident Prevention", html)
         self.assertIn("val-speed", html)
         self.assertIn("val-alcohol", html)
         self.assertIn("val-obstacle", html)
