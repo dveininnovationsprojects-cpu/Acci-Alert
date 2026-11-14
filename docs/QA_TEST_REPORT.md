@@ -140,3 +140,15 @@ Database check on copies of your real files:
 
 Left alone: the 6 placeholder zones (Z01 to Z06) lie on top of the imported Anna Salai zone (Z07) at the start
 of the simulated route. Delete them when the real track zone map is ready.
+
+## 9. Event history tab (14 Nov 2026)
+
+| # | Problem | Fix |
+|---|---|---|
+| 24 | The event table was one long list of 50 rows with 8 columns. | It shows the 5 latest events with a **View** button each. **View all events** opens a full-screen window with every column, 20 events per page, with Previous and Next. |
+| 25 | **The filters did nothing.** The page asked for the same 50 events whatever was typed, and the server ignored dates and search words. | Type, start date, end date and search now work in the list, in View all and in **Export CSV**. Reset clears every field. |
+| 26 | **The same alert was saved over and over.** A lasting alert (for example an unauthorised driver) added a row every 5 seconds. | An alert is saved when it starts and again only after a minute if it is still going on. |
+| 27 | Event text was put into the table without escaping. | Escaped. |
+
+Tests after this change: 154 passed, 5 skipped.
+

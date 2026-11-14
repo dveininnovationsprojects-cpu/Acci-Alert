@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 from datetime import datetime
+from typing import Optional
 from pathlib import Path
 
 import cv2
@@ -194,12 +195,12 @@ refresh_zone_cache()
 
 # Telemetry processing & alert logic
 
-def evaluate_and_dispatch_alerts(telemetry: dict):
+def evaluate_and_dispatch_alerts(telemetry: dict, now: Optional[float] = None):
     """
     Examine sensor values against safety thresholds, manage active alerts,
     log critical events into SQLite, and emit alerts via SocketIO.
     """
-    now_ts = time.time()
+    now_ts = time.time() if now is None else now
     current_alerts = []
 
     spd = float(telemetry.get("spd", 0.0))
@@ -333,14 +334,17 @@ def evaluate_and_dispatch_alerts(telemetry: dict):
             "sound": "alarm"
         })
 
-    # Dispatch alerts and throttle SQLite logging (max once every 5 seconds per type)
+    # Dispatch alerts and keep the event log short
     new_active_types = set()
     for alert in current_alerts:
         a_type = alert["type"]
         new_active_types.add(a_type)
 
+        # Log an alert when it starts, and again after a minute if it is still going on.
+        # (Before, a condition that lasted logged a new row every 5 seconds.)
         last_logged = state.last_logged_alerts.get(a_type, 0.0)
-        if (now_ts - last_logged) > 5.0:
+        just_started = a_type not in state.active_alerts
+        if (just_started and (now_ts - last_logged) > 5.0) or (now_ts - last_logged) > 60.0:
             database.add_event(
                 event_type=a_type,
                 driver_name=state.active_driver_name,
@@ -903,35 +907,36 @@ def get_latest_telemetry_api():
     return jsonify({"status": "empty", "message": "No telemetry recorded yet."})
 
 
+DATE_TEXT = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def event_filters():
+    """Filters shared by the event list and the CSV export: type, start, end (YYYY-MM-DD) and search."""
+    start, end = request.args.get("start", ""), request.args.get("end", "")
+    return {
+        "event_type": request.args.get("type") or None,
+        "start_date": start if DATE_TEXT.match(start) else None,
+        "end_date": end if DATE_TEXT.match(end) else None,
+        "search": (request.args.get("search") or "").strip()[:100] or None,
+    }
+
+
 @app.route("/api/events", methods=["GET"])
 def get_events_api():
-    """
-    Query logged events with filtering and pagination.
-    Params: limit, offset, type, driver, severity
-    """
-    limit = int(request.args.get("limit", 50))
-    offset = int(request.args.get("offset", 0))
-    event_type = request.args.get("type", None)
+    """Event log, newest first. Query: limit (1 to 500), offset, type, start, end, search."""
+    try:
+        limit = max(1, min(500, int(request.args.get("limit", 50))))
+        offset = max(0, int(request.args.get("offset", 0)))
+    except ValueError:
+        return jsonify({"status": "error", "message": "limit and offset must be numbers."}), 400
 
-    events = database.get_recent_events(limit=limit, offset=offset, event_type=event_type)
-    total_count = database.get_events_count(event_type=event_type)
-
-    return jsonify({
-        "status": "success",
-        "data": {
-            "events": events,
-            "total": total_count,
-            "limit": limit,
-            "offset": offset
-        }
-    })
+    return jsonify({"status": "success", "data": database.get_events(limit=limit, offset=offset, **event_filters())})
 
 
 @app.route("/api/events/export", methods=["GET"])
 def export_events_csv_api():
-    """Download system event audit logs as CSV."""
-    event_type = request.args.get("type", None)
-    csv_data = database.export_events_csv(event_type=event_type)
+    """Download the event log as CSV (same filters as the list)."""
+    csv_data = database.export_events_csv(**event_filters())
 
     return Response(
         csv_data,

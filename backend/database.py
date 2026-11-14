@@ -230,9 +230,9 @@ def get_events(limit: int = 100, offset: int = 0, event_type: str = None,
     return {"events": rows, "total": total_count, "limit": limit, "offset": offset}
 
 
-def export_events_csv(event_type: str = None, start_date: str = None, end_date: str = None) -> str:
+def export_events_csv(event_type: str = None, start_date: str = None, end_date: str = None, search: str = None) -> str:
     """Generate CSV string for exported events."""
-    data = get_events(limit=10000, offset=0, event_type=event_type, start_date=start_date, end_date=end_date)
+    data = get_events(limit=10000, offset=0, event_type=event_type, start_date=start_date, end_date=end_date, search=search)
     events = data["events"]
 
     output = io.StringIO()

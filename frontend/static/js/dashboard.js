@@ -423,8 +423,25 @@ class DashboardController {
   // ===================================================================
   // EVENT MANAGEMENT & CSV EXPORT
   // ===================================================================
+  // The filters typed in the filter bar, as a query string for the server
+  eventQuery() {
+    const params = new URLSearchParams();
+    const type = document.getElementById("filter-event-type")?.value;
+    if (type && type !== "ALL") params.set("type", type);
+    const start = document.getElementById("filter-start-date")?.value;
+    const end = document.getElementById("filter-end-date")?.value;
+    const search = document.getElementById("filter-search")?.value.trim();
+    if (start) params.set("start", start);
+    if (end) params.set("end", end);
+    if (search) params.set("search", search);
+    return params;
+  }
+
+  // The tab shows only the 5 latest events. "View all events" opens the whole history.
   loadEvents() {
-    fetch("/api/events?limit=50")
+    const params = this.eventQuery();
+    params.set("limit", "5");
+    fetch(`/api/events?${params}`)
       .then(res => {
         if (!res.ok) throw new Error("Offline");
         return res.json();
@@ -445,63 +462,113 @@ class DashboardController {
 
   loadLocalEvents() {
     const events = JSON.parse(localStorage.getItem("accialert_events") || "[]");
-    this.renderEventsTable(events);
+    this.renderEventsTable(events.slice(0, 5));
     const counterEl = document.getElementById("events-count-badge");
     if (counterEl) counterEl.innerText = `${events.length} Total`;
+  }
+
+  eventBadgeClass(type) {
+    const classes = {
+      "ACCIDENT": "badge-danger", "ALCOHOL DETECTED": "badge-danger", "UNAUTHORISED DRIVER": "badge-danger",
+      "OBSTACLE DETECTED": "badge-warning", "OVERSPEED": "badge-warning", "DANGER ZONE": "badge-warning",
+      "ZONE EXIT": "badge-info", "ZONE_ENTER": "badge-warning", "ZONE_EXIT": "badge-info",
+      "OVERSPEED_IN_ZONE": "badge-danger", "EMERGENCY STOP": "badge-danger"
+    };
+    return classes[type] || "badge-info";
   }
 
   renderEventsTable(events) {
     const tbody = document.getElementById("events-table-body");
     if (!tbody) return;
+    this.recentEvents = events || [];
 
-    if (!events || events.length === 0) {
+    if (this.recentEvents.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="8" style="text-align:center; color:#6B7280; padding:24px;">
-            No safety events recorded yet. Trigger a test scenario below to log events.
+          <td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">
+            No events match. Change the filter or wait for new events.
           </td>
-        </tr>
-      `;
+        </tr>`;
       return;
     }
 
-    const typeBadges = {
-      "ACCIDENT": "badge-danger",
-      "ALCOHOL DETECTED": "badge-danger",
-      "UNAUTHORISED DRIVER": "badge-danger",
-      "OBSTACLE DETECTED": "badge-warning",
-      "OVERSPEED": "badge-warning",
-      "DANGER ZONE": "badge-warning",
-      "ZONE EXIT": "badge-info",
-      "ZONE_ENTER": "badge-warning",
-      "ZONE_EXIT": "badge-info",
-      "OVERSPEED_IN_ZONE": "badge-danger",
-      "EMERGENCY STOP": "badge-danger"
-    };
+    tbody.innerHTML = this.recentEvents.map((ev, index) => `
+      <tr>
+        <td><span class="badge ${this.eventBadgeClass(ev.event_type)}">${escapeHtml(ev.event_type)}</span></td>
+        <td style="color:var(--text-secondary); white-space:nowrap;">${escapeHtml(ev.timestamp)}</td>
+        <td><b>${escapeHtml(ev.driver_name || "Unknown")}</b></td>
+        <td>${escapeHtml(ev.vehicle_speed)} km/h</td>
+        <td>${escapeHtml(ev.danger_zone_name || "None")}</td>
+        <td><button type="button" class="btn btn-outline btn-sm" data-view-event="${index}">View</button></td>
+      </tr>`).join("");
+  }
 
-    let html = "";
-    events.forEach(ev => {
-      const badgeClass = typeBadges[ev.event_type] || "badge-info";
-      html += `
-        <tr>
-          <td><code style="color:#6B7280;">#${ev.id}</code></td>
-          <td><span class="badge ${badgeClass}">${ev.event_type}</span></td>
-          <td style="color:#4B5563; font-size:0.78rem;">${ev.timestamp}</td>
-          <td><b>${ev.driver_name || 'Unknown'}</b></td>
-          <td><span style="color:#A16207; font-weight:700;">${ev.vehicle_speed} km/h</span></td>
-          <td><code style="color:#4B5563; font-size:0.75rem;">${ev.latitude}, ${ev.longitude}</code></td>
-          <td>${ev.danger_zone_name || 'None'}</td>
-          <td style="color:#4B5563; font-size:0.78rem;">${ev.details || ''}</td>
-        </tr>
-      `;
-    });
+  // ---- full-screen window: one event, or the whole history 20 at a time
+  openEventModal(title, html) {
+    document.getElementById("event-modal-title").textContent = title;
+    document.getElementById("event-modal-body").innerHTML = html;
+    document.getElementById("event-modal").classList.add("show");
+  }
 
-    tbody.innerHTML = html;
+  closeEventModal() {
+    document.getElementById("event-modal")?.classList.remove("show");
+  }
+
+  showEventDetails(ev) {
+    this.openEventModal(`${ev.event_type} (#${ev.id})`, `
+      <dl class="detail-grid">
+        <dt>Event</dt><dd>${escapeHtml(ev.event_type)}</dd>
+        <dt>Date and time</dt><dd>${escapeHtml(ev.timestamp)}</dd>
+        <dt>Driver</dt><dd>${escapeHtml(ev.driver_name || "Unknown")}</dd>
+        <dt>Speed</dt><dd>${escapeHtml(ev.vehicle_speed)} km/h</dd>
+        <dt>GPS position</dt><dd>${escapeHtml(ev.latitude)}, ${escapeHtml(ev.longitude)}</dd>
+        <dt>Danger zone</dt><dd>${escapeHtml(ev.danger_zone_name || "None")}</dd>
+        <dt>Details</dt><dd>${escapeHtml(ev.details) || "-"}</dd>
+      </dl>`);
+  }
+
+  async showAllEvents(page = 0) {
+    const perPage = 20;
+    const params = this.eventQuery();
+    params.set("limit", String(perPage));
+    params.set("offset", String(page * perPage));
+    let data;
+    try {
+      const res = await fetch(`/api/events?${params}`);
+      data = (await res.json()).data;
+    } catch (_) {
+      this.openEventModal("All events", "<p>The events could not be loaded.</p>");
+      return;
+    }
+    const pages = Math.max(1, Math.ceil(data.total / perPage));
+    const rows = data.events.map(ev => `
+      <tr>
+        <td><code>#${escapeHtml(ev.id)}</code></td>
+        <td><span class="badge ${this.eventBadgeClass(ev.event_type)}">${escapeHtml(ev.event_type)}</span></td>
+        <td style="white-space:nowrap;">${escapeHtml(ev.timestamp)}</td>
+        <td>${escapeHtml(ev.driver_name || "Unknown")}</td>
+        <td style="white-space:nowrap;">${escapeHtml(ev.vehicle_speed)} km/h</td>
+        <td style="white-space:nowrap;">${escapeHtml(ev.latitude)}, ${escapeHtml(ev.longitude)}</td>
+        <td>${escapeHtml(ev.danger_zone_name || "None")}</td>
+        <td>${escapeHtml(ev.details)}</td>
+      </tr>`).join("");
+    this.openEventModal(`All events (${data.total})`, `
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead><tr><th>ID</th><th>Event</th><th>Date and time</th><th>Driver</th><th>Speed</th><th>GPS position</th><th>Danger zone</th><th>Details</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="8" style="text-align:center;">No events match the filter.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+        <button type="button" class="btn btn-outline btn-sm" data-events-page="${page - 1}" ${page === 0 ? "disabled" : ""}>Previous</button>
+        <span style="color:var(--text-secondary);">Page ${page + 1} of ${pages}</span>
+        <button type="button" class="btn btn-outline btn-sm" data-events-page="${page + 1}" ${page + 1 >= pages ? "disabled" : ""}>Next</button>
+      </div>`);
   }
 
   exportEventsCSV() {
     if (this.backendConnected) {
-      window.location.href = "/api/events/export";
+      window.location.href = `/api/events/export?${this.eventQuery()}`;
       this.showToast("Downloading events CSV export...", "info");
       return;
     }
@@ -579,9 +646,26 @@ class DashboardController {
     document.getElementById("btn-filter-reset")?.addEventListener("click", () => {
       const typeEl = document.getElementById("filter-event-type");
       if (typeEl) typeEl.value = "ALL";
+      for (const id of ["filter-start-date", "filter-end-date", "filter-search"]) {
+        const input = document.getElementById(id);
+        if (input) input.value = "";
+      }
       this.loadEvents();
     });
     document.getElementById("btn-export-csv")?.addEventListener("click", () => this.exportEventsCSV());
+    document.getElementById("btn-events-refresh")?.addEventListener("click", () => this.loadEvents());
+    document.getElementById("btn-view-all-events")?.addEventListener("click", () => this.showAllEvents(0));
+    document.getElementById("btn-event-modal-close")?.addEventListener("click", () => this.closeEventModal());
+    document.getElementById("events-table-body")?.addEventListener("click", (e) => {
+      const view = e.target.closest("[data-view-event]");
+      if (view) this.showEventDetails(this.recentEvents[Number(view.dataset.viewEvent)]);
+    });
+    document.getElementById("event-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "event-modal") this.closeEventModal();            // click outside the window
+      const pager = e.target.closest("[data-events-page]");
+      if (pager && !pager.disabled) this.showAllEvents(Number(pager.dataset.eventsPage));
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") this.closeEventModal(); });
 
     // Audio Mute Toggle
     document.getElementById("btn-mute-toggle")?.addEventListener("click", () => {

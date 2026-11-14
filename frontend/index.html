@@ -828,32 +828,31 @@
           </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <span style="font-size:0.8rem; color:var(--text-secondary);">
-            Logged in SQLite Database: <span id="events-count-badge" class="badge badge-info">0 Total</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:12px 0 8px;">
+          <span style="font-size:0.85rem; color:var(--text-secondary);">
+            Latest 5 events, out of <span id="events-count-badge" class="badge badge-info">0 Total</span>
           </span>
-          <button onclick="window.DashboardApp && window.DashboardApp.loadEvents()" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.75rem;">
-            Refresh
-          </button>
+          <span style="display:flex; gap:8px;">
+            <button type="button" id="btn-events-refresh" class="btn btn-outline btn-sm">Refresh</button>
+            <button type="button" id="btn-view-all-events" class="btn btn-teal btn-sm">View all events</button>
+          </span>
         </div>
 
         <div class="table-responsive">
           <table class="custom-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Event Type</th>
-                <th>Date & Time</th>
+                <th>Event</th>
+                <th>Date and time</th>
                 <th>Driver</th>
                 <th>Speed</th>
-                <th>GPS Coordinates</th>
-                <th>Danger Zone</th>
+                <th>Danger zone</th>
                 <th>Details</th>
               </tr>
             </thead>
             <tbody id="events-table-body">
               <tr>
-                <td colspan="8" style="text-align:center; color:var(--text-muted); padding:24px;">Loading safety event history...</td>
+                <td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">Loading events...</td>
               </tr>
             </tbody>
           </table>
@@ -875,6 +874,17 @@
         <button type="button" id="btn-driver-modal-close" class="modal-close">&times;</button>
       </div>
       <div id="driver-modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- EVENT HISTORY (all events, or one event) -->
+  <div id="event-modal" class="modal-backdrop">
+    <div class="modal-dialog modal-wide">
+      <div class="modal-header">
+        <h3 id="event-modal-title" class="modal-title">Events</h3>
+        <button type="button" id="btn-event-modal-close" class="modal-close">&times;</button>
+      </div>
+      <div id="event-modal-body" class="modal-body"></div>
     </div>
   </div>
 

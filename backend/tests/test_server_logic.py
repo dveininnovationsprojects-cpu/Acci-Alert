@@ -228,3 +228,67 @@ def test_old_dashboard_zones_are_imported_only_once():
     app_module.import_dashboard_zones_once()                     # already done at start: must not bring Z08 back
     assert zdb.get_zone(app_module.zone_conn, "Z08") is None
     app_module.zones_changed()
+
+
+# ---------------------------------------------------------------- event history: filters, paging, repeated alerts
+def add_test_events(db):
+    db.add_event("OVERSPEED", "EvDriver", 70.0, 13.0, 80.0, "None", "going fast on the bypass", timestamp="2026-02-01 09:00:00")
+    db.add_event("ACCIDENT", "EvDriver", 5.0, 13.0, 80.0, "None", "hard impact", timestamp="2026-02-02 09:00:00")
+    db.add_event("OVERSPEED", "EvOther", 80.0, 13.0, 80.0, "None", "second overspeed", timestamp="2026-02-03 09:00:00")
+
+
+def test_event_filters_paging_and_limits_work():
+    from backend import app as app_module
+    add_test_events(app_module.database)
+    client = app_module.app.test_client()
+
+    def events(query):
+        return client.get("/api/events?" + query).get_json()["data"]
+
+    assert {e["event_type"] for e in events("type=OVERSPEED&search=EvDriver&limit=50")["events"]} == {"OVERSPEED"}
+    assert events("search=EvDriver&type=OVERSPEED")["total"] == 1
+    window = events("start=2026-02-02&end=2026-02-02&search=Ev")
+    assert [e["event_type"] for e in window["events"]] == ["ACCIDENT"]
+    assert events("search=bypass")["total"] == 1                      # searches the details text too
+
+    page = events("search=Ev&limit=2&offset=0")
+    assert len(page["events"]) == 2 and page["total"] == 3
+    assert len(events("search=Ev&limit=2&offset=2")["events"]) == 1
+    assert len(events("limit=100000")["events"]) <= 500                # the page size is capped
+    assert client.get("/api/events?limit=abc").status_code == 400
+    assert events("start=not-a-date&search=EvDriver")["total"] == 2    # a bad date is ignored, not an error
+
+
+def test_csv_export_uses_the_same_filters():
+    from backend import app as app_module
+    add_test_events(app_module.database)
+    body = app_module.app.test_client().get("/api/events/export?type=ACCIDENT&search=EvDriver").data.decode()
+    assert "hard impact" in body and "going fast on the bypass" not in body
+
+
+def test_a_lasting_alert_is_logged_once_not_every_five_seconds(monkeypatch):
+    from backend import app as app_module
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
+    monkeypatch.setattr(app_module.state, "mode", "serial")
+    monkeypatch.setattr(app_module.state, "active_alerts", {})
+    monkeypatch.setattr(app_module.state, "last_logged_alerts", {})
+    monkeypatch.setattr(app_module.state, "active_driver_name", "ThrottleTest")
+    monkeypatch.setattr(app_module.state, "active_driver_auth", 1)
+    time.sleep(1.2)                                                    # let a running simulator step finish
+
+    def tick(seconds, auth):
+        app_module.evaluate_and_dispatch_alerts(
+            {"spd": 0, "alc": 0, "dist": 999, "tilt": 0, "auth": auth, "lat": 1.0, "lon": 1.0}, now=1000.0 + seconds)
+
+    def logged():
+        return app_module.database.get_events(limit=50, search="ThrottleTest")["total"]
+
+    tick(0, auth=0)                                                    # starts: logged
+    for second in (6, 12, 30, 59):
+        tick(second, auth=0)                                           # still going on: not logged again
+    assert logged() == 1
+    tick(61, auth=0)                                                   # a minute later: logged again
+    assert logged() == 2
+    tick(62, auth=1)                                                   # the alert clears
+    tick(70, auth=0)                                                   # and comes back: a new entry
+    assert logged() == 3
