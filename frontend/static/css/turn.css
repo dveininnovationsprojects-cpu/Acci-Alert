@@ -1,0 +1,29 @@
+/* Simple moving arrows on the camera picture for the head-turn check (login page and enrolment) */
+.ht-overlay { position:absolute; inset:0; z-index:4; pointer-events:none; opacity:0; transition:opacity .3s; }
+.ht-overlay.on { opacity:1; }
+.ht-arrow { position:absolute; top:50%; width:17%; max-width:96px; min-width:52px; transform:translateY(-50%); opacity:0; transition:opacity .25s; }
+.ht-arrow span { display:block; }
+.ht-left { left:4%; } .ht-right { right:4%; }
+.ht-left span { transform:scaleX(-1); }                         /* the arrow on the left points left */
+.ht-arrow svg { width:100%; display:block; overflow:visible; filter:drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+.ht-arrow path { fill:none; stroke:#fff; stroke-width:8; stroke-linecap:round; stroke-linejoin:round; opacity:.35; }
+.ht-arrow.ht-active { opacity:1; }
+.ht-arrow.ht-active svg { animation:arrowSlide 1s ease-in-out infinite; }
+.ht-arrow.ht-active .c1 { animation:chevron 1s infinite; }
+.ht-arrow.ht-active .c2 { animation:chevron 1s .16s infinite; }
+.ht-arrow.ht-active .c3 { animation:chevron 1s .32s infinite; }
+@keyframes chevron { 0%, 100% { opacity:.25; stroke:#fff; } 45% { opacity:1; stroke:#4ADE80; } }
+@keyframes arrowSlide { 0%, 100% { transform:translateX(0); } 50% { transform:translateX(14px); } }
+.ht-arrow.ht-done { opacity:1; }
+.ht-arrow.ht-done path { stroke:#4ADE80; opacity:1; }
+.ht-arrow.ht-done svg { animation:none; }
+/* "look straight": just a ring around the face */
+.ht-straight { position:absolute; left:50%; top:46%; width:34%; height:62%; transform:translate(-50%,-50%); border-radius:50%; opacity:0; transition:opacity .25s; }
+.ht-straight span { position:absolute; inset:0; border-radius:50%; border:3px solid #4ADE80; }
+.ht-straight.ht-active { opacity:1; } .ht-straight.ht-active span { animation:ringPulse 1.1s ease-out infinite; }
+@keyframes ringPulse { 0% { box-shadow:0 0 0 0 rgba(74,222,128,.6); } 100% { box-shadow:0 0 0 22px rgba(74,222,128,0); } }
+.ht-straight.ht-done { opacity:0; }
+.ht-label { position:absolute; left:50%; top:14px; transform:translate(-50%,-10px); max-width:92%; padding:8px 18px; border-radius:999px; background:rgba(255,255,255,.93); color:#14532D; font-weight:700; font-size:1rem; opacity:0; transition:all .3s; white-space:nowrap; }
+.ht-label.show { opacity:1; transform:translate(-50%,0); }
+@media (max-width:520px) { .ht-label { font-size:.85rem; padding:6px 12px; } }
+@media (prefers-reduced-motion: reduce) { .ht-arrow.ht-active svg, .ht-arrow.ht-active path, .ht-straight.ht-active span { animation:none; } .ht-arrow.ht-active path { opacity:1; stroke:#4ADE80; } }

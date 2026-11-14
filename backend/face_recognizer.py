@@ -104,6 +104,17 @@ class FaceRecognizer:
             # Store keys as string for standard JSON format
             json.dump({str(k): v for k, v in self.labels_map.items()}, f, indent=2)
 
+    def forget(self, name: str) -> bool:
+        """Remove a driver's name from the old LBPH label list (the trained model itself is not changed: a face that
+        matches the removed label is simply not recognised any more). True if the name was there."""
+        ids = [k for k, v in self.labels_map.items() if v == name]
+        for k in ids:
+            del self.labels_map[k]
+        if ids and self.labels_path.exists():
+            with open(self.labels_path, "w", encoding="utf-8") as f:
+                json.dump({str(k): v for k, v in self.labels_map.items()}, f, indent=2)
+        return bool(ids)
+
     def load(self) -> None:
         """Loads a previously saved model and label mapping from disk."""
         if not self.model_path.exists():
@@ -244,12 +255,20 @@ class SFaceRecognizer:
         face = faces[0]
         if not self.gallery:   # nobody enrolled yet: report where the face is, but accept nobody
             return {"face_count": 1, "driver": "Unknown", "authorized": False, "score": 0.0,
-                    "box": [int(v) for v in face[:4]]}
+                    "box": [int(v) for v in face[:4]], "face": [float(v) for v in face]}
         with self.lock:
             name, score = self._best_match(self._signature(frame, face))
         ok = score >= self.threshold
         return {"face_count": 1, "driver": name if ok else "Unknown", "authorized": ok,
-                "score": round(score, 3), "box": [int(v) for v in face[:4]]}
+                "score": round(score, 3), "box": [int(v) for v in face[:4]], "face": [float(v) for v in face]}
+
+    def forget(self, name: str) -> int:
+        """Delete a driver's face signatures. Returns how many were removed (0 if the driver was not there)."""
+        with self.lock:
+            sigs = self.gallery.pop(name, None)
+            if sigs is not None:
+                self._save_gallery()
+        return 0 if sigs is None else len(sigs)
 
     @staticmethod
     def clean_name(name: str) -> str:

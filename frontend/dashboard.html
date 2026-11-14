@@ -15,6 +15,7 @@
 
   <!-- Custom Theme CSS -->
   <link rel="stylesheet" href="static/css/dashboard.css">
+  <link rel="stylesheet" href="static/css/dialog.css">
 </head>
 <body>
 
@@ -53,7 +54,7 @@
       </div>
       <div class="status-chip" style="display:none;">
         
-        <span id="header-mode-badge" class="badge badge-info">Simulation active</span>
+        <span id="header-mode-badge" class="badge badge-warning">Waiting for ESP32</span>
       </div>
     </div>
 
@@ -65,10 +66,6 @@
       <button id="btn-mute-toggle" class="btn btn-outline btn-sm">
         Sound ON
       </button>
-      <div style="display:flex; background:#E5E7EB; padding:3px; border-radius:3px;">
-        <button id="btn-mode-sim" class="btn btn-teal btn-sm" style="display:none; padding:4px 10px; font-size:0.75rem;">Simulation</button>
-        <button id="btn-mode-serial" class="btn btn-outline btn-sm" style="padding:4px 10px; font-size:0.75rem;">ESP32 Serial</button>
-      </div>
     </div>
   </header>
 
@@ -84,7 +81,7 @@
       <div class="section-header">
         <h2 class="section-title">Live Readings</h2>
         <span style="font-size:0.8rem; color:var(--text-muted);">
-          Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
+          Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">--</strong>
           &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
           &nbsp;|&nbsp; Time in zone: <strong id="zm-inside" style="color:var(--teal-primary);">--</strong>
         </span>
@@ -174,7 +171,7 @@
 
           </div>
           <div class="card-body" style="font-size:1.1rem; flex-direction:column; align-items:flex-start;">
-            <span id="val-gps" style="font-size:1.35rem; font-weight:600; color:var(--text-main);">13.0827, 80.2707</span>
+            <span id="val-gps" style="font-size:1.35rem; font-weight:600; color:var(--text-main);">No position</span>
             <span class="card-unit" style="font-size:0.75rem;">Chennai Corridor</span>
           </div>
           <div class="card-footer">
@@ -192,31 +189,11 @@
 
           </div>
           <div class="card-body">
-            <span id="val-driver" class="card-value" style="font-size:1.45rem;">Muniyappan</span>
+            <span id="val-driver" class="card-value" style="font-size:1.45rem;">Unknown</span>
           </div>
           <div class="card-footer">
             <span>Auth Status</span>
             <span id="badge-driver-auth" class="badge badge-success">Authorized</span>
-          </div>
-        </div>
-
-        <!-- Card 7: Traffic Signal Status -->
-        <div class="metric-card">
-          <div class="card-top">
-            <span class="card-label">Traffic Signal</span>
-
-          </div>
-          <div class="card-body" style="justify-content:space-between; align-items:center;">
-            <div class="traffic-signal-widget">
-              <div id="bulb-red" class="signal-bulb red"></div>
-              <div id="bulb-yellow" class="signal-bulb yellow"></div>
-              <div id="bulb-green" class="signal-bulb green active"></div>
-            </div>
-            <span id="val-signal" class="card-value" style="font-size:1.4rem; color:var(--green-success);">GREEN</span>
-          </div>
-          <div class="card-footer">
-            <span>V2X Signal Link</span>
-            <span class="badge badge-info">Synchronized</span>
           </div>
         </div>
 
@@ -227,7 +204,7 @@
 
           </div>
           <div class="card-body">
-            <span id="val-vehicle-state" class="card-value" style="color:var(--teal-primary);">RUNNING</span>
+            <span id="val-vehicle-state" class="card-value" style="color:var(--text-muted);">WAITING</span>
           </div>
           <div class="card-footer">
             <span>Safety Controller</span>
@@ -242,8 +219,8 @@
 
           </div>
           <div class="card-body" style="font-size:1.2rem; flex-direction:column; align-items:flex-start;">
-            <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">Simulated</span>
-            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Simulator</span>
+            <span id="badge-esp32-status" class="badge badge-muted" style="font-size:0.85rem; padding:4px 12px;">Waiting</span>
+            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">No reading yet</span>
           </div>
           <div class="card-footer">
             <span>Baud: 115200</span>
@@ -258,7 +235,7 @@
 
           </div>
           <div class="card-body">
-            <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D fix</span>
+            <span id="badge-gps-fix" class="badge badge-muted" style="font-size:1rem; padding:6px 14px;">Waiting</span>
           </div>
           <div class="card-footer">
             <span>Constellation</span>
@@ -313,6 +290,7 @@
         <div class="panel-card-header">
           <h2 class="section-title orange">Vehicle map and danger zones</h2>
           <div style="display:flex; gap:6px;">
+            <button id="btn-map-me" class="btn btn-outline btn-sm" title="Go to my live location">My location</button>
             <button id="btn-map-center" class="btn btn-outline btn-sm" title="Center on Vehicle">
               Center
             </button>
@@ -330,7 +308,7 @@
           
           <!-- Floating Coordinates Overlay -->
           <div class="map-floating-overlay">
-            <div><span id="map-coords-readout">13.0827, 80.2707</span></div>
+            <div><span id="map-coords-readout">No position</span></div>
             <div style="border-left:1px solid #D1D5DB; padding-left:10px;">
               Zones: <span style="color:#16A34A;">■ Low</span> <span style="color:#CA8A04;">■ Med</span> <span style="color:#EA580C;">■ High</span> <span style="color:#DC2626;">■ Critical</span>
             </div>
@@ -380,80 +358,8 @@
             </div>
           </div>
 
-          <!-- Traffic Signal & Auth Override -->
-          <div class="control-group-card">
-            <span class="control-group-title">
-              Traffic Signal & Auth Overrides
-            </span>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <span style="font-size:0.75rem; color:var(--text-secondary);">Force Traffic Signal:</span>
-              <div class="btn-actions-row">
-                <button id="btn-signal-red" class="btn btn-outline btn-sm" style="flex:1; border-color:#DC2626; color:#DC2626;">
-                  RED
-                </button>
-                <button id="btn-signal-yellow" class="btn btn-outline btn-sm" style="flex:1; border-color:#CA8A04; color:#CA8A04;">
-                  YELLOW
-                </button>
-                <button id="btn-signal-green" class="btn btn-outline btn-sm" style="flex:1; border-color:#06D6A0; color:#06D6A0;">
-                  GREEN
-                </button>
-              </div>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-              <span style="font-size:0.75rem; color:var(--text-secondary);">Driver Authorisation:</span>
-              <button id="btn-auth-driver" class="btn btn-outline btn-sm">
-                Toggle Auth
-              </button>
-            </div>
-          </div>
-
-          <!-- Simulation Scenarios (Bench Testing) -->
-          <div style="grid-column: 1 / -1;">
-            <button type="button" class="btn btn-outline btn-sm" onclick="var b=document.getElementById('demo-tools');var h=b.style.display==='none';b.style.display=h?'block':'none';this.textContent=h?'Hide demo tools':'Show demo tools'">Show demo tools</button>
-          </div>
-          <div id="demo-tools" class="control-group-card" style="grid-column: 1 / -1; display:none;">
-            <span class="control-group-title">
-              Test alerts
-            </span>
-            <div class="scenario-grid">
-              <button class="btn-scenario accident" data-scenario="accident">
-                
-                <span>Simulate Accident</span>
-              </button>
-              <button class="btn-scenario" data-scenario="alcohol">
-                
-                <span>Simulate Alcohol</span>
-              </button>
-              <button class="btn-scenario" data-scenario="obstacle">
-                
-                <span>Simulate Obstacle</span>
-              </button>
-              <button class="btn-scenario" data-scenario="overspeed">
-                
-                <span>Simulate Overspeed</span>
-              </button>
-              <button class="btn-scenario" data-scenario="unauthorized">
-                
-                <span>Unauthorized Driver</span>
-              </button>
-              <button class="btn-scenario" data-scenario="danger_zone">
-                
-                <span>Enter Danger Zone</span>
-              </button>
-              <button class="btn-scenario" data-scenario="red_signal">
-                
-                <span>Red Signal Stop</span>
-              </button>
-              <button class="btn-scenario" data-scenario="normal">
-                
-                <span>Normal Safe Drive</span>
-              </button>
-            </div>
-          </div>
-
           <!-- ESP32 Serial Hardware Configuration (Visible when Serial mode is active) -->
-          <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1; display:none;">
+          <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1;">
             <span class="control-group-title">
               ESP32 serial setup
             </span>
@@ -536,7 +442,6 @@
               <option value="ZONE_ENTER">ZONE_ENTER</option>
               <option value="ZONE_EXIT">ZONE_EXIT</option>
               <option value="OVERSPEED_IN_ZONE">OVERSPEED_IN_ZONE</option>
-              <option value="TRAFFIC SIGNAL STOP">TRAFFIC SIGNAL STOP</option>
               <option value="ZONE EXIT">ZONE EXIT</option>
               <option value="EMERGENCY STOP">EMERGENCY STOP</option>
             </select>
@@ -693,7 +598,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Modules -->
-  <script src="static/js/client_simulator.js"></script>
+  <script src="static/js/dialog.js"></script>
   <script src="static/js/alerts.js"></script>
   <script src="static/js/charts.js"></script>
   <script src="static/js/map.js"></script>

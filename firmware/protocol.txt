@@ -1,5 +1,5 @@
 1. ESP32 to Laptop Data Format (Every 200ms):
-{"t": 123456, "spd": 45, "alc": 10, "dist": 150, "ax": 0.1, "ay": 0.2, "az": 9.8, "tilt": 0, "lat": 13.0827, "lon": 80.2707, "fix": 1, "state": "RUNNING", "auth": 1, "signal": "GREEN", "zone": 0, "evt": "NONE"}
+{"t": 123456, "spd": 45, "alc": 10, "dist": 150, "ax": 0.1, "ay": 0.2, "az": 9.8, "tilt": 0, "lat": 13.0827, "lon": 80.2707, "fix": 1, "state": "RUNNING", "auth": 1, "zone": 0, "evt": "NONE"}
 
 2. Laptop to ESP32 Commands:
-AUTH, SIGNAL, LIMIT, ZONES, STOP, RESET
+AUTH, LIMIT, ZONES, STOP, RESET, ACK

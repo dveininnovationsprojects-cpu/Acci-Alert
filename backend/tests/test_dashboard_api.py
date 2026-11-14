@@ -1,6 +1,6 @@
 """
 AcciAlert - Automated Test Suite
-Verifies all REST endpoints, database queries, simulation physics,
+Verifies all REST endpoints, database queries,
 geofencing, and serialization.
 Author: Muniyappan
 """
@@ -15,7 +15,7 @@ import time
 # Ensure backend directory is in sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app import app, simulator, state, send_unified_command
+from app import app, state, send_unified_command
 import database
 import zones as geo_utils
 
@@ -27,8 +27,9 @@ class TestAcciAlertSystem(unittest.TestCase):
         database.init_db()
 
     def test_01_index_html(self):
-        """Verify homepage loads with HTTP 200 and required elements."""
-        response = self.client.get("/")
+        """The dashboard (/home) opens once the car is unlocked by the face login and has the required elements."""
+        state.active_driver_auth = 1
+        response = self.client.get("/home")
         self.assertEqual(response.status_code, 200)
         html = response.data.decode("utf-8")
         self.assertIn("AcciAlert", html)
@@ -98,57 +99,26 @@ class TestAcciAlertSystem(unittest.TestCase):
             "make_active": True
         })
         self.assertEqual(res_post.status_code, 200)
+        # make_active is ignored: only a face scan puts a driver behind the wheel
+        self.assertNotEqual(state.active_driver_name, "Muniyappan")
 
     def test_05_command_api(self):
         """Verify /api/command endpoint for vehicle controls."""
-        # STOP
-        res = self.client.post("/api/command", json={"command": "STOP"})
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(simulator.state, "EMERGENCY")
-        self.assertEqual(simulator.speed, 0.0)
+        for body in ({"command": "STOP"}, {"command": "RESET"}, {"command": "ACK"},
+                     {"command": "LIMIT", "value": 35}, {"command": "AUTH", "value": 0}):
+            res = self.client.post("/api/command", json=body)
+            self.assertEqual(res.status_code, 200, body)
+        self.assertEqual(state.active_driver_auth, 0)
 
-        # RESET
-        res = self.client.post("/api/command", json={"command": "RESET"})
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(simulator.state, "RUNNING")
-
-        # LIMIT
-        res = self.client.post("/api/command", json={"command": "LIMIT", "value": 35})
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(simulator.speed_limit, 35.0)
-
-        # SIGNAL
+        # The traffic signal is not part of the project any more
         res = self.client.post("/api/command", json={"command": "SIGNAL", "value": "RED"})
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(simulator.signal, "RED")
+        self.assertEqual(res.status_code, 400)
 
-        # AUTH
-        res = self.client.post("/api/command", json={"command": "AUTH", "value": 0})
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(simulator.auth, 0)
-
-    def test_06_simulation_scenarios(self):
-        """Verify simulator scenarios trigger expected sensor states."""
-        # Accident
+    def test_06_there_is_no_fake_data_source(self):
+        """The simulator and its test scenarios are gone: only real readings reach the dashboard."""
         res = self.client.post("/api/simulation/scenario", json={"scenario": "accident"})
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(simulator.tilt >= 45.0)
-        self.assertEqual(simulator.state, "EMERGENCY")
-
-        # Alcohol
-        res = self.client.post("/api/simulation/scenario", json={"scenario": "alcohol"})
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(simulator.alcohol_adc >= 600)
-
-        # Obstacle
-        res = self.client.post("/api/simulation/scenario", json={"scenario": "obstacle"})
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(simulator.obstacle_dist <= 40)
-
-        # Reset to normal
-        res = self.client.post("/api/simulation/scenario", json={"scenario": "normal"})
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(simulator.state, "RUNNING")
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(self.client.post("/api/mode", json={"mode": "simulation"}).status_code, 404)
 
     def test_07_events_api_and_csv_export(self):
         """Verify events logging, retrieval, and CSV download."""

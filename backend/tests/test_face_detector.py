@@ -8,8 +8,10 @@ from backend.face_detector import FaceDetector, FaceDetectionResult
 from backend import config
 
 
-needs_photos = pytest.mark.skipif(not (config.DATASET_TEST_DIR / "Arun").exists(),
-                                reason="test photos are not in the project (backend/dataset_test)")
+needs_photos = pytest.mark.skipif(not ((config.DATASET_TEST_DIR / "Arun").exists()
+                                        and (config.DATASET_DIR / "Arun" / "01.jpg").exists()
+                                        and (config.DATASET_DIR / "Kumar" / "01.jpg").exists()),
+                                reason="face photos are not in the project (backend/dataset, backend/dataset_test)")
 
 
 @pytest.fixture

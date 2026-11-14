@@ -1,6 +1,6 @@
 :root {
-  --navy: #F3F4F6; --panel: #FFFFFF; --teal: #A16207; --orange: #EA580C;
-  --text: #111827; --muted: #6B7280; --red: #DC2626; --yellow: #CA8A04; --line: #D1D5DB;
+  --navy: #F0FDF4; --panel: #FFFFFF; --teal: #16A34A; --orange: #15803D;
+  --text: #111827; --muted: #6B7280; --red: #DC2626; --yellow: #CA8A04; --line: #CDEBD6;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--navy); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }

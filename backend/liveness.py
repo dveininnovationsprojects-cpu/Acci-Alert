@@ -1,6 +1,8 @@
 """Liveness check: a blink or small head movement shows the face is a real person, not a photo.
 """
 
+import secrets
+import threading
 import time
 from typing import Tuple, Optional, List
 import cv2
@@ -137,3 +139,35 @@ class LivenessDetector:
         self.moves = []
         self.live_until = 0.0
 
+
+
+# ---- one-time login request: "turn right, then left, then straight" (it can be used once, within a short time)
+
+class ChallengeBook:
+    """Hands out one-time requests and takes them back when the login arrives, so a login cannot be replayed."""
+
+    def __init__(self):
+        self._open = {}
+        self._lock = threading.Lock()
+
+    def issue(self, now: Optional[float] = None) -> dict:
+        now = time.time() if now is None else now
+        with self._lock:
+            self._open = {t: v for t, v in self._open.items() if v > now}
+            while len(self._open) >= config.CHALLENGE_MAX_OPEN:          # drop the oldest
+                self._open.pop(min(self._open, key=self._open.get))
+            token = secrets.token_urlsafe(16)
+            self._open[token] = now + config.CHALLENGE_TTL_SECONDS
+        return {"token": token, "action": "TURN", "steps": ["RIGHT", "LEFT", "STRAIGHT"],
+                "text": "Turn your head right, then left, then look straight",
+                # the page judges the turns with the same numbers as the server
+                "turn_min": config.HEAD_TURN_MIN, "straight_max": config.HEAD_STRAIGHT_MAX,
+                "base_pictures": config.HEAD_BASE_PICTURES, "run": config.HEAD_RUN,
+                "ttl_s": config.CHALLENGE_TTL_SECONDS}
+
+    def take(self, token, now: Optional[float] = None) -> bool:
+        """True when the token is known, not used yet and not too old. One use only."""
+        now = time.time() if now is None else now
+        with self._lock:
+            expires = self._open.pop(token, None) if isinstance(token, str) else None
+        return expires is not None and expires > now

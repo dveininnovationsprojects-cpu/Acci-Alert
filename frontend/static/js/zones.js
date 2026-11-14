@@ -16,7 +16,38 @@ class ZoneManager {
     this.loadZones();
   }
 
+  // ---- notification distance: the car (or you) gets this close to a danger zone and a notification shows ----
+  bindAlertDistance() {
+    const select = document.getElementById("zone-alert-select");
+    const custom = document.getElementById("zone-alert-custom");
+    const save = document.getElementById("btn-save-zone-alert");
+    const msg = document.getElementById("zone-alert-msg");
+    if (!select || !save) return;
+    const say = (text, kind) => { msg.textContent = text; msg.className = kind || ""; };
+    const show = (metres) => {                                  // put the saved distance into the controls
+      const preset = [...select.options].find(o => o.value === String(metres));
+      select.value = preset ? String(metres) : "custom";
+      custom.style.display = preset ? "none" : "";
+      if (!preset) custom.value = metres;
+    };
+    select.addEventListener("change", () => { custom.style.display = select.value === "custom" ? "" : "none"; say(""); });
+    fetch("/api/zone-settings").then(r => r.json()).then(d => { if (d && d.alert_distance_m) show(d.alert_distance_m); }).catch(() => {});
+    save.addEventListener("click", async () => {
+      const metres = select.value === "custom" ? Number(custom.value) : Number(select.value);
+      if (!Number.isFinite(metres) || metres < 50 || metres > 5000) { say("Enter a distance from 50 to 5000 metres.", "err"); return; }
+      try {
+        const res = await fetch("/api/zone-settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alert_distance_m: metres }) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || `Not saved (server answered ${res.status}).`);
+        say(`Saved: notification at ${metres >= 1000 ? (metres / 1000) + " km" : metres + " m"}.`, "ok");
+        if (window.MapManager) window.MapManager.setAlertDistance(body.alert_distance_m);
+        if (window.DashboardApp) window.DashboardApp.showToast(`Danger zone notification distance: ${metres} m`, "success");
+      } catch (err) { say(err.message, "err"); }
+    });
+  }
+
   bindEvents() {
+    this.bindAlertDistance();
     if (this.formEl) {
       this.formEl.addEventListener("submit", (e) => {
         e.preventDefault();
@@ -121,11 +152,11 @@ class ZoneManager {
 
       rowsHtml += `
         <tr>
-          <td><strong style="color:#A16207;">${escapeHtml(z.code)}</strong></td>
+          <td><strong style="color:#16A34A;">${escapeHtml(z.code)}</strong></td>
           <td><b>${escapeHtml(z.name)}</b><br/><small style="color:#6B7280;">${escapeHtml(z.details)}</small></td>
           <td><code style="color:#4B5563;">${parseFloat(z.latitude).toFixed(4)}, ${parseFloat(z.longitude).toFixed(4)}</code></td>
           <td>${z.radius_meters} m</td>
-          <td><span style="color:#EA580C; font-weight:700;">${z.speed_limit} km/h</span></td>
+          <td><span style="color:#15803D; font-weight:700;">${z.speed_limit} km/h</span></td>
           <td><span class="badge ${badgeClass}">${sev}</span></td>
           <td>
             <div style="display:flex; gap:6px;">
@@ -185,10 +216,10 @@ class ZoneManager {
 
   locateZone(zoneId) {
     const zone = this.zonesList.find(z => z.id === zoneId);
-    if (zone && window.MapManager && window.MapManager.map) {
+    if (zone && window.MapManager && window.MapManager.view) {
       const lat = parseFloat(zone.latitude);
       const lon = parseFloat(zone.longitude);
-      window.MapManager.map.setView([lat, lon], 16, { animate: true });
+      window.MapManager.goTo(lat, lon, 16);
       window.DashboardApp.showToast(`Centered on danger zone: ${zone.name}`, "info");
     }
   }
@@ -212,27 +243,25 @@ class ZoneManager {
       return;
     }
 
-    // Attempt backend save
+    // The server decides. If it refuses, say why and keep the form open: nothing was saved.
     fetch("/api/zones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     })
-      .then(res => {
-        if (!res.ok) throw new Error("Backend offline");
-        return res.json();
-      })
-      .then(data => {
-        if (data.status === "success") {
+      .then(res => res.json().catch(() => null).then(data => ({ res, data })))
+      .then(({ res, data }) => {
+        if (res.ok && data && data.status === "success") {
           this.closeModal();
           this.loadZones();
           window.DashboardApp.showToast(data.message || "Danger zone saved.", "success");
         } else {
-          this.saveLocalZone(payload);
+          const why = (data && data.message) ? data.message : `The server could not save the zone (error ${res.status}).`;
+          window.DashboardApp.showToast(why, "warning");
         }
       })
       .catch(() => {
-        // Save locally
+        // No answer from the server at all (standalone mode): keep the zone in this browser only.
         this.saveLocalZone(payload);
       });
   }
@@ -250,28 +279,29 @@ class ZoneManager {
     if (window.MapManager) {
       window.MapManager.renderDangerZones(this.zonesList);
     }
-    window.DashboardApp.showToast("Danger zone saved (Local Mode).", "success");
+    window.DashboardApp.showToast("Server not reachable: zone saved in this browser only.", "warning");
   }
 
-  deleteZone(zoneId) {
+  async deleteZone(zoneId) {
     const zone = this.zonesList.find(z => z.id === zoneId);
     const zoneName = zone ? zone.name : `#${zoneId}`;
 
-    if (!confirm(`Are you sure you want to delete danger zone "${zoneName}"?`)) {
+    if (!await AppDialog.confirm({ title: "Delete danger zone?", message: `"${zoneName}" will be removed from the map and from the ESP32.`, confirmText: "Delete", danger: true })) {
       return;
     }
 
     fetch(`/api/zones/${zoneId}`, { method: "DELETE" })
-      .then(res => {
-        if (!res.ok) throw new Error("Backend offline");
-        return res.json();
-      })
-      .then(data => {
-        if (data.status === "success") {
+      .then(res => res.json().catch(() => null).then(data => ({ res, data })))
+      .then(({ res, data }) => {
+        if (res.ok && data && data.status === "success") {
           this.loadZones();
           window.DashboardApp.showToast(`Zone "${zoneName}" deleted.`, "info");
+        } else if (res.status === 404) {
+          this.loadZones();
+          window.DashboardApp.showToast(`Zone "${zoneName}" was already deleted.`, "info");
         } else {
-          this.deleteLocalZone(zoneId, zoneName);
+          const why = (data && data.message) ? data.message : `The server could not delete the zone (error ${res.status}).`;
+          window.DashboardApp.showToast(why, "warning");
         }
       })
       .catch(() => {
@@ -286,7 +316,7 @@ class ZoneManager {
     if (window.MapManager) {
       window.MapManager.renderDangerZones(this.zonesList);
     }
-    window.DashboardApp.showToast(`Zone "${zoneName}" deleted (Local Mode).`, "info");
+    window.DashboardApp.showToast(`Server not reachable: "${zoneName}" removed in this browser only.`, "warning");
   }
 }
 

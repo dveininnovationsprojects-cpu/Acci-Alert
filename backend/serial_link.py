@@ -107,7 +107,7 @@ class SerialManager:
         return bool(self.serial_conn and self.serial_conn.is_open and self.is_running)
 
     def send_command(self, command: str, value: Any = None) -> bool:
-        """Send one command line such as STOP, RESET, SIGNAL:RED, LIMIT:40 or AUTH:1."""
+        """Send one command line such as STOP, RESET, ACK, LIMIT:40 or AUTH:1."""
         if not self.is_connected():
             logger.warning("Cannot send '%s': serial port is not connected", command)
             return False

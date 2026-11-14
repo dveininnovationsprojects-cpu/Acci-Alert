@@ -18,8 +18,7 @@ def test_entering_a_zone_logs_events_and_saves_telemetry(monkeypatch):
     zone_db = app_module.zone_db   # the app's own copy of the module
 
     monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
-    monkeypatch.setattr(app_module.state, "mode", "serial")           # stop the simulator thread moving the car
-    time.sleep(1.2)                                                   # let a running simulator step finish
+    monkeypatch.setattr(app_module.state, "mode", "serial")
     monkeypatch.setattr(app_module.state, "last_telemetry_saved", 0.0)
     monkeypatch.setattr(app_module, "zone_engine", app_module.ZoneEngine(zone_db.list_zones(app_module.zone_conn)))
 
@@ -40,14 +39,13 @@ def test_telemetry_is_saved_about_once_per_second(monkeypatch):
     zone_db = app_module.zone_db   # the app's own copy of the module
 
     monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
-    monkeypatch.setattr(app_module.state, "mode", "serial")   # stop the simulator thread adding its own rows
-    time.sleep(1.2)                                           # let a running simulator step finish
+    monkeypatch.setattr(app_module.state, "mode", "serial")
     monkeypatch.setattr(app_module.state, "last_telemetry_saved", 0.0)
     before = app_module.zone_conn.execute("SELECT COUNT(*) FROM telemetry").fetchone()[0]
     for _ in range(5):
         app_module.process_telemetry_packet({"spd": 30, "lat": 13.1, "lon": 80.3, "fix": 1}, source="TEST")
     after = app_module.zone_conn.execute("SELECT COUNT(*) FROM telemetry").fetchone()[0]
-    assert after - before == 1
+    assert after - before == 1       # one row for the five packets
 
 
 def test_zone_status_endpoint(monkeypatch):
@@ -176,7 +174,7 @@ def test_dashboard_and_zone_manager_show_the_same_zones():
     assert all(isinstance(z["id"], int) for z in dashboard)      # the dashboard needs numeric ids
 
 
-def test_zone_added_in_the_dashboard_reaches_the_manager_engine_and_simulator():
+def test_zone_added_in_the_dashboard_reaches_the_manager_and_the_engine():
     from backend import app as app_module
     client = app_module.app.test_client()
     payload = {"code": "QA1", "name": "QA school", "latitude": 13.0001, "longitude": 80.0001,
@@ -186,7 +184,7 @@ def test_zone_added_in_the_dashboard_reaches_the_manager_engine_and_simulator():
     assert saved["status"] == "success"
     assert "QA1" in {z["id"] for z in client.get("/zm/api/zones").get_json()}
     assert "QA1" in {z["id"] for z in app_module.zone_engine.zones} if hasattr(app_module.zone_engine, "zones") else True
-    assert any(z["code"] == "QA1" for z in app_module.simulator.danger_zones)
+    assert any(z["code"] == "QA1" for z in app_module.dashboard_zone_cache)
 
     payload["name"] = "QA school (edited)"
     again = client.post("/api/zones", json=payload).get_json()
@@ -194,11 +192,11 @@ def test_zone_added_in_the_dashboard_reaches_the_manager_engine_and_simulator():
 
     assert client.delete(f"/api/zones/{saved['id']}").get_json()["status"] == "success"
     assert "QA1" not in {z["id"] for z in client.get("/zm/api/zones").get_json()}
-    assert not any(z["code"] == "QA1" for z in app_module.simulator.danger_zones)
+    assert not any(z["code"] == "QA1" for z in app_module.dashboard_zone_cache)
     assert client.delete(f"/api/zones/{saved['id']}").status_code == 404
 
 
-def test_zone_added_in_the_manager_reaches_the_dashboard_and_simulator():
+def test_zone_added_in_the_manager_reaches_the_dashboard():
     from backend import app as app_module
     client = app_module.app.test_client()
     zone = {"id": "QA2", "name": "QA hospital", "type": "hospital", "lat": 13.0002, "lon": 80.0002,
@@ -206,7 +204,7 @@ def test_zone_added_in_the_manager_reaches_the_dashboard_and_simulator():
     assert client.post("/zm/api/zones", json=zone).status_code == 201
     shown = {z["code"]: z for z in client.get("/api/zones").get_json()["zones"]}
     assert shown["QA2"]["severity"] == "HIGH" and shown["QA2"]["radius_meters"] == 40
-    assert any(z["code"] == "QA2" for z in app_module.simulator.danger_zones)
+    assert any(z["code"] == "QA2" for z in app_module.dashboard_zone_cache)
 
     zone["active"] = 0                                           # switched off: no longer in force
     client.put("/zm/api/zones/QA2", json=zone)
@@ -274,7 +272,6 @@ def test_a_lasting_alert_is_logged_once_not_every_five_seconds(monkeypatch):
     monkeypatch.setattr(app_module.state, "last_logged_alerts", {})
     monkeypatch.setattr(app_module.state, "active_driver_name", "ThrottleTest")
     monkeypatch.setattr(app_module.state, "active_driver_auth", 1)
-    time.sleep(1.2)                                                    # let a running simulator step finish
 
     def tick(seconds, auth):
         app_module.evaluate_and_dispatch_alerts(

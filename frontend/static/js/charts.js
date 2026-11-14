@@ -120,14 +120,14 @@ class LiveChartsManager {
           {
             label: "Alcohol ADC Reading",
             data: [...this.alcoholHistory],
-            borderColor: "#EA580C",
+            borderColor: "#0D9488",
             borderWidth: 2.2,
             backgroundColor: gradient,
             fill: true,
             tension: 0.3,
             pointRadius: 0,
             pointHoverRadius: 5,
-            pointHoverBackgroundColor: "#EA580C"
+            pointHoverBackgroundColor: "#0D9488"
           },
           {
             label: "Danger Threshold (600 ADC)",
@@ -157,7 +157,7 @@ class LiveChartsManager {
             mode: "index",
             intersect: false,
             backgroundColor: "#111827",
-            titleColor: "#EA580C",
+            titleColor: "#0D9488",
             bodyColor: "#FFFFFF",
             borderColor: "rgba(234, 88, 12, 0.4)",
             borderWidth: 1,

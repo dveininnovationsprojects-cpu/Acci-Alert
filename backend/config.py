@@ -64,6 +64,19 @@ LIVENESS_MOVE_FRACTION = 0.015   # the face must move about 1.5% of the frame wi
 LIVENESS_WINDOW_SECONDS = 6.0    # movement is measured over the last few seconds
 LIVENESS_HOLD_SECONDS = 8.0      # a passed check stays valid this long while the face is in view
 
+# Head-turn check for the face login and for enrolment: turn RIGHT, then LEFT, then look STRAIGHT (a photo cannot).
+# Each login uses a one-time request, so a login cannot be replayed.
+AUTH_REQUIRE_CHALLENGE = True
+CHALLENGE_TTL_SECONDS = 60       # a request is valid this long, and only once
+CHALLENGE_MAX_OPEN = 50          # unused requests kept at the same time
+ENROL_REQUIRE_TURN = os.environ.get("ACCIALERT_ENROL_TURN", "on").lower() != "off"     # "off" only for the automatic tests
+HEAD_TURN_MIN = 0.18             # the nose must move this far (as a part of the eye distance) from "straight" to count as a turn
+HEAD_STRAIGHT_MAX = 0.12         # and the head is "straight" again when it is back within this
+HEAD_FRONTAL_MAX = 0.14          # pictures within this of straight are the ones used to recognise the face
+HEAD_BASE_PICTURES = 4           # the first pictures show the driver looking straight: that is the starting point
+HEAD_RUN = 2                     # a turn counts after this many pictures in a row
+HEAD_MIN_PICTURES = 12           # at least this many pictures with a usable face
+
 # Database Configuration
 if os.environ.get("ACCIALERT_DATA_DIR"):
     DATABASE_PATH = str(DATA_DIR / "accialert.db")
@@ -113,6 +126,51 @@ THRESHOLDS = {
     },
     "impact_acceleration": 2.5  # g (vector magnitude sqrt(ax^2+ay^2+az^2))
 }
+
+# ESP32 Wi-Fi telemetry API (POST /api/v1/telemetry)
+DEVICE_API_KEY_FILE = DATA_DIR / "device_api_key.txt"  # created on first start if no env key is set
+DEVICE_API_KEY_ENV = "ACCIALERT_DEVICE_API_KEY"
+DEVICE_MAX_PAYLOAD_BYTES = 4096
+DEVICE_TELEMETRY_RETENTION_HOURS = 24      # rolling history kept in the database
+WHEEL_CIRCUMFERENCE_M = 0.204              # miniature car wheel (about 65 mm); speed_rpm -> km/h
+DEVICE_ADC_MAX = 4095                      # ESP32 ADC is 12-bit; the alarm limits above are on a 0-1023 scale
+
+# Device identity and commands (the firmware holds no key and no device id in its source code)
+DEVICE_ID = os.environ.get("ACCIALERT_DEVICE_ID", "ACCIALERT_ESP32_01")   # the device created on first start
+DEVICE_PAIRING_MINUTES = 15                # how long a pairing window stays open
+DEVICE_COMMAND_TTL_S = 60                  # a command nobody collected in this time is dropped
+DEVICE_COMMAND_REDELIVER_S = 5             # an unacknowledged command is offered again after this many seconds
+DEVICE_COMMAND_MAX_ATTEMPTS = 5            # then it is marked failed
+# Admin panel (enrol drivers, danger zones, controls, event history)
+ADMIN_PASSWORD = os.environ.get("ACCIALERT_ADMIN_PASSWORD", "1234")
+ADMIN_AUTH_REQUIRED = os.environ.get("ACCIALERT_ADMIN_AUTH", "on").lower() != "off"     # "off" only for the automatic tests
+ADMIN_SESSION_TTL_S = 1800        # the admin is logged out after 30 minutes
+ADMIN_MAX_WRONG = 5               # wrong passwords from one address ...
+ADMIN_LOCKOUT_S = 60              # ... lock that address for this long
+
+DEVICE_MAX_ZONES = 100                     # a ZONES command carries at most this many zones
+DEVICE_ALLOW_LEGACY_KEY = os.environ.get("ACCIALERT_ALLOW_LEGACY_KEY", "1") != "0"   # shared key, telemetry only
+
+# SMS alerts through Circuit Digest Cloud. The account details are NOT written here: they come from the environment
+# (ACCIALERT_SMS_API_KEY, ACCIALERT_SMS_TEMPLATE_ID, ACCIALERT_SMS_TO)
+# or from backend/data/sms_settings.json, which `python -m backend.tools.sms setup` creates (never committed).
+SMS_SETTINGS_FILE = DATA_DIR / "sms_settings.json"
+SMS_ALERT_TYPES = ("ACCIDENT", "ALCOHOL DETECTED", "UNAUTHORISED DRIVER", "UNAUTHORISED LOGIN", "SOS")
+SMS_SOS_COOLDOWN_S = 30     # the SOS button may text again after this long (it ignores the hourly and daily limits, not the monthly one)
+SMS_COOLDOWN_S = 300          # the same alert type is texted at most once in this time
+SMS_MAX_PER_HOUR = 6          # messages (each recipient counts) per hour, all types together
+SMS_MAX_PER_DAY = 20          # and per day
+SMS_MAX_PER_MONTH = 90        # the free Circuit Digest plan allows about 100 SMS a month
+SMS_MAX_RECIPIENTS = 5        # numbers that get the text
+SMS_TIMEOUT_S = 8
+
+# Laptop location: shown as the car position while the GPS module has no fix
+LAPTOP_LOCATION_MAX_AGE_S = 120        # a location older than this is not used
+ZONE_ALERT_DEFAULT_M = 1000            # a danger zone is announced (notification, map) when the car comes this close to it
+ZONE_ALERT_MIN_M = 50
+ZONE_ALERT_MAX_M = 5000
+ZONE_ALERT_PRESETS_M = (100, 250, 500, 1000, 2000, 5000)
+LAPTOP_ZONE_MAX_ACCURACY_M = 200       # danger zones use the laptop location only when it is this accurate
 
 # GPS Default Coordinates (Chennai Corridor)
 DEFAULT_LATITUDE = 13.0827

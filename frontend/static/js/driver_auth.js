@@ -11,7 +11,9 @@
  *   7. Synchronization with Muniyappan's Fleet Dashboard & Card 6
  */
 
-const ENROL_FRAMES = 25;   // frames taken at enrolment, one every 0.4 s
+
+const AUTH_FRAMES = 8;          // pictures taken for one login
+const AUTH_FRAME_GAP_MS = 350;   // about 2.5 seconds in all
 
 class DriverAuthController {
   constructor() {
@@ -53,6 +55,20 @@ class DriverAuthController {
     this.loadRoster();
     this.loadAuditLogs();
     this.loadPersistedCapture();
+    this.showServerLockState();
+  }
+
+  // The face login is the first page, so on the dashboard the car is usually already unlocked: show the real state
+  async showServerLockState() {
+    try {
+      const res = await fetch("/api/status");
+      const body = await res.json();
+      if (body.active_driver_authorized) {
+        this.lastAuthState = true;
+        this.lastAuthDriver = body.active_driver;
+        this.updateGatingUI(true, body.active_driver, null, 0, "Unlocked by the face login.", { detected: true, liveness: "PASSED" });
+      }
+    } catch (_) {}
   }
 
   loadPersistedLogs() {
@@ -116,16 +132,44 @@ class DriverAuthController {
     const slider = document.getElementById("rangeThreshold");
     const valLabel = document.getElementById("valThreshold");
     if (slider && valLabel) {
-      slider.value = this.matchThreshold;
-      valLabel.textContent = this.matchThreshold.toFixed(1);
+      // The slider follows the recogniser that is really in use (SFace score or the old LBPH distance).
+      const decimals = () => (parseFloat(slider.step) < 0.1 ? 2 : 1);
+      const showValue = () => { valLabel.textContent = parseFloat(slider.value).toFixed(decimals()); };
+      fetch("/api/config")
+        .then(res => res.json())
+        .then(cfg => {
+          if (!cfg || cfg.status !== "success" || !cfg.slider) return;
+          slider.min = cfg.slider.min;
+          slider.max = cfg.slider.max;
+          slider.step = cfg.slider.step;
+          slider.value = cfg.threshold;
+          this.matchThreshold = cfg.threshold;
+          const label = document.getElementById("labelThreshold");
+          const hint = document.getElementById("hintThreshold");
+          if (label) label.textContent = `${cfg.slider.label}:`;
+          if (hint) hint.textContent = `${cfg.slider.hint} Allowed range: ${cfg.slider.min} to ${cfg.slider.max}.`;
+          showValue();
+        })
+        .catch(() => {
+          const hint = document.getElementById("hintThreshold");
+          if (hint) hint.textContent = "The server could not be reached, so the threshold cannot be shown or changed.";
+        });
+      showValue();
       slider.addEventListener("input", (e) => {
         this.matchThreshold = parseFloat(e.target.value);
-        valLabel.textContent = this.matchThreshold.toFixed(1);
+        showValue();
         fetch("/api/config", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ threshold: this.matchThreshold })
-        }).catch(() => {});
+        })
+          .then(res => res.json().catch(() => null).then(data => ({ res, data })))
+          .then(({ res, data }) => {
+            if (!res.ok && window.DashboardApp) {
+              window.DashboardApp.showToast((data && data.message) || "The threshold was not changed.", "warning");
+            }
+          })
+          .catch(() => {});
       });
     }
 
@@ -172,6 +216,7 @@ class DriverAuthController {
     if (btnCapture) {
       btnCapture.addEventListener("click", () => this.captureSnapshot());
     }
+    document.getElementById("btnLockVehicle")?.addEventListener("click", () => this.lockVehicle());
     if (btnRetake) {
       btnRetake.addEventListener("click", () => this.resetCapturedImage());
     }
@@ -181,90 +226,146 @@ class DriverAuthController {
   // SNAPSHOT & IMAGE CAPTURE
   // ===================================================================
   async captureSnapshot() {
-    // If camera is not yet started, attempt to start it
-    if (!this.isRunning || (!this.stream && !(this.videoEl && this.videoEl.srcObject))) {
+    if (this.isAuthenticating) return null;
+
+    // The camera must be live: this is a real login attempt, so no placeholder picture is ever made.
+    if (!this.cameraIsLive()) {
       try {
         await this.startCamera();
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 800));
       } catch (_) {}
     }
-
-    let dataUrl = null;
-    const snapCanvas = document.createElement("canvas");
-    const sCtx = snapCanvas.getContext("2d");
-
-    if (this.videoEl && this.videoEl.videoWidth > 0) {
-      snapCanvas.width = this.videoEl.videoWidth;
-      snapCanvas.height = this.videoEl.videoHeight;
-      sCtx.drawImage(this.videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
-      dataUrl = snapCanvas.toDataURL("image/jpeg", 0.92);
-    } else if (this.canvasEl && this.canvasEl.width > 0) {
-      snapCanvas.width = this.canvasEl.width;
-      snapCanvas.height = this.canvasEl.height;
-      sCtx.drawImage(this.canvasEl, 0, 0);
-      dataUrl = snapCanvas.toDataURL("image/jpeg", 0.92);
+    if (!this.cameraIsLive()) {
+      this.setCaptureStatus("Camera is not available. Allow camera access, then press Capture Image again.", "red");
+      return null;
     }
 
-    if (!dataUrl || dataUrl.length < 120) {
-      snapCanvas.width = 640;
-      snapCanvas.height = 480;
-      sCtx.fillStyle = "#1e293b";
-      sCtx.fillRect(0, 0, 640, 480);
-
-      // Silhouette avatar
-      sCtx.fillStyle = "#334155";
-      sCtx.beginPath();
-      sCtx.arc(320, 180, 70, 0, Math.PI * 2);
-      sCtx.fill();
-      sCtx.beginPath();
-      sCtx.ellipse(320, 360, 140, 100, 0, 0, Math.PI * 2);
-      sCtx.fill();
-
-      // Label
-      sCtx.fillStyle = "#06D6A0";
-      sCtx.font = "bold 18px 'Inter', sans-serif";
-      sCtx.textAlign = "center";
-      sCtx.fillText("DRIVER SNAPSHOT CAPTURED", 320, 290);
-      sCtx.fillStyle = "#94A3B8";
-      sCtx.font = "13px 'Inter', sans-serif";
-      sCtx.fillText(new Date().toLocaleString(), 320, 320);
-
-      dataUrl = snapCanvas.toDataURL("image/jpeg", 0.9);
-    }
+    this.isAuthenticating = true;
+    const btn = document.getElementById("btnCaptureSnapshot");
+    if (btn) btn.disabled = true;
+    this.setCaptureFrame("");
 
     const preview = document.getElementById("capturedImagePreview");
     const placeholder = document.getElementById("capturePlaceholder");
     const actionsRow = document.getElementById("captureActionsRow");
-    const statusMsg = document.getElementById("captureStatusMsg");
-    const downloadBtn = document.getElementById("btnDownloadSnapshot");
-
-    if (preview) {
-      preview.src = dataUrl;
-      preview.style.display = "block";
-    }
-    if (placeholder) placeholder.style.display = "none";
-    if (actionsRow) actionsRow.style.display = "flex";
-    if (downloadBtn) {
-      downloadBtn.href = dataUrl;
-      downloadBtn.download = `driver_capture_${Date.now()}.jpg`;
-    }
-    if (statusMsg) {
-      const timeStr = new Date().toLocaleTimeString();
-      statusMsg.innerHTML = `<span style="color:var(--teal-primary); font-weight:600;">Image captured successfully! (${timeStr})</span>`;
-    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext("2d");
+    const frames = [];
+    let lastPicture = null;
 
     try {
-      localStorage.setItem("accialert_last_captured_image", dataUrl);
-    } catch (_) {}
+      // Step 1: the server asks for a random movement ("Move your head to the LEFT"). A photo or a recorded
+      // video cannot know the direction in advance. The picture on screen is a mirror, so LEFT is the driver's own left.
+      let challenge = null;
+      try {
+        const asked = await fetch("/api/auth/challenge", { method: "POST" });
+        challenge = asked.ok ? await asked.json() : null;
+      } catch (_) {}
+      if (!challenge || !challenge.token) {
+        this.setCaptureFrame("red");
+        this.setCaptureStatus("Cannot get the movement request from the server. Car will NOT start.", "red");
+        return null;
+      }
+      this.setCaptureStatus(`${challenge.text}. Starting in 1 second...`, "");
+      await new Promise(r => setTimeout(r, 1000));
 
-    return dataUrl;
+      // Step 2: about 2.5 seconds of pictures while the driver follows the request.
+      for (let i = 0; i < AUTH_FRAMES; i++) {
+        ctx.drawImage(this.videoEl, 0, 0, 640, 480);
+        lastPicture = canvas.toDataURL("image/jpeg", 0.85);
+        frames.push(lastPicture);
+        this.setCaptureStatus(`${challenge.text}... ${i + 1} / ${AUTH_FRAMES}`, "");
+        if (i < AUTH_FRAMES - 1) await new Promise(r => setTimeout(r, AUTH_FRAME_GAP_MS));
+      }
+      if (preview && lastPicture) {
+        preview.src = lastPicture;
+        preview.style.display = "block";
+      }
+      if (placeholder) placeholder.style.display = "none";
+      if (actionsRow) actionsRow.style.display = "flex";
+      this.setCaptureStatus("Checking the driver's face...", "");
+
+      const response = await fetch("/api/authenticate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frames: frames, challenge: challenge.token })
+      });
+      let res = null;
+      try { res = await response.json(); } catch (_) {}
+      if (!response.ok || !res || res.status !== "success") {
+        this.setCaptureFrame("red");
+        this.setCaptureStatus((res && res.message) || `Face check failed (server answered ${response.status}). Car will NOT start.`, "red");
+        return lastPicture;
+      }
+      this.showAuthResult(res);
+    } catch (err) {
+      this.setCaptureFrame("red");
+      this.setCaptureStatus("Cannot reach the server. Car will NOT start.", "red");
+    } finally {
+      this.isAuthenticating = false;
+      if (btn) btn.disabled = false;
+    }
+    return lastPicture;
+  }
+
+  // Shows the answer of /api/authenticate. The server has already locked or unlocked the car and written the log.
+  showAuthResult(res) {
+    const ok = Boolean(res.authorized) && res.driver && res.driver !== "Unknown";
+    this.lastAuthState = ok;
+    this.lastAuthDriver = ok ? res.driver : "Unknown";
+    if (ok) {
+      this.setCaptureFrame("green");
+      this.setCaptureStatus(`AUTHORISED: ${res.driver}. Car start allowed.`, "green");
+    } else {
+      this.setCaptureFrame("red");
+      this.setCaptureStatus(`NOT AUTHORISED. Car will NOT start. ${res.message || ""}`.trim(), "red");
+    }
+    this.updateGatingUI(ok, res.driver || "Unknown", res.person_distance_cm,
+                        typeof res.confidence === "number" ? res.confidence : 0, res.message, res);
+    const timing = document.getElementById("authLatency");
+    if (timing && typeof res.elapsed_ms === "number") timing.textContent = `CHECK TOOK: ${res.elapsed_ms} ms`;
+  }
+
+  // Locking is always allowed. (Unlocking happens only through a face check.)
+  async lockVehicle() {
+    try {
+      await fetch("/api/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: "AUTH", value: 0 })
+      });
+    } catch (_) {}
+    this.lastAuthState = false;
+    this.lastAuthDriver = "Unknown";
+    if (document.body.classList.contains("view-dash")) { window.location.href = "/"; return; }   // locked: back to the face login
+    this.setCaptureFrame("");
+    this.setCaptureStatus("Vehicle locked. Capture Image to unlock.", "");
+    this.updateGatingUI(false, "Unknown", null, 0, "Vehicle locked.", { detected: false, liveness: "STANDBY" });
+  }
+
+  setCaptureStatus(text, colour) {
+    const statusMsg = document.getElementById("captureStatusMsg");
+    if (!statusMsg) return;
+    const palette = { green: "var(--green-success, #059669)", red: "var(--red-critical, #DC2626)" };
+    statusMsg.textContent = text;
+    statusMsg.style.color = palette[colour] || "var(--text-secondary)";
+    statusMsg.style.fontWeight = colour ? "700" : "400";
+  }
+
+  setCaptureFrame(colour) {
+    const box = document.getElementById("capturePreviewContainer");
+    if (!box) return;
+    const palette = { green: "var(--green-success, #059669)", red: "var(--red-critical, #DC2626)" };
+    box.style.borderColor = palette[colour] || "";
+    box.style.borderStyle = colour ? "solid" : "dashed";
   }
 
   resetCapturedImage() {
     const preview = document.getElementById("capturedImagePreview");
     const placeholder = document.getElementById("capturePlaceholder");
     const actionsRow = document.getElementById("captureActionsRow");
-    const statusMsg = document.getElementById("captureStatusMsg");
 
     if (preview) {
       preview.style.display = "none";
@@ -272,33 +373,13 @@ class DriverAuthController {
     }
     if (placeholder) placeholder.style.display = "block";
     if (actionsRow) actionsRow.style.display = "none";
-    if (statusMsg) statusMsg.textContent = "Ready to capture driver photo";
-
-    try {
-      localStorage.removeItem("accialert_last_captured_image");
-    } catch (_) {}
+    this.setCaptureFrame("");
+    this.setCaptureStatus("Ready to capture driver photo", "");
   }
 
   loadPersistedCapture() {
-    try {
-      const saved = localStorage.getItem("accialert_last_captured_image");
-      if (saved) {
-        const preview = document.getElementById("capturedImagePreview");
-        const placeholder = document.getElementById("capturePlaceholder");
-        const actionsRow = document.getElementById("captureActionsRow");
-        const statusMsg = document.getElementById("captureStatusMsg");
-        const downloadBtn = document.getElementById("btnDownloadSnapshot");
-
-        if (preview) {
-          preview.src = saved;
-          preview.style.display = "block";
-        }
-        if (placeholder) placeholder.style.display = "none";
-        if (actionsRow) actionsRow.style.display = "flex";
-        if (downloadBtn) downloadBtn.href = saved;
-        if (statusMsg) statusMsg.textContent = "Previously captured driver image";
-      }
-    } catch (_) {}
+    // Older versions kept the last picture in the browser. A picture without a result is misleading, so remove it.
+    try { localStorage.removeItem("accialert_last_captured_image"); } catch (_) {}
   }
 
   // ===================================================================
@@ -308,7 +389,7 @@ class DriverAuthController {
     if (this.isRunning) return;
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        this.runMockDetection();
+        this.cameraUnavailable("This browser cannot use the camera. Open the page at http://127.0.0.1:5173/ in Chrome or Edge.");
         return;
       }
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -335,8 +416,8 @@ class DriverAuthController {
 
       this.onCameraFrame();
     } catch (err) {
-      console.warn("Could not access physical webcam, starting simulated live feed:", err);
-      this.runMockDetection();
+      console.warn("Could not access the camera:", err);
+      this.cameraUnavailable("Camera is not available. Allow camera access and try again.");
     }
   }
 
@@ -363,7 +444,10 @@ class DriverAuthController {
     if (btnStart) btnStart.style.display = "inline-flex";
     if (btnStop) btnStop.style.display = "none";
 
-    this.updateGatingUI(false, "Unknown", null, 0, "Camera is off", { detected: false, liveness: "STANDBY" });
+    // Stopping the camera does not change the lock: only a face check unlocks, only "Lock vehicle" locks.
+    if (!this.lastAuthState) {
+      this.updateGatingUI(false, "Unknown", null, 0, "Camera is off", { detected: false, liveness: "STANDBY" });
+    }
   }
 
   toggleCamera() {
@@ -385,61 +469,11 @@ class DriverAuthController {
 
       this.ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
 
-      const cw = this.canvasEl.width;
-      const ch = this.canvasEl.height;
-      this.drawFaceHUD(cw, ch);
-
-      // Ask the server about the current frame twice a second
-      if (!this._lastCheck || (Date.now() - this._lastCheck) > 500) {
-        this._lastCheck = Date.now();
-        this.evaluateDriverVerification();
-      }
+      // The camera is only a preview. The face is checked once, when the driver presses Capture Image.
+      this.drawGuide(this.canvasEl.width, this.canvasEl.height);
     }
 
     this.animFrameId = requestAnimationFrame(() => this.onCameraFrame());
-  }
-
-  // Draws a box around the face the server found. The video is mirrored on screen, so the box is mirrored too.
-  drawFaceHUD(cw, ch) {
-    const ctx = this.ctx;
-    if (!ctx) return;
-
-    const fresh = this.faceBox && (Date.now() - this.faceBoxTime) < 2000;
-    if (!fresh) {
-      this.hudBox = null;
-      this.drawGuide(cw, ch);
-      return;
-    }
-
-    const [nx, ny, nw, nh] = this.faceBox;
-    const target = { x: (1 - nx - nw) * cw, y: ny * ch, w: nw * cw, h: nh * ch };
-    if (!this.hudBox) {
-      this.hudBox = target;
-    } else {
-      const k = 0.35;   // move part of the way each frame so the box glides
-      for (const key of ["x", "y", "w", "h"]) {
-        this.hudBox[key] += (target[key] - this.hudBox[key]) * k;
-      }
-    }
-    const { x, y, w, h } = this.hudBox;
-
-    const isAuth = this.lastAuthState === true;
-    const color = isAuth ? "#15803D" : (this.faceMessage === "Move your head slightly." ? "#B45309" : "#DC2626");
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x, y, w, h);
-
-    const label = isAuth ? this.lastAuthDriver : (this.faceMessage || "Checking...");
-    ctx.font = "bold 14px 'Segoe UI', Arial, sans-serif";
-    const textW = Math.min(cw - 8, ctx.measureText(label).width + 14);
-    const labelX = Math.max(4, Math.min(x, cw - textW - 4));
-    const labelY = y > 28 ? y - 26 : y + h + 2;
-    ctx.fillStyle = color;
-    ctx.fillRect(labelX, labelY, textW, 24);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.textAlign = "left";
-    ctx.fillText(label, labelX + 7, labelY + 17, textW - 10);
   }
 
   // Shown when no face is found yet
@@ -457,79 +491,14 @@ class DriverAuthController {
     ctx.font = "14px 'Segoe UI', Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(this.faceMessage || "Show your face", cw / 2, y + h + 22);
+    ctx.fillText("Face the camera, then press Capture Image", cw / 2, y + h + 22);
   }
 
-  // ===================================================================
-  // LOGICAL DRIVER VERIFICATION
-  // Uses real backend AI recognition (/api/verify) when camera is active.
-  // Never falsely declares every subject as "Arsal".
-  // ===================================================================
-  async evaluateDriverVerification() {
-    if (this.isEvaluatingFrame) return;
-
-    // 1. Try real camera frame evaluation via /api/verify
-    if (this.videoEl && this.videoEl.videoWidth > 0 && this.videoEl.readyState >= 2) {
-      try {
-        this.isEvaluatingFrame = true;
-        if (!this._captureCanvas) {
-          this._captureCanvas = document.createElement("canvas");
-        }
-        this._captureCanvas.width = 640;
-        this._captureCanvas.height = 480;
-        const capCtx = this._captureCanvas.getContext("2d");
-        capCtx.drawImage(this.videoEl, 0, 0, 640, 480);
-        const frameDataUrl = this._captureCanvas.toDataURL("image/jpeg", 0.8);
-
-        const response = await fetch("/api/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: frameDataUrl, liveness_check: this.livenessEnabled })
-        });
-
-        if (response.ok) {
-          const res = await response.json();
-          if (res.status === "success") {
-            this.faceBox = res.box || null;
-            this.faceBoxTime = Date.now();
-            this.faceMessage = res.message || "";
-            if (!res.box) this.faceBox = null;
-            const detectedDriver = res.driver;
-            const isAuth = Boolean(res.authorized);
-            const dist = typeof res.distance === "number" ? res.distance : 99.0;
-            const conf = typeof res.confidence === "number" ? res.confidence : 0.0;
-
-            if (isAuth && detectedDriver && detectedDriver !== "Unknown") {
-              this.updateGatingUI(true, detectedDriver, dist, conf, res.message, res);
-              return;
-            } else {
-              // Unrecognized subject or no face
-              this.updateGatingUI(false, detectedDriver || "Unknown", dist, conf, res.message, res);
-              return;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("Backend /api/verify evaluation:", err);
-      } finally {
-        this.isEvaluatingFrame = false;
-      }
-    }
-
-    // No face result from the server: the car stays locked
-    this.updateGatingUI(false, "Unknown", null, 0, "Looking for face...", { detected: false, liveness: "NO_FACE" });
-  }
-
-  runMockDetection() {
-    this.isRunning = true;
-    if (this.standbyEl) this.standbyEl.classList.add("hidden");
-    const btnStart = document.getElementById("btnStartCamera");
-    const btnStop = document.getElementById("btnStopCamera");
-    if (btnStart) btnStart.style.display = "none";
-    if (btnStop) btnStop.style.display = "inline-flex";
-
-    // Without a real camera nobody can be verified, so the car stays locked
-    this.updateGatingUI(false, "Unknown", null, 0, "Virtual detector running", { detected: false, liveness: "STANDBY" });
+  cameraUnavailable(message) {
+    // No camera means nobody can be checked, so the car stays locked. Nothing is faked.
+    this.isRunning = false;
+    this.setCaptureStatus(message, "red");
+    this.setEnrolStatus(message, true);
   }
 
   // ===================================================================
@@ -578,11 +547,11 @@ class DriverAuthController {
         if (authDot) authDot.style.background = "var(--red-critical, #DC2626)";
         if (authStatusText) authStatusText.innerHTML = '<span class="badge badge-danger" style="font-size:0.7rem; padding:2px 6px;">UNAUTHORIZED</span>';
       } else if (this.isRunning) {
-        nameEl.textContent = "SEARCHING...";
+        nameEl.textContent = "READY";
         nameEl.style.color = "var(--text-muted, #6B7280)";
         if (cardAuth) cardAuth.style.borderTopColor = "var(--border-color, #E5E7EB)";
         if (authDot) authDot.style.background = "#9CA3AF";
-        if (authStatusText) authStatusText.textContent = "Looking for face";
+        if (authStatusText) authStatusText.textContent = "Press Capture Image";
       } else {
         nameEl.textContent = "STANDBY";
         nameEl.style.color = "var(--text-muted, #6B7280)";
@@ -627,8 +596,8 @@ class DriverAuthController {
         if (cardLive) cardLive.style.borderTopColor = "var(--yellow-warning, #D97706)";
       } else {
         livenessBadge.className = "badge badge-muted";
-        livenessBadge.textContent = this.isRunning ? "NO FACE" : "STANDBY";
-        if (eyeTrackingSub) eyeTrackingSub.textContent = this.isRunning ? "Look at the camera" : "Vitality & blink tracking";
+        livenessBadge.textContent = this.isRunning ? "WAITING" : "STANDBY";
+        if (eyeTrackingSub) eyeTrackingSub.textContent = this.isRunning ? "Checked when you capture" : "Checked when you capture";
         if (cardLive) cardLive.style.borderTopColor = "var(--border-color, #E5E7EB)";
       }
     }
@@ -694,38 +663,6 @@ class DriverAuthController {
     if (window.DashboardApp) {
       window.DashboardApp.activeDriver = displayName;
     }
-
-    // Only dispatch serial command and log event when auth state actually changes
-    const stateChanged = (isRealMatch !== this.lastAuthState) || (displayName !== this.lastAuthDriver);
-    if (stateChanged) {
-      this.lastAuthState = isRealMatch;
-      this.lastAuthDriver = displayName;
-
-      fetch("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: "AUTH", value: isRealMatch ? 1 : 0 })
-      }).catch(() => {});
-
-      if (isRealMatch) {
-        fetch("/api/drivers/select", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: displayName, authorized: 1 })
-        }).catch(() => {});
-      }
-
-      // Record in security audit trail
-      const safeDriverName = (displayName && String(displayName).trim()) ? displayName : "Unknown";
-      this.recordAuditEvent({
-        type: isRealMatch ? "AUTH_OK" : "UNAUTHORISED",
-        severity: isRealMatch ? "INFO" : "HIGH",
-        driver: safeDriverName,
-        match: Math.round(similarity),
-        liveness: isRealMatch ? "PASSED" : "PENDING",
-        cmd: JSON.stringify({ cmd: "AUTH", ok: isRealMatch ? 1 : 0, driver: safeDriverName })
-      });
-    }
   }
 
   // ===================================================================
@@ -762,13 +699,14 @@ class DriverAuthController {
     const name = document.getElementById("inputDriverName")?.value.trim();
     const license = document.getElementById("inputLicenseNumber")?.value.trim();
     if (!name || !license) {
-      alert("Enter the driver's name and license number first.");
+      AppDialog.alert({ title: "Details missing", message: "Enter the driver's name and license number first." });
       return;
     }
-    const wanted = ENROL_FRAMES;
 
     const wrap = document.getElementById("enrolProgressWrap");
     if (wrap) wrap.style.display = "block";
+    const fill = document.getElementById("enrolProgressFill");
+    if (fill) fill.style.width = "0%";
     this.setEnrolStatus("Starting the camera...", false);
     this.setEnrolCameraNote("Starting the camera...");
 
@@ -778,42 +716,53 @@ class DriverAuthController {
       return;
     }
 
-    this.enrolmentState = { isEnrolling: true, driverName: name, targetSamples: wanted, capturedSamples: 0 };
+    this.enrolmentState = { isEnrolling: true, driverName: name, targetSamples: 0, capturedSamples: 0 };
     this.showEnrolCamera(true);
-    const canvas = document.createElement("canvas");
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext("2d");
-    const frames = [];
-    const fill = document.getElementById("enrolProgressFill");
+    const box = document.querySelector(".enrol-camera");
+    const overlay = window.HeadTurn.mountOverlay(box);
+    let clip = null, challenge = null;
 
-    // One frame every 400 ms, so the driver has time to turn the head a little between frames.
+    // The same check as the login: look straight, turn the head RIGHT, then LEFT, then look straight again.
+    // These pictures are the enrolment: there is no separate set of 25 pictures.
     try {
-      while (frames.length < wanted) {
-        ctx.drawImage(this.videoEl, 0, 0, 640, 480);
-        frames.push(canvas.toDataURL("image/jpeg", 0.85));
-        this.enrolmentState.capturedSamples = frames.length;
-        if (fill) fill.style.width = `${Math.round((frames.length / wanted) * 100)}%`;
-        this.setEnrolStatus(`Capturing ${name}: ${frames.length} / ${wanted}. Look at the camera and turn your head slowly.`, false);
-        this.setEnrolCount(`${frames.length} / ${wanted}`);
-        await new Promise(resolve => setTimeout(resolve, 400));
-      }
+      const asked = await fetch("/api/auth/challenge", { method: "POST" });
+      challenge = asked.ok ? await asked.json() : null;
+      if (!challenge || !challenge.token) throw new Error("Cannot get the head-turn request from the server.");
+      clip = await window.HeadTurn.capture({
+        video: this.videoEl, challenge: challenge, overlay: overlay,
+        say: (t) => { this.setEnrolStatus(`${name}: ${t}`, false); },
+        progress: (p) => { if (fill) fill.style.width = `${Math.round(p * 90)}%`; },
+      });
+    } catch (err) {
+      clip = { ok: false, message: err.message || "The head turn could not be recorded. Try again." };
     } finally {
-      // The camera is only needed while the frames are taken, so it goes off here.
+      // The camera is only needed while the pictures are taken, so it goes off here.
       this.stopCamera();
+      overlay.reset();
       this.showEnrolCamera(false);
       this.setEnrolCameraNote("Camera is off.");
     }
+    if (!clip.ok) {
+      this.enrolmentState.isEnrolling = false;
+      this.setEnrolStatus(`Not saved. ${clip.message}`, true);
+      return;
+    }
 
     this.setEnrolStatus("Saving face samples...", false);
+    this.setEnrolCount(`${clip.frames.length} pictures`);
     try {
       const res = await fetch("/api/enrol", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name, license: license, frames: frames })
+        body: JSON.stringify({ name: name, license: license, frames: clip.frames, challenge: challenge.token })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Enrolment failed.");
+      let data = null;
+      try { data = await res.json(); } catch (e) { /* the server sent a page, not JSON */ }
+      if (!res.ok || !data) {
+        throw new Error((data && data.message) ||
+          `Enrolment failed (server answered ${res.status}). Restart the AcciAlert server and try again.`);
+      }
+      if (fill) fill.style.width = "100%";
       this.finishEnrolment(data);
     } catch (err) {
       this.setEnrolStatus(err.message, true);
@@ -890,7 +839,10 @@ class DriverAuthController {
           <td>${this.statusLabel(d)}</td>
           <td style="color:var(--text-secondary);">${this.escapeHtml(d.license) || "-"}</td>
           <td style="color:var(--text-secondary);">${d.count} samples</td>
-          <td><button type="button" class="btn btn-outline btn-sm" data-view-driver="${this.escapeHtml(d.name)}">View</button></td>
+          <td><div class="row-actions">
+            <button type="button" class="btn btn-outline btn-sm" data-view-driver="${this.escapeHtml(d.name)}">View</button>
+            <button type="button" class="btn btn-delete btn-sm" data-delete-driver="${this.escapeHtml(d.name)}">Delete</button>
+          </div></td>
         </tr>
       `).join("");
     }
@@ -925,7 +877,10 @@ class DriverAuthController {
         <td>${this.escapeHtml(d.license) || "-"}</td>
         <td>${d.count}</td>
         <td>${this.escapeHtml(d.enrolledAt) || "-"}</td>
-        <td><button type="button" class="btn btn-outline btn-sm" data-view-driver="${this.escapeHtml(d.name)}" data-from-list="1">View</button></td>
+        <td><div class="row-actions">
+          <button type="button" class="btn btn-outline btn-sm" data-view-driver="${this.escapeHtml(d.name)}" data-from-list="1">View</button>
+          <button type="button" class="btn btn-delete btn-sm" data-delete-driver="${this.escapeHtml(d.name)}" data-from-list="1">Delete</button>
+        </div></td>
       </tr>`).join("");
     this.openDriverModal(`All drivers (${drivers.length})`, `
       <div class="table-responsive">
@@ -954,9 +909,12 @@ class DriverAuthController {
         <td>${h.face_samples}</td>
         <td>${h.photos_saved}</td>
       </tr>`).join("");
-    const back = fromList ? '<button type="button" class="btn btn-outline btn-sm" data-back-to-list="1" style="margin-bottom:14px;">Back to all drivers</button>' : "";
+    const back = fromList ? '<button type="button" class="btn btn-outline btn-sm" data-back-to-list="1">Back to all drivers</button>' : "";
     this.openDriverModal(d.name, `
-      ${back}
+      <div class="row-actions" style="margin-bottom:14px;">
+        ${back}
+        <button type="button" class="btn btn-delete btn-sm" data-delete-driver="${this.escapeHtml(d.name)}">Delete driver</button>
+      </div>
       <dl class="detail-grid">
         <dt>Status</dt><dd>${d.samples > 0 ? "Live enrolled" : "Needs live enrolment"}</dd>
         <dt>License number</dt><dd>${this.escapeHtml(d.license) || "-"}</dd>
@@ -973,6 +931,27 @@ class DriverAuthController {
       </div>`);
   }
 
+  // Delete a driver (admin only): face data, record, history and photos. Asks first.
+  async deleteDriver(name) {
+    const only = Object.keys(this.enrolledDrivers).length <= 1;
+    const warning = `Their face data, enrolment history and saved photos will be removed and they can no longer start the car. This cannot be undone.` +
+      (only ? `\n\nThis is the last driver: nobody will be able to start the car until a driver is enrolled.` : "");
+    const yes = await AppDialog.confirm({ title: `Delete driver "${name}"?`, message: warning, confirmText: "Delete driver", danger: true });
+    if (!yes) return;
+    try {
+      const res = await fetch(`/api/enrolled/${encodeURIComponent(name)}`, { method: "DELETE" });
+      let body = {}; try { body = await res.json(); } catch (_) {}
+      if (!res.ok) throw new Error(body.message || `The driver could not be deleted (server answered ${res.status}).`);
+      this.closeDriverModal();
+      await this.loadRoster();
+      if (window.DashboardApp) window.DashboardApp.showToast(body.message || `${name} was deleted.`, "success");
+      this.setEnrolStatus(`${name} was deleted (${body.face_samples || 0} face samples, ${body.photos || 0} photos removed).`, false);
+    } catch (err) {
+      if (window.DashboardApp) window.DashboardApp.showToast(err.message, "danger");
+      else AppDialog.alert({ title: "Could not delete", message: err.message });
+    }
+  }
+
   bindRosterEvents() {
     document.getElementById("btnViewAllDrivers")?.addEventListener("click", () => this.showAllDrivers());
     document.getElementById("btn-driver-modal-close")?.addEventListener("click", () => this.closeDriverModal());
@@ -980,11 +959,15 @@ class DriverAuthController {
       if (e.target.id === "driver-modal") this.closeDriverModal();        // click outside the window
       const view = e.target.closest("[data-view-driver]");
       if (view) this.showDriverDetails(view.dataset.viewDriver, view.dataset.fromList === "1");
+      const del = e.target.closest("[data-delete-driver]");
+      if (del) this.deleteDriver(del.dataset.deleteDriver);
       if (e.target.closest("[data-back-to-list]")) this.showAllDrivers();
     });
     document.getElementById("rosterTableBody")?.addEventListener("click", (e) => {
       const view = e.target.closest("[data-view-driver]");
       if (view) this.showDriverDetails(view.dataset.viewDriver, false);
+      const del = e.target.closest("[data-delete-driver]");
+      if (del) this.deleteDriver(del.dataset.deleteDriver);
     });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") this.closeDriverModal(); });
   }
@@ -1023,8 +1006,8 @@ class DriverAuthController {
             type: l.event_type || l.type || "AUTH_OK",
             severity: l.severity || ("OK" in (l.event_type || "") ? "INFO" : "HIGH"),
             driver: l.driver_name || l.driver || "Unknown",
-            match: l.match_score || 85,
-            liveness: l.liveness_result || "PASSED",
+            match: (l.match_score === null || l.match_score === undefined) ? null : l.match_score,
+            liveness: l.liveness_result || "--",
             cmd: l.transmission || JSON.stringify({ cmd: "AUTH", ok: 1, driver: l.driver_name || l.driver || "Unknown" })
           }));
           this.savePersistedLogs();
@@ -1085,9 +1068,9 @@ class DriverAuthController {
           <td style="font-weight:600; color:var(--text-main, #111827);">${l.driver || "Unknown"}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-family:monospace; color:${isOk ? 'var(--green-success)' : 'var(--red-critical)'}; font-weight:700;">${l.match}%</span>
+              <span style="font-family:monospace; color:${isOk ? 'var(--green-success)' : 'var(--red-critical)'}; font-weight:700;">${(l.match === null || l.match === undefined) ? "--" : l.match + "%"}</span>
               <div class="mini-progress-bar" style="width:60px; height:4px; margin-top:0;">
-                <div class="mini-progress-fill ${isOk ? '' : 'danger'}" style="width:${l.match}%;"></div>
+                <div class="mini-progress-fill ${isOk ? '' : 'danger'}" style="width:${(l.match === null || l.match === undefined) ? 0 : l.match}%;"></div>
               </div>
             </div>
           </td>
@@ -1117,8 +1100,8 @@ class DriverAuthController {
     }
   }
 
-  clearAuditLogs() {
-    if (!confirm("Are you sure you want to clear the audit trail?")) return;
+  async clearAuditLogs() {
+    if (!await AppDialog.confirm({ title: "Clear the audit trail?", message: "All login audit records shown here will be removed.", confirmText: "Clear", danger: true })) return;
     this.auditLogs = [];
     this.savePersistedLogs();
     this.renderAuditLogsTable();

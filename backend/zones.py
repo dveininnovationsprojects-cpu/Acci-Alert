@@ -276,7 +276,7 @@ class ZoneEngine:
         }
 
 
-# --------------------------------------------------- map helpers (used by the simulator and dashboard)
+# --------------------------------------------------- map helpers (used by the dashboard)
 # haversine_distance is the same calculation as haversine_m; kept under the old name for callers.
 haversine_distance = haversine_m
 

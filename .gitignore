@@ -24,3 +24,8 @@ style_helpers.py
 # live-captured face data and downloaded models
 backend/dataset/
 backend/models/*.onnx
+
+# ESP32 API key (secret)
+backend/data/device_api_key.txt
+backend/data/sms_settings.json
+

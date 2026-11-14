@@ -1,8 +1,7 @@
 /**
  * AcciAlert - Master Dashboard Application Controller
  * Handles Socket.IO communication, card updates, control panel actions,
- * event filtering, CSV export, and automatic fallback to standalone Client Simulator
- * when running frontend-only without a Python backend.
+ * event filtering and CSV export. Only real readings from the ESP32 are shown: there is no simulated data.
  * Author: Muniyappan
  */
 
@@ -10,24 +9,58 @@ class DashboardController {
   constructor() {
     this.socket = null;
     this.latestTelemetry = null;
-    this.systemMode = "simulation";
+    this.systemMode = "waiting";    // "waiting" until the first real reading, then "serial" (live)
     this.activeDriver = "Unknown";
     this.backendConnected = false;
-    this.clientSimulator = new ClientSimulationEngine(this);
+    this.lastTelemetryAt = null;   // when the last reading from the server arrived
+    this.dataStale = false;        // true while the vehicle has stopped sending
 
     this.bindEvents();
     this.initSocket();
     this.loadEvents();
 
-    // If socket hasn't connected after 1.5 seconds, start client simulation automatically
+    // Every second: warn when the server is reachable but the vehicle has stopped sending readings
+    setInterval(() => this.checkDataAge(), 1000);
+
+    // The laptop's own location is the fallback position while the GPS module has no fix
+    this.startLaptopLocation();
+
     setTimeout(() => {
       if (!this.backendConnected) {
-        console.log("No backend detected. Starting in Standalone Frontend Mode.");
-        this.clientSimulator.start();
-        this.updateConnectionBadge(true, "Frontend standalone active");
-        this.showToast("Running in Standalone Frontend Mode", "info");
+        this.updateConnectionBadge(false, "OFFLINE: cannot reach the AcciAlert server");
       }
     }, 1500);
+  }
+
+  // ===================================================================
+  // LAPTOP LOCATION (used as the car position only while the GPS module has no fix)
+  // ===================================================================
+  startLaptopLocation() {
+    if (!navigator.geolocation) return;
+    let lastSent = 0;
+    let warned = false;
+    navigator.geolocation.watchPosition(
+      (pos) => {
+        // the map shows this device's live location at once, on every update
+        if (window.MapManager) window.MapManager.updateLiveLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        const now = Date.now();
+        if (now - lastSent < 5000) return;          // the server needs one position every few seconds
+        lastSent = now;
+        fetch("/api/laptop-location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy_m: pos.coords.accuracy })
+        }).catch(() => {});
+      },
+      (err) => {
+        if (window.MapManager) window.MapManager.liveLocationOff(err && err.code === 1 ? "Live location: blocked (allow location in the browser)" : "Live location: not available");
+        if (!warned) {
+          warned = true;
+          this.showToast("Laptop location is off. Allow location access to see this laptop's position when the GPS module has no fix.", "warning");
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 }
+    );
   }
 
   // ===================================================================
@@ -35,8 +68,7 @@ class DashboardController {
   // ===================================================================
   initSocket() {
     if (typeof io !== "function" || window.location.protocol === "file:") {
-      this.clientSimulator.start();
-      this.updateConnectionBadge(true, "Standalone mode");
+      this.updateConnectionBadge(false, "OFFLINE: open the page from the AcciAlert server");
       return;
     }
 
@@ -49,7 +81,6 @@ class DashboardController {
 
       this.socket.on("connect", () => {
         this.backendConnected = true;
-        this.clientSimulator.stop();
         this.updateConnectionBadge(true, "System active");
         this.showToast("Connected to AcciAlert Backend Server", "success");
         this.loadSystemStatus();
@@ -57,15 +88,13 @@ class DashboardController {
 
       this.socket.on("connect_error", () => {
         if (!this.backendConnected) {
-          this.clientSimulator.start();
-          this.updateConnectionBadge(true, "Standalone mode");
+          this.updateConnectionBadge(false, "OFFLINE: cannot reach the AcciAlert server");
         }
       });
 
       this.socket.on("disconnect", () => {
         this.backendConnected = false;
-        this.clientSimulator.start();
-        this.updateConnectionBadge(true, "Standalone mode");
+        this.updateConnectionBadge(false, "OFFLINE: cannot reach the AcciAlert server");
       });
 
       this.socket.on("status", (data) => {
@@ -83,6 +112,10 @@ class DashboardController {
       });
 
       // A zone was added, edited or deleted (in the zone manager or in the zone tab)
+      this.socket.on("zone_settings", (d) => {                      // the notification distance was changed in Danger Zone Management
+        if (window.MapManager && d && d.alert_distance_m) window.MapManager.setAlertDistance(d.alert_distance_m);
+      });
+
       this.socket.on("zones_updated", () => {
         if (window.ZoneApp) window.ZoneApp.loadZones();
       });
@@ -93,9 +126,8 @@ class DashboardController {
         }
       });
     } catch (e) {
-      console.warn("Socket.io init exception, switching to client simulator:", e);
-      this.clientSimulator.start();
-      this.updateConnectionBadge(true, "Standalone mode");
+      console.warn("Socket.io init exception:", e);
+      this.updateConnectionBadge(false, "OFFLINE: cannot reach the AcciAlert server");
     }
   }
 
@@ -104,6 +136,12 @@ class DashboardController {
   // ===================================================================
   handleIncomingTelemetry(t) {
     this.latestTelemetry = t;
+    this.lastTelemetryAt = Date.now();
+    if (this.dataStale) {
+      this.dataStale = false;
+      this.updateConnectionBadge(true, "System active");
+      this.showToast("Vehicle data is arriving again.", "success");
+    }
 
     // 1. Vehicle Speed
     const spd = typeof t.spd === "number" ? t.spd : 0.0;
@@ -190,10 +228,12 @@ class DashboardController {
     }
 
     // 5. GPS Latitude & Longitude
-    const lat = typeof t.lat === "number" ? t.lat : 0.0;
-    const lon = typeof t.lon === "number" ? t.lon : 0.0;
+    // The GPS module is the main reading. With no GPS fix the server sends this laptop's location instead.
+    const hasPosition = typeof t.lat === "number" && typeof t.lon === "number";
+    const lat = hasPosition ? t.lat : null;
+    const lon = hasPosition ? t.lon : null;
     const gpsEl = document.getElementById("val-gps");
-    if (gpsEl) gpsEl.innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    if (gpsEl) gpsEl.innerText = hasPosition ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : "No position";
 
     // 6. Driver Name and Authorisation Status
     const auth = t.auth === 1;
@@ -229,24 +269,26 @@ class DashboardController {
     const espBadgeEl = document.getElementById("badge-esp32-status");
     const espPortEl = document.getElementById("val-esp32-port");
     if (espBadgeEl) {
-      if (this.systemMode === "simulation" || !this.backendConnected) {
-        espBadgeEl.innerText = "Simulated";
-        espBadgeEl.className = "badge badge-info";
-        if (espPortEl) espPortEl.innerText = "Virtual Driver Engine";
-      } else {
-        const isConn = t.esp32_connected;
-        espBadgeEl.innerText = isConn ? "Connected" : "Disconnected";
-        espBadgeEl.className = `badge ${isConn ? 'badge-success' : 'badge-muted'}`;
-        if (espPortEl) espPortEl.innerText = isConn ? "USB Serial 115200" : "Hardware Offline";
-      }
+      espBadgeEl.innerText = "Connected";
+      espBadgeEl.className = "badge badge-success";
+      if (espPortEl) espPortEl.innerText = t.source === "ESP32_WIFI" ? "Wi-Fi" : "USB serial 115200";
     }
 
     // 10. GPS Connection Status
     const fix = t.fix === 1;
     const gpsFixBadge = document.getElementById("badge-gps-fix");
     if (gpsFixBadge) {
-      gpsFixBadge.innerText = fix ? "3D fix" : "No fix";
-      gpsFixBadge.className = `badge ${fix ? 'badge-success' : 'badge-danger'}`;
+      if (t.position_source === "LAPTOP") {
+        const acc = typeof t.position_accuracy_m === "number" ? ` (±${Math.round(t.position_accuracy_m)} m)` : "";
+        gpsFixBadge.innerText = `Laptop location${acc}`;
+        gpsFixBadge.className = "badge badge-warning";
+      } else if (t.position_source === "NONE" || !hasPosition) {
+        gpsFixBadge.innerText = "No GPS, no laptop location";
+        gpsFixBadge.className = "badge badge-danger";
+      } else {
+        gpsFixBadge.innerText = fix ? "GPS fix" : "No fix";
+        gpsFixBadge.className = `badge ${fix ? 'badge-success' : 'badge-danger'}`;
+      }
     }
 
     // Current Zone readout
@@ -263,7 +305,11 @@ class DashboardController {
 
     // Feed to GPS Map
     if (window.MapManager) {
-      window.MapManager.updateVehiclePosition(lat, lon, spd, stateStr, driverName);
+      if (hasPosition) {
+        window.MapManager.updateVehiclePosition(lat, lon, spd, stateStr, driverName, t.position_source);
+      } else {
+        window.MapManager.clearVehicle();
+      }
     }
   }
 
@@ -272,8 +318,7 @@ class DashboardController {
   // ===================================================================
   sendCommand(command, value = null) {
     if (!this.backendConnected) {
-      this.clientSimulator.handleCommand(command, value);
-      this.showToast(`Command ${command}${value ? ' (' + value + ')' : ''} executed (Local).`, "success");
+      this.showToast("The server cannot be reached. The command was NOT sent.", "danger");
       return;
     }
 
@@ -286,21 +331,35 @@ class DashboardController {
       .then(res => res.json())
       .then(data => {
         if (data.status === "success") {
-          this.showToast(`Command ${command}${value ? ' (' + value + ')' : ''} executed.`, "success");
+          this.showToast(`Command ${command}${value ? ' (' + value + ')' : ''} sent.`, "success");
         } else {
-          this.clientSimulator.handleCommand(command, value);
+          this.showToast(`Command ${command} was refused: ${data.message || "unknown reason"}`, "danger");
         }
       })
       .catch(() => {
-        this.clientSimulator.handleCommand(command, value);
-        this.showToast(`Command ${command} executed (Local).`, "success");
+        this.showToast(`Command ${command} was NOT sent: the server did not answer.`, "danger");
       });
   }
 
-  emergencyStop() {
-    this.sendCommand("STOP");
-    if (window.AlertManager) {
-      window.AlertManager.playSound("accident");
+  // SOS button (top right of the dashboard): records the emergency and texts the owner with the car's position
+  async sendSos() {
+    const btn = document.getElementById("btn-sos");
+    const yes = await AppDialog.confirm({
+      title: "Send SOS alert?",
+      message: "An emergency text with the car's position will be sent to the owner now.",
+      confirmText: "Send SOS", cancelText: "Cancel", danger: true,
+    });
+    if (!yes) return;
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch("/api/sos", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      this.showToast(body.message || "SOS could not be sent.", res.ok && body.texted ? "success" : "danger");
+      if (window.AlertManager && res.ok) window.AlertManager.playSound("accident");
+    } catch (_) {
+      this.showToast("SOS was NOT sent: the server did not answer.", "danger");
+    } finally {
+      if (btn) setTimeout(() => { btn.disabled = false; }, 3000);
     }
   }
 
@@ -309,11 +368,6 @@ class DashboardController {
     if (window.AlertManager) {
       window.AlertManager.acknowledgeAlert();
     }
-  }
-
-  toggleDriverAuth() {
-    const newAuth = this.latestTelemetry && this.latestTelemetry.auth === 1 ? 0 : 1;
-    this.sendCommand("AUTH", newAuth);
   }
 
   applySpeedLimit(limitValue) {
@@ -325,83 +379,32 @@ class DashboardController {
     }
   }
 
-  triggerScenario(scenarioName) {
-    if (!this.backendConnected) {
-      this.clientSimulator.triggerScenario(scenarioName);
-      this.showToast(`Scenario triggered: ${scenarioName.toUpperCase()}`, "info");
-      return;
-    }
-
-    fetch("/api/simulation/scenario", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scenario: scenarioName, duration: 20 })
-    })
-      .then(res => res.json())
-      .then(() => {
-        this.showToast(`Simulation scenario triggered: ${scenarioName.toUpperCase()}`, "info");
-      })
-      .catch(() => {
-        this.clientSimulator.triggerScenario(scenarioName);
-        this.showToast(`Scenario triggered: ${scenarioName.toUpperCase()} (Local)`, "info");
-      });
-  }
-
   // ===================================================================
-  // SYSTEM MODE SWITCHING (SIMULATION vs REAL SERIAL)
+  // SYSTEM MODE: "waiting" for the first real reading, then "serial" (live ESP32 data)
   // ===================================================================
-  switchMode(targetMode) {
-    if (!this.backendConnected) {
-      this.systemMode = targetMode;
-      this.updateModeUI(targetMode);
-      this.showToast(`Switched to ${targetMode.toUpperCase()} mode (Frontend Only).`, "info");
-      return;
-    }
-
-    const port = document.getElementById("select-serial-port")?.value || "COM3";
-    const baud = parseInt(document.getElementById("select-serial-baud")?.value) || 115200;
-
-    fetch("/api/mode", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: targetMode, port, baudrate: baud })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "success") {
-          this.systemMode = data.mode;
-          this.updateModeUI(data.mode);
-          this.showToast(`Switched to ${data.mode.toUpperCase()} mode.`, "success");
-        }
-      })
-      .catch(() => {
-        this.systemMode = targetMode;
-        this.updateModeUI(targetMode);
-      });
-  }
-
   updateModeUI(mode) {
-    const btnSim = document.getElementById("btn-mode-sim");
-    const btnSerial = document.getElementById("btn-mode-serial");
     const serialConfigPanel = document.getElementById("serial-hardware-panel");
     const headerModeBadge = document.getElementById("header-mode-badge");
+    const espBadgeEl = document.getElementById("badge-esp32-status");
+    const espPortEl = document.getElementById("val-esp32-port");
 
-    if (mode === "simulation") {
-      if (btnSim) btnSim.className = "btn btn-teal btn-sm";
-      if (btnSerial) btnSerial.className = "btn btn-outline btn-sm";
-      if (serialConfigPanel) serialConfigPanel.style.display = "none";
+    // The USB serial setup stays visible: it is needed before the first reading to connect a cable.
+    if (serialConfigPanel) serialConfigPanel.style.display = "block";
+    if (mode === "serial") {
       if (headerModeBadge) {
-        headerModeBadge.innerText = "Simulation active";
-        headerModeBadge.className = "badge badge-info";
+        headerModeBadge.innerText = "Live ESP32 data";
+        headerModeBadge.className = "badge badge-success";
       }
     } else {
-      if (btnSim) btnSim.className = "btn btn-outline btn-sm";
-      if (btnSerial) btnSerial.className = "btn btn-teal btn-sm";
-      if (serialConfigPanel) serialConfigPanel.style.display = "block";
       if (headerModeBadge) {
-        headerModeBadge.innerText = "Hardware serial active";
+        headerModeBadge.innerText = "Waiting for ESP32";
         headerModeBadge.className = "badge badge-warning";
       }
+      if (espBadgeEl) {
+        espBadgeEl.innerText = "Waiting";
+        espBadgeEl.className = "badge badge-muted";
+      }
+      if (espPortEl) espPortEl.innerText = "No reading yet";
     }
   }
 
@@ -428,6 +431,8 @@ class DashboardController {
     const params = new URLSearchParams();
     const type = document.getElementById("filter-event-type")?.value;
     if (type && type !== "ALL") params.set("type", type);
+    const severity = document.getElementById("filter-severity")?.value;
+    if (severity && severity !== "ALL") params.set("severity", severity);
     const start = document.getElementById("filter-start-date")?.value;
     const end = document.getElementById("filter-end-date")?.value;
     const search = document.getElementById("filter-search")?.value.trim();
@@ -451,20 +456,13 @@ class DashboardController {
           this.renderEventsTable(data.data.events);
           const counterEl = document.getElementById("events-count-badge");
           if (counterEl) counterEl.innerText = `${data.data.total} Total`;
-        } else {
-          this.loadLocalEvents();
         }
       })
       .catch(() => {
-        this.loadLocalEvents();
+        this.renderEventsTable([]);       // server offline: no events are shown, none are made up
+        const counterEl = document.getElementById("events-count-badge");
+        if (counterEl) counterEl.innerText = "Offline";
       });
-  }
-
-  loadLocalEvents() {
-    const events = JSON.parse(localStorage.getItem("accialert_events") || "[]");
-    this.renderEventsTable(events.slice(0, 5));
-    const counterEl = document.getElementById("events-count-badge");
-    if (counterEl) counterEl.innerText = `${events.length} Total`;
   }
 
   eventBadgeClass(type) {
@@ -477,6 +475,13 @@ class DashboardController {
     return classes[type] || "badge-info";
   }
 
+  severityBadgeClass(severity) {
+    const level = String(severity || "INFO").toUpperCase();
+    if (level === "CRITICAL" || level === "HIGH") return "badge-danger";
+    if (level === "WARNING" || level === "MEDIUM") return "badge-warning";
+    return "badge-info";
+  }
+
   renderEventsTable(events) {
     const tbody = document.getElementById("events-table-body");
     if (!tbody) return;
@@ -485,7 +490,7 @@ class DashboardController {
     if (this.recentEvents.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">
+          <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">
             No events match. Change the filter or wait for new events.
           </td>
         </tr>`;
@@ -495,6 +500,7 @@ class DashboardController {
     tbody.innerHTML = this.recentEvents.map((ev, index) => `
       <tr>
         <td><span class="badge ${this.eventBadgeClass(ev.event_type)}">${escapeHtml(ev.event_type)}</span></td>
+        <td><span class="badge ${this.severityBadgeClass(ev.severity)}">${escapeHtml(ev.severity || "INFO")}</span></td>
         <td style="color:var(--text-secondary); white-space:nowrap;">${escapeHtml(ev.timestamp)}</td>
         <td><b>${escapeHtml(ev.driver_name || "Unknown")}</b></td>
         <td>${escapeHtml(ev.vehicle_speed)} km/h</td>
@@ -518,6 +524,7 @@ class DashboardController {
     this.openEventModal(`${ev.event_type} (#${ev.id})`, `
       <dl class="detail-grid">
         <dt>Event</dt><dd>${escapeHtml(ev.event_type)}</dd>
+        <dt>Severity</dt><dd>${escapeHtml(ev.severity || "INFO")}</dd>
         <dt>Date and time</dt><dd>${escapeHtml(ev.timestamp)}</dd>
         <dt>Driver</dt><dd>${escapeHtml(ev.driver_name || "Unknown")}</dd>
         <dt>Speed</dt><dd>${escapeHtml(ev.vehicle_speed)} km/h</dd>
@@ -545,6 +552,7 @@ class DashboardController {
       <tr>
         <td><code>#${escapeHtml(ev.id)}</code></td>
         <td><span class="badge ${this.eventBadgeClass(ev.event_type)}">${escapeHtml(ev.event_type)}</span></td>
+        <td><span class="badge ${this.severityBadgeClass(ev.severity)}">${escapeHtml(ev.severity || "INFO")}</span></td>
         <td style="white-space:nowrap;">${escapeHtml(ev.timestamp)}</td>
         <td>${escapeHtml(ev.driver_name || "Unknown")}</td>
         <td style="white-space:nowrap;">${escapeHtml(ev.vehicle_speed)} km/h</td>
@@ -555,8 +563,8 @@ class DashboardController {
     this.openEventModal(`All events (${data.total})`, `
       <div class="table-responsive">
         <table class="custom-table">
-          <thead><tr><th>ID</th><th>Event</th><th>Date and time</th><th>Driver</th><th>Speed</th><th>GPS position</th><th>Danger zone</th><th>Details</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="8" style="text-align:center;">No events match the filter.</td></tr>'}</tbody>
+          <thead><tr><th>ID</th><th>Event</th><th>Severity</th><th>Date and time</th><th>Driver</th><th>Speed</th><th>GPS position</th><th>Danger zone</th><th>Details</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="9" style="text-align:center;">No events match the filter.</td></tr>'}</tbody>
         </table>
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
@@ -573,23 +581,7 @@ class DashboardController {
       return;
     }
 
-    // Client-side CSV generation
-    const events = JSON.parse(localStorage.getItem("accialert_events") || "[]");
-    let csvContent = "Event ID,Event Type,Date & Time,Driver Name,Speed (km/h),Latitude,Longitude,Danger Zone,Details\n";
-
-    events.forEach(ev => {
-      csvContent += `"${ev.id}","${ev.event_type}","${ev.timestamp}","${ev.driver_name}","${ev.vehicle_speed}","${ev.latitude}","${ev.longitude}","${ev.danger_zone_name}","${ev.details}"\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `accialert_events_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    this.showToast("Downloaded events CSV export.", "success");
+    this.showToast("The server cannot be reached, so there is nothing to export.", "warning");
   }
 
   // ===================================================================
@@ -607,14 +599,14 @@ class DashboardController {
         const targetContent = document.getElementById(tabTarget);
         if (targetContent) targetContent.classList.add("active");
 
-        if (window.MapManager && window.MapManager.map) {
-          setTimeout(() => window.MapManager.map.invalidateSize(), 150);
+        if (window.MapManager && window.MapManager.view) {
+          setTimeout(() => window.MapManager.invalidate(), 150);
         }
       });
     });
 
     // Control Panel Action Buttons
-    document.getElementById("btn-emergency-stop")?.addEventListener("click", () => this.emergencyStop());
+    document.getElementById("btn-sos")?.addEventListener("click", () => this.sendSos());
     document.getElementById("btn-reset-system")?.addEventListener("click", () => this.resetSystem());
     document.getElementById("btn-ack-alert")?.addEventListener("click", () => {
       if (window.AlertManager) window.AlertManager.acknowledgeAlert();
@@ -623,29 +615,17 @@ class DashboardController {
       if (window.AlertManager) window.AlertManager.acknowledgeAlert();
     });
 
-    // Driver Auth Toggle
-    document.getElementById("btn-auth-driver")?.addEventListener("click", () => this.toggleDriverAuth());
-
     // Speed Limit Button
     document.getElementById("btn-apply-limit")?.addEventListener("click", () => this.applySpeedLimit());
 
-    // Simulation Scenario Buttons
-    document.querySelectorAll(".btn-scenario").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const scenario = btn.getAttribute("data-scenario");
-        if (scenario) this.triggerScenario(scenario);
-      });
-    });
-
-    // Mode Switch Buttons
-    document.getElementById("btn-mode-sim")?.addEventListener("click", () => this.switchMode("simulation"));
-    document.getElementById("btn-mode-serial")?.addEventListener("click", () => this.switchMode("serial"));
 
     // Event Filters
     document.getElementById("btn-filter-apply")?.addEventListener("click", () => this.loadEvents());
     document.getElementById("btn-filter-reset")?.addEventListener("click", () => {
-      const typeEl = document.getElementById("filter-event-type");
-      if (typeEl) typeEl.value = "ALL";
+      for (const id of ["filter-event-type", "filter-severity"]) {
+        const select = document.getElementById(id);
+        if (select) select.value = "ALL";
+      }
       for (const id of ["filter-start-date", "filter-end-date", "filter-search"]) {
         const input = document.getElementById(id);
         if (input) input.value = "";
@@ -673,6 +653,9 @@ class DashboardController {
     });
 
     // Map Utility Buttons
+    document.getElementById("btn-map-me")?.addEventListener("click", () => {
+      if (window.MapManager) window.MapManager.centerOnLive();
+    });
     document.getElementById("btn-map-center")?.addEventListener("click", () => {
       if (window.MapManager) window.MapManager.centerOnVehicle();
     });
@@ -695,6 +678,23 @@ class DashboardController {
     });
   }
 
+  // Shows a red warning in the header when no reading has arrived from the vehicle for 5 seconds.
+  checkDataAge() {
+    if (!this.backendConnected || this.lastTelemetryAt === null) return;
+    const age = (Date.now() - this.lastTelemetryAt) / 1000;
+    if (age <= 5) return;
+    if (!this.dataStale) {
+      this.dataStale = true;
+      this.showToast("No data from the vehicle. Check the ESP32 and its connection.", "warning");
+    }
+    const dot = document.getElementById("header-pulse-dot");
+    const text = document.getElementById("header-status-text");
+    if (dot && text) {
+      dot.className = "pulse-dot warning";
+      text.innerText = `No data from the vehicle for ${Math.round(age)} s`;
+    }
+  }
+
   updateConnectionBadge(connected, labelText) {
     const dot = document.getElementById("header-pulse-dot");
     const text = document.getElementById("header-status-text");
@@ -704,7 +704,7 @@ class DashboardController {
         text.innerText = labelText || "System active";
       } else {
         dot.className = "pulse-dot danger";
-        text.innerText = "Disconnected";
+        text.innerText = labelText || "Disconnected";
       }
     }
   }

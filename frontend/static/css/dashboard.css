@@ -1,25 +1,25 @@
 /* =====================================================================
-   AcciAlert - Light theme
+   AcciAlert - Light green theme
    Author: Muniyappan
    ===================================================================== */
 
 :root {
-  --bg-primary: #F3F4F6;
+  --bg-primary: #F0FDF4;
   --bg-secondary: #FFFFFF;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #F9FAFB;
-  --bg-card-subtle: #F9FAFB;
-  --border-color: #E5E7EB;
-  --border-glow: #D1D5DB;
+  --bg-card-hover: #F0FDF4;
+  --bg-card-subtle: #F7FEF9;
+  --border-color: #D3EDDB;
+  --border-glow: #A7E3BC;
 
-  /* Primary Colors */
-  --teal-primary: #A16207;
-  --teal-glow: rgba(161, 98, 7, 0.10);
-  --teal-dim: #854D0E;
+  /* Primary colours: green theme */
+  --teal-primary: #16A34A;
+  --teal-glow: rgba(22, 163, 74, 0.12);
+  --teal-dim: #15803D;
 
-  --orange-primary: #EA580C;
-  --orange-glow: rgba(234, 88, 12, 0.12);
-  --orange-dim: #C2410C;
+  --orange-primary: #059669;
+  --orange-glow: rgba(5, 150, 105, 0.12);
+  --orange-dim: #047857;
 
   --red-critical: #DC2626;
   --red-glow: rgba(220, 38, 38, 0.18);
@@ -29,21 +29,21 @@
   --green-success: #15803D;
 
   /* Text Colors */
-  --text-main: #111827;
-  --text-secondary: #4B5563;
-  --text-muted: #6B7280;
+  --text-main: #14301F;
+  --text-secondary: #3F5B4A;
+  --text-muted: #647F6D;
 
   /* Elevation */
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --radius-sm: 3px;
-  --radius-md: 3px;
-  --radius-lg: 3px;
-  --radius-xl: 3px;
+  --shadow-sm: 0 1px 3px rgba(22, 101, 52, 0.08);
+  --shadow-md: 0 6px 18px rgba(22, 101, 52, 0.10);
+  --shadow-lg: 0 14px 34px rgba(22, 101, 52, 0.14);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 
-  --transition-fast: none;
-  --transition-normal: none;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
 }
 
 * {
@@ -340,50 +340,6 @@ body {
   background: var(--red-critical);
 }
 
-/* Traffic Light Widget Inside Card */
-.traffic-signal-widget {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #E5E7EB;
-  padding: 6px 14px;
-  border-radius: 3px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-}
-
-.signal-bulb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  opacity: 0.25;
-}
-
-.signal-bulb.red {
-  background: #E11D48;
-}
-
-.signal-bulb.yellow {
-  background: #CA8A04;
-}
-
-.signal-bulb.green {
-  background: #16A34A;
-}
-
-.signal-bulb.active.red {
-  opacity: 1;
-  
-}
-
-.signal-bulb.active.yellow {
-  opacity: 1;
-  
-}
-
-.signal-bulb.active.green {
-  opacity: 1;
-  
-}
 
 /* =====================================================================
    MID SECTION: LIVE CHARTS & GPS MAP
@@ -639,7 +595,7 @@ body {
   border-radius: var(--radius-sm);
 }
 
-/* Simulation Scenario Bench */
+/* (the old simulated-scenario buttons were removed; these styles are no longer used) */
 .scenario-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1290,3 +1246,102 @@ body {
   color: var(--text-main);
 }
 
+
+/* ---- Two views of the same page: /home (dashboard) and /admin (admin panel) ---- */
+.view-admin .dash-only { display: none !important; }
+.view-dash .admin-only { display: none !important; }
+/* the driver login now lives on the first page, so the old login block stays out of the admin panel */
+.view-admin [data-subtab="face-sub-detector"], .view-admin #face-sub-detector { display: none !important; }
+.btn-sos {
+  background: #DC2626; color: #fff; border: 2px solid #B91C1C; font-weight: 800; letter-spacing: .08em;
+  padding: 8px 20px; border-radius: 8px; cursor: pointer;
+}
+.btn-sos:hover { background: #B91C1C; }
+.btn-sos:disabled { opacity: .6; cursor: wait; }
+
+
+/* ---- Green theme polish: soft cards, smooth buttons, gentle entrance ---- */
+body { background: linear-gradient(160deg, #F7FEF9 0%, #EAFBF0 55%, #DDF6E5 100%) fixed; }
+.header-navbar { background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
+.brand-text h1 { background: linear-gradient(90deg, #15803D, #22C55E); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.panel-card, .telemetry-card, .metric-card, .control-group-card, .stat-card {
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.panel-card:hover, .telemetry-card:hover, .metric-card:hover, .stat-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-glow); }
+.btn { border-radius: 999px; transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease, border-color .18s ease; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(22, 163, 74, 0.22); }
+.btn:active:not(:disabled) { transform: scale(.97); }
+.btn-teal, .btn-orange { background: linear-gradient(135deg, #22C55E, #15803D) !important; color: #fff !important; border-color: transparent !important; }
+.btn-outline { border-color: #86D9A3; color: #15803D; background: #fff; }
+.btn-outline:hover:not(:disabled) { background: #F0FDF4; border-color: #22C55E; }
+.tab-btn { transition: color .2s ease, border-color .2s ease, background .2s ease; }
+.tab-btn.active { color: #15803D; border-bottom-color: #16A34A; }
+.tab-content.active, .face-subtab-content.active { animation: greenFade .35s ease both; }
+.dashboard-container > * { animation: greenRise .55s ease both; }
+.dashboard-container > *:nth-child(2) { animation-delay: .06s; } .dashboard-container > *:nth-child(3) { animation-delay: .12s; } .dashboard-container > *:nth-child(4) { animation-delay: .18s; }
+@keyframes greenRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes greenFade { from { opacity: 0; } to { opacity: 1; } }
+input:focus, select:focus, textarea:focus, .form-control:focus { outline: none; border-color: #22C55E !important; box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.25); }
+.pulse-dot { background: #22C55E; }
+.btn-sos { border-radius: 999px; animation: sosGlow 2.4s ease-in-out infinite; }
+@keyframes sosGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, .35); } 50% { box-shadow: 0 0 0 9px rgba(220, 38, 38, 0); } }
+::selection { background: #BBF7D0; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* ---- driver roster: View and Delete side by side ---- */
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.btn-delete { background: #fff; color: #DC2626; border: 1px solid #FCA5A5; }
+.btn-delete:hover:not(:disabled) { background: #DC2626; color: #fff; border-color: #DC2626; box-shadow: 0 6px 14px rgba(220, 38, 38, 0.25); }
+
+
+/* ---- map: danger-zone pins, the near-zones card and district chips ---- */
+.zone-pin, .zone-area { background: none; border: 0; }
+.zone-near-card { background: rgba(255,255,255,.95); border-radius: 12px; padding: 8px 12px; box-shadow: 0 4px 14px rgba(22,101,52,.2); font-size: .8rem; color: #14301F; margin-top: 8px !important; }
+.zone-near-text { font-weight: 700; margin-bottom: 4px; }
+.zone-near-area { margin-top: 3px; font-weight: 600; color: #B45309; max-width: 210px; }
+.zone-near-switch { display: flex; gap: 6px; align-items: center; cursor: pointer; color: #3F5B4A; }
+.zone-near-switch input { accent-color: #16A34A; }
+.zone-area-chip { position: relative; display: inline-block; transform: translate(-50%, -50%); white-space: nowrap; background: rgba(255,255,255,.92); border: 2px solid; border-radius: 999px; padding: 2px 10px; font-size: .72rem; font-weight: 700; }
+.leaflet-control-layers { border-radius: 12px !important; border: 0 !important; box-shadow: 0 4px 14px rgba(22,101,52,.2) !important; font-size: .8rem; }
+.leaflet-control-layers-selector { accent-color: #16A34A; }
+
+/* ---- live location: blue dot like Google Maps ---- */
+.live-location-icon { background: none; border: 0; }
+.live-dot { position: relative; width: 26px; height: 26px; }
+.live-core { position: absolute; left: 4px; top: 4px; width: 18px; height: 18px; border-radius: 50%; background: #2563EB; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(37,99,235,.6); }
+.live-pulse { position: absolute; inset: 0; border-radius: 50%; background: rgba(37,99,235,.35); animation: livePulse 2s ease-out infinite; }
+@keyframes livePulse { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+.zone-live-text { font-weight: 700; color: #2563EB; margin-bottom: 4px; }
+.zone-live-text.off { color: #B45309; }
+@media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
+
+/* ---- admin panel: the admin tabs first, the map card below them and across the whole width ---- */
+.view-admin .panel-card.admin-only { order: 1; }
+.view-admin .mid-grid { order: 2; grid-template-columns: 1fr !important; }
+.view-admin .mid-grid > .panel-card { width: 100%; }
+.view-admin #leaflet-map { min-height: 480px; }
+
+/* ---- the map card ---- */
+.map-container-wrap { position: relative; }
+.zone-nearest-text { font-size: .78rem; color: #3F5B4A; margin-bottom: 4px; max-width: 230px; }
+
+/* ---- Danger Zone Management: notification distance ---- */
+.zone-alert-card { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; padding: 14px 18px; margin-bottom: 16px;
+  background: linear-gradient(135deg, #F0FDF4, #E7FAEE); border: 1px solid var(--border-glow); border-radius: var(--radius-lg); }
+.zone-alert-card h4 { margin: 0 0 2px; font-size: 1rem; color: #15803D; }
+.zone-alert-card p { margin: 0; font-size: .8rem; color: var(--text-secondary); max-width: 560px; }
+.zone-alert-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.zone-alert-controls select, .zone-alert-controls input { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border-glow); background: #fff; font: inherit; }
+.zone-alert-controls input { width: 110px; }
+#zone-alert-msg { font-size: .8rem; font-weight: 600; }
+#zone-alert-msg.ok { color: #15803D; } #zone-alert-msg.err { color: #DC2626; }
+
+.zone-provider { margin-top: 4px; font-size: .72rem; color: #647F6D; }
+.google-traffic-btn { margin: 0 0 24px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.zone-near-card { margin: 10px 10px 0 0; }
+.zone-go-nearest { width: 100%; margin: 2px 0 6px; padding: 4px 8px; font-size: .74rem; }
+
+/* ---- the car on the map: Google-style car badge ---- */
+.vehicle-car-icon { background: none; border: 0; }
+.vehicle-car { width: 44px; height: 44px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.4)); }
+.vehicle-car svg { display: block; }

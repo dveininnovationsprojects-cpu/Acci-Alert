@@ -14,9 +14,15 @@
   const $ = (id) => document.getElementById(id);
   const form = $("zoneForm");
   const map = L.map("map").setView([13.0827, 80.2707], 16);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+  // Google-Maps-like base map, with a satellite view to switch to
+  const streets = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors",
   }).addTo(map);
+  const satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, attribution: "Tiles &copy; Esri",
+  });
+  L.control.layers({ "Map": streets, "Satellite": satellite }, null, { position: "topright" }).addTo(map);
+  const AREA_RADIUS_M = 1500;   // bigger than this is a whole district, not a spot: thin outline, no fill
 
   let zones = [];
   let layers = {};      // zone id -> L.circle
@@ -57,15 +63,19 @@
     Object.values(layers).forEach((l) => map.removeLayer(l));
     layers = {};
     zones.forEach((z) => {
+      const area = z.radius_m >= AREA_RADIUS_M;
       const c = L.circle([z.lat, z.lon], {
-        radius: z.radius_m, color: COLORS[z.severity], weight: 2,
-        fillOpacity: z.active ? 0.25 : 0.05, dashArray: z.active ? null : "6 6",
+        radius: z.radius_m, color: COLORS[z.severity], weight: area ? 1.5 : 2,
+        fill: !area, fillOpacity: area ? 0 : (z.active ? 0.18 : 0.05), dashArray: area ? "8 8" : (z.active ? null : "6 6"),
       }).addTo(map);
       c.bindTooltip(esc(z.name) + " - limit " + z.speed_limit + " km/h");
       c.on("click", (ev) => { L.DomEvent.stopPropagation(ev); startEdit(z.id); });
       layers[z.id] = c;
     });
-    if (fit && zones.length) map.fitBounds(L.featureGroup(Object.values(layers)).getBounds().pad(0.2));
+    // zoom to the spots (not to the district circles, which would zoom out to the whole state)
+    const spots = zones.filter((z) => z.radius_m < AREA_RADIUS_M && layers[z.id]).map((z) => layers[z.id]);
+    if (fit && spots.length) map.fitBounds(L.featureGroup(spots).getBounds().pad(0.2));
+    else if (fit && zones.length) map.fitBounds(L.featureGroup(Object.values(layers)).getBounds().pad(0.2));
   }
 
   function renderList() {
@@ -133,7 +143,7 @@
     const lat = parseFloat(form.elements.lat.value), lon = parseFloat(form.elements.lon.value);
     const r = parseFloat(form.elements.radius_m.value);
     if (isNaN(lat) || isNaN(lon) || !(r > 0)) return;
-    draft = L.circle([lat, lon], { radius: r, color: "#A16207", dashArray: "4 4", fillOpacity: 0.15 }).addTo(map);
+    draft = L.circle([lat, lon], { radius: r, color: "#16A34A", dashArray: "4 4", fillOpacity: 0.15 }).addTo(map);
   }
   function clearDraft() { if (draft) { map.removeLayer(draft); draft = null; } }
 
@@ -172,7 +182,7 @@
   }
 
   async function remove(z) {
-    if (!confirm("Delete zone " + z.id + " (" + z.name + ")?")) return;
+    if (!await AppDialog.confirm({ title: "Delete danger zone?", message: "Zone " + z.id + " (" + z.name + ") will be removed.", confirmText: "Delete", danger: true })) return;
     try { await api("DELETE", "/api/zones/" + encodeURIComponent(z.id)); await loadZones(false); }
     catch (e) { $("formMsg").className = ""; $("formMsg").textContent = e.message; }
   }

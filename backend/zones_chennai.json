@@ -1,0 +1,147 @@
+{
+  "zones": [
+    {
+      "id": "CB01",
+      "name": "Nazarathpet junction (NH48, Poonamallee)",
+      "type": "blackspot",
+      "lat": 13.042259,
+      "lon": 80.078534,
+      "radius_m": 250,
+      "speed_limit": 40,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB02",
+      "name": "Thandalam junction (NH48, Sriperumbudur)",
+      "type": "blackspot",
+      "lat": 13.016901,
+      "lon": 80.005495,
+      "radius_m": 250,
+      "speed_limit": 40,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB03",
+      "name": "Pulipakkam stretch (GST Road, Chengalpattu)",
+      "type": "blackspot",
+      "lat": 12.720934,
+      "lon": 79.976021,
+      "radius_m": 300,
+      "speed_limit": 50,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB04",
+      "name": "Kathipara junction (Guindy)",
+      "type": "blackspot",
+      "lat": 13.00769,
+      "lon": 80.203838,
+      "radius_m": 250,
+      "speed_limit": 40,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB05",
+      "name": "Royapuram bridge",
+      "type": "blackspot",
+      "lat": 13.105153,
+      "lon": 80.290906,
+      "radius_m": 200,
+      "speed_limit": 30,
+      "severity": "medium",
+      "active": 1
+    },
+    {
+      "id": "CB06",
+      "name": "Velachery railway station junction",
+      "type": "blackspot",
+      "lat": 12.971272,
+      "lon": 80.218942,
+      "radius_m": 150,
+      "speed_limit": 30,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB07",
+      "name": "Guru Nanak College junction (Velachery)",
+      "type": "blackspot",
+      "lat": 12.991754,
+      "lon": 80.221558,
+      "radius_m": 150,
+      "speed_limit": 30,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB08",
+      "name": "Medavakkam junction",
+      "type": "blackspot",
+      "lat": 12.920591,
+      "lon": 80.184473,
+      "radius_m": 200,
+      "speed_limit": 30,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB09",
+      "name": "Manjampakkam roundabout (200 Feet Road)",
+      "type": "blackspot",
+      "lat": 13.161402,
+      "lon": 80.227049,
+      "radius_m": 200,
+      "speed_limit": 40,
+      "severity": "high",
+      "active": 1
+    },
+    {
+      "id": "CB10",
+      "name": "Koyambedu cloverleaf (pedestrian hotspot)",
+      "type": "blackspot",
+      "lat": 13.073449,
+      "lon": 80.194836,
+      "radius_m": 250,
+      "speed_limit": 30,
+      "severity": "medium",
+      "active": 1
+    },
+    {
+      "id": "CB11",
+      "name": "Egmore (pedestrian hotspot)",
+      "type": "blackspot",
+      "lat": 13.0794,
+      "lon": 80.26277,
+      "radius_m": 200,
+      "speed_limit": 30,
+      "severity": "medium",
+      "active": 1
+    },
+    {
+      "id": "CB12",
+      "name": "Chennai Central (pedestrian hotspot)",
+      "type": "blackspot",
+      "lat": 13.08259,
+      "lon": 80.276307,
+      "radius_m": 200,
+      "speed_limit": 30,
+      "severity": "medium",
+      "active": 1
+    },
+    {
+      "id": "CB13",
+      "name": "George Town (pedestrian hotspot)",
+      "type": "blackspot",
+      "lat": 13.092091,
+      "lon": 80.282242,
+      "radius_m": 250,
+      "speed_limit": 30,
+      "severity": "medium",
+      "active": 1
+    }
+  ]
+}

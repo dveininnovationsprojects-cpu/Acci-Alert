@@ -13,10 +13,13 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
+  <link rel="stylesheet" href="static/css/turn.css">
+  <link rel="stylesheet" href="static/css/dialog.css">
   <!-- Custom Theme CSS -->
   <link rel="stylesheet" href="static/css/dashboard.css">
 </head>
 <body>
+  <script>document.body.classList.add(location.pathname.indexOf("/admin") === 0 ? "view-admin" : "view-dash");</script>
 
   <!-- ================================================================= -->
   <!-- TOP ALERT BANNER (Active Alerts) -->
@@ -52,19 +55,21 @@
         <span id="header-status-text">INITIALIZING</span>
       </div>
       <div class="status-chip" style="display:none;">
-                <span id="header-mode-badge" class="badge badge-info">Simulation active</span>
+                <span id="header-mode-badge" class="badge badge-warning">Waiting for ESP32</span>
       </div>
     </div>
 
     <div class="header-actions">
-      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm">Zone Manager</button>
+      <!-- Dashboard: SOS, engine lock -->
+      <button type="button" id="btn-sos" class="btn btn-sos dash-only" title="Send an SOS text with the car's position">SOS</button>
+      <span id="ignitionLockBadge" class="badge badge-danger dash-only" style="font-size:0.8rem; padding:6px 12px;">VEHICLE LOCKED</span>
+      <button id="btnLockVehicle" class="btn btn-outline btn-sm dash-only" type="button">Lock vehicle</button>
+      <!-- Admin panel: zone manager, leave -->
+      <button type="button" onclick="openZoneManager()" class="btn btn-outline btn-sm admin-only">Zone Manager</button>
+      <a href="/" id="btn-admin-exit" class="btn btn-outline btn-sm admin-only" style="text-decoration:none;">Exit admin</a>
       <button id="btn-mute-toggle" class="btn btn-outline btn-sm">
         Sound ON
       </button>
-      <div style="display:flex; background:#E5E7EB; padding:3px; border-radius:3px;">
-        <button id="btn-mode-sim" class="btn btn-teal btn-sm" style="display:none; padding:4px 10px; font-size:0.75rem;">Simulation</button>
-        <button id="btn-mode-serial" class="btn btn-outline btn-sm" style="padding:4px 10px; font-size:0.75rem;">ESP32 Serial</button>
-      </div>
     </div>
   </header>
 
@@ -76,11 +81,11 @@
     <!-- ------------------------------------------------------------- -->
     <!-- SECTION 1: 10 LIVE TELEMETRY CARDS -->
     <!-- ------------------------------------------------------------- -->
-    <div>
+    <div class="dash-only">
       <div class="section-header">
         <h2 class="section-title">Live Readings</h2>
         <span style="font-size:0.8rem; color:var(--text-muted);">
-          Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">Open Highway</strong>
+          Current Zone: <strong id="val-current-zone" style="color:var(--teal-primary);">--</strong>
           &nbsp;|&nbsp; Zones entered today: <strong id="zm-count" style="color:var(--teal-primary);">0</strong>
           &nbsp;|&nbsp; Time in zone: <strong id="zm-inside" style="color:var(--teal-primary);">--</strong>
         </span>
@@ -165,7 +170,7 @@
             <span class="card-label">GPS Coordinates</span>
           </div>
           <div class="card-body" style="font-size:1.1rem; flex-direction:column; align-items:flex-start;">
-            <span id="val-gps" style="font-size:1.35rem; font-weight:600; color:var(--text-main);">13.0827, 80.2707</span>
+            <span id="val-gps" style="font-size:1.35rem; font-weight:600; color:var(--text-main);">No position</span>
             <span class="card-unit" style="font-size:0.75rem;">Chennai Corridor</span>
           </div>
           <div class="card-footer">
@@ -197,7 +202,7 @@
             <span class="card-label">Vehicle Status</span>
           </div>
           <div class="card-body">
-            <span id="val-vehicle-state" class="card-value" style="color:var(--teal-primary);">RUNNING</span>
+            <span id="val-vehicle-state" class="card-value" style="color:var(--text-muted);">WAITING</span>
           </div>
           <div class="card-footer">
             <span>Safety Controller</span>
@@ -211,8 +216,8 @@
             <span class="card-label">ESP32 Hardware</span>
           </div>
           <div class="card-body" style="font-size:1.2rem; flex-direction:column; align-items:flex-start;">
-            <span id="badge-esp32-status" class="badge badge-info" style="font-size:0.85rem; padding:4px 12px;">Simulated</span>
-            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">Simulator</span>
+            <span id="badge-esp32-status" class="badge badge-muted" style="font-size:0.85rem; padding:4px 12px;">Waiting</span>
+            <span id="val-esp32-port" style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">No reading yet</span>
           </div>
           <div class="card-footer">
             <span>Baud: 115200</span>
@@ -226,7 +231,7 @@
             <span class="card-label">GPS Link</span>
           </div>
           <div class="card-body">
-            <span id="badge-gps-fix" class="badge badge-success" style="font-size:1rem; padding:6px 14px;">3D fix</span>
+            <span id="badge-gps-fix" class="badge badge-muted" style="font-size:1rem; padding:6px 14px;">Waiting</span>
           </div>
           <div class="card-footer">
             <span>Constellation</span>
@@ -243,7 +248,7 @@
     <div class="mid-grid">
 
       <!-- Left: Real-Time Charts (Speed & Alcohol) -->
-      <div class="panel-card">
+      <div class="panel-card dash-only">
         <div class="panel-card-header">
           <h2 class="section-title">Sensors, last 60 seconds</h2>
           <span style="font-size:0.75rem; color:var(--text-muted);">
@@ -281,6 +286,7 @@
         <div class="panel-card-header">
           <h2 class="section-title orange">Vehicle map and danger zones</h2>
           <div style="display:flex; gap:6px;">
+            <button id="btn-map-me" class="btn btn-outline btn-sm" title="Go to my live location">My location</button>
             <button id="btn-map-center" class="btn btn-outline btn-sm" title="Center on Vehicle">
               Center
             </button>
@@ -298,7 +304,7 @@
           
           <!-- Floating Coordinates Overlay -->
           <div class="map-floating-overlay">
-            <div><span id="map-coords-readout">13.0827, 80.2707</span></div>
+            <div><span id="map-coords-readout">No position</span></div>
             <div style="border-left:1px solid #D1D5DB; padding-left:10px;">
               Zones: <span style="color:#16A34A;">■ Low</span> <span style="color:#CA8A04;">■ Med</span> <span style="color:#EA580C;">■ High</span> <span style="color:#DC2626;">■ Critical</span>
             </div>
@@ -311,7 +317,7 @@
     <!-- ------------------------------------------------------------- -->
     <!-- SECTION 3: TABS (CONTROL PANEL / DANGER ZONES / EVENTS) -->
     <!-- ------------------------------------------------------------- -->
-    <div class="panel-card">
+    <div class="panel-card admin-only">
       <div class="tabs-navigation">
         <button class="tab-btn active" data-tab="tab-control-panel">
           Controls
@@ -334,12 +340,9 @@
           <!-- Critical Actions Group -->
           <div class="control-group-card">
             <span class="control-group-title">
-              Emergency Controls
+              Controls
             </span>
             <div class="btn-actions-row">
-              <button id="btn-emergency-stop" class="btn btn-emergency-stop" style="flex:1;">
-                EMERGENCY STOP
-              </button>
               <button id="btn-reset-system" class="btn btn-teal" style="flex:1;">
                 RESET SYSTEM
               </button>
@@ -351,57 +354,8 @@
             </div>
           </div>
 
-          <!-- Driver authorization -->
-          <div class="control-group-card">
-            <span class="control-group-title">
-              Driver authorization
-            </span>
-            <p style="font-size:0.78rem; color:var(--text-secondary);">
-              Toggle active vehicle ignition permissions for operator verification.
-            </p>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-              <span style="font-size:0.8rem; font-weight:600; color:var(--text-main);">Driver Permissions:</span>
-              <button id="btn-auth-driver" class="btn btn-outline btn-sm">
-                Toggle Auth (Lock/Unlock)
-              </button>
-            </div>
-          </div>
-
-          <!-- Simulation Scenarios (Bench Testing) -->
-          <div style="grid-column: 1 / -1;">
-            <button type="button" class="btn btn-outline btn-sm" onclick="var b=document.getElementById('demo-tools');var h=b.style.display==='none';b.style.display=h?'block':'none';this.textContent=h?'Hide demo tools':'Show demo tools'">Show demo tools</button>
-          </div>
-          <div id="demo-tools" class="control-group-card" style="grid-column: 1 / -1; display:none;">
-            <span class="control-group-title">
-              Test alerts
-            </span>
-            <div class="scenario-grid">
-              <button class="btn-scenario accident" data-scenario="accident">
-                                <span>Simulate Accident</span>
-              </button>
-              <button class="btn-scenario" data-scenario="alcohol">
-                                <span>Simulate Alcohol</span>
-              </button>
-              <button class="btn-scenario" data-scenario="obstacle">
-                                <span>Simulate Obstacle</span>
-              </button>
-              <button class="btn-scenario" data-scenario="overspeed">
-                                <span>Simulate Overspeed</span>
-              </button>
-              <button class="btn-scenario" data-scenario="unauthorized">
-                                <span>Unauthorized Driver</span>
-              </button>
-              <button class="btn-scenario" data-scenario="danger_zone">
-                                <span>Enter Danger Zone</span>
-              </button>
-              <button class="btn-scenario" data-scenario="normal">
-                                <span>Normal Safe Drive</span>
-              </button>
-            </div>
-          </div>
-
           <!-- ESP32 Serial Hardware Configuration (Visible when Serial mode is active) -->
-          <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1; display:none;">
+          <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1;">
             <span class="control-group-title">
               ESP32 serial setup
             </span>
@@ -436,22 +390,21 @@
         <div class="face-module-header">
           <div>
             <h3 style="font-size:1.15rem; font-weight:600; color:var(--text-main);">
-                            Driver face login
+                            Drivers
             </h3>
             <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
-              The camera checks the face and that the person moves before the car unlocks.</p>
+              Enrol drivers, see the login history and tune the face match. The driver login itself is the first page.</p>
           </div>
-          <span id="ignitionLockBadge" class="badge badge-danger" style="font-size:0.85rem; padding:6px 14px;">
-            VEHICLE LOCKED
+          <span style="display:flex; gap:10px; align-items:center;">
           </span>
         </div>
 
         <!-- Nested Sub-Tabs Navigation for Arsal's 4 Submodules -->
         <div class="face-subtabs-nav">
-          <button class="face-subtab-btn active" data-subtab="face-sub-detector">
-            Live Detector
+          <button class="face-subtab-btn" data-subtab="face-sub-detector">
+            Driver Login
           </button>
-          <button class="face-subtab-btn" data-subtab="face-sub-enrol">
+          <button class="face-subtab-btn active" data-subtab="face-sub-enrol">
             Enrol Drivers <span class="badge badge-info" id="subtab-enrol-badge" style="font-size:0.7rem; padding:1px 6px;">5</span>
           </button>
           <button class="face-subtab-btn" data-subtab="face-sub-logs">
@@ -463,7 +416,7 @@
         </div>
 
         <!-- SUB-TAB 1: LIVE DETECTOR -->
-        <div id="face-sub-detector" class="face-subtab-content active">
+        <div id="face-sub-detector" class="face-subtab-content">
           <div style="display:grid; grid-template-columns: 1fr 340px; gap:20px;">
             <!-- Left: Optical Camera Viewport -->
             <div>
@@ -475,10 +428,10 @@
                   <div>
                                         <h4 style="color:var(--text-main); font-size:1.1rem; font-weight:600;">Camera is off</h4>
                     <p style="color:var(--text-secondary); font-size:0.8rem; max-width:380px; margin:8px auto 16px;">
-                      Start the camera to check the driver's face.
+                      Start the camera, face it, then press Capture Image to log in.
                     </p>
                     <button id="btnStartCamera" class="btn btn-teal">
-                      Start Face Detector
+                      Start Camera
                     </button>
                   </div>
                 </div>
@@ -491,7 +444,7 @@
                   </button>
                 </div>
                 <div style="display:flex; gap:12px; font-size:0.75rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">
-                  <span>LATENCY: 28ms</span>
+                  <span id="authLatency">CHECK TOOK: --</span>
                 </div>
               </div>
 
@@ -575,14 +528,11 @@
                   Capture Image
                 </button>
 
-                <!-- Retake & Save Actions -->
+                <!-- Retake -->
                 <div id="captureActionsRow" style="display:none; gap:8px; margin-top:8px;">
                   <button id="btnRetakeSnapshot" class="btn btn-outline btn-sm" style="flex:1;">
                     Retake
                   </button>
-                  <a id="btnDownloadSnapshot" class="btn btn-outline btn-sm" download="driver_snapshot.jpg" style="flex:1; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:4px;">
-                    Save Image
-                  </a>
                 </div>
 
                 <!-- Status Feedback -->
@@ -599,14 +549,14 @@
               </div>
 
               <p style="font-size:0.72rem; color:var(--text-muted); margin-top:14px; text-align:center;">
-                Capture live driver image for identity verification and logging.
+                Capture checks the driver's face. An authorised driver starts the car; anyone else cannot. Every attempt is logged.
               </p>
             </div>
           </div>
         </div>
 
         <!-- SUB-TAB 2: DRIVER ENROLMENT WIZARD -->
-        <div id="face-sub-enrol" class="face-subtab-content">
+        <div id="face-sub-enrol" class="face-subtab-content active">
           <div style="display:grid; grid-template-columns: 380px 1fr; gap:20px;">
             <!-- Left: Enrolment Form -->
             <div class="control-group-card">
@@ -630,7 +580,7 @@
                   <div id="enrolProgressText" style="font-size:0.75rem; color:var(--teal-primary); margin-top:4px;">Capturing facial frames...</div>
                 </div>
 
-                <small style="color:var(--text-muted); font-size:0.72rem;">The camera takes 25 frames, one every 0.4 s. Keep good light on your face and turn your head slowly.</small>
+                <small style="color:var(--text-muted); font-size:0.72rem;">The camera follows the arrows: look straight, turn your head RIGHT, then LEFT, then look straight again. Each arrow turns green when the turn is seen. Keep good light on your face and only one person in view.</small>
 
                 <button type="submit" id="btnStartEnrolment" class="btn btn-teal" style="margin-top:6px;">
                   Start Enrolment Capture
@@ -769,12 +719,12 @@
               </span>
               <div style="margin-top:14px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                  <label class="form-label" style="font-size:0.85rem; font-weight:600;">Decision Distance Threshold:</label>
+                  <label id="labelThreshold" class="form-label" style="font-size:0.85rem; font-weight:600;">Recognition threshold:</label>
                   <span id="valThreshold" style="font-family:'JetBrains Mono', monospace; font-weight:600; color:var(--teal-primary);">35.0</span>
                 </div>
                 <input type="range" class="form-range" min="10" max="70" step="0.5" id="rangeThreshold" value="35.0">
-                <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:6px;">
-                  A face distance below this value is accepted as an authorised driver. Lower is stricter; higher is more permissive. Calibrated range: 16.0–20.0.
+                <small id="hintThreshold" style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:6px;">
+                  Loading the threshold of the recogniser in use...
                 </small>
               </div>
 
@@ -784,10 +734,10 @@
                     Enable Anti-Spoofing Liveness Verification
                   </label>
                   <small style="color:var(--text-muted); font-size:0.75rem; display:block;">
-                    Requires eye blinking and natural micro-motion before unlocking vehicle. Prevents printed photo attacks.
+                    Always on. The driver must turn the head RIGHT, then LEFT, then look straight before the car unlocks, so a photo does not work.
                   </small>
                 </div>
-                <input type="checkbox" id="toggleLiveness" checked style="width:20px; height:20px; accent-color:var(--teal-primary); cursor:pointer;">
+                <input type="checkbox" id="toggleLiveness" checked disabled style="width:20px; height:20px; accent-color:var(--teal-primary);">
               </div>
             </div>
           </div>
@@ -808,6 +758,23 @@
           <button id="btn-open-add-zone" class="btn btn-teal btn-sm">
             Add Danger Zone
           </button>
+        </div>
+
+        <div class="zone-alert-card">
+          <div>
+            <h4>Danger zone notification distance</h4>
+            <p>A notification shows when the car (or you) comes within this distance of a danger zone. The map shows the danger spots within this distance too.</p>
+          </div>
+          <div class="zone-alert-controls">
+            <select id="zone-alert-select" aria-label="Notification distance">
+              <option value="100">100 m</option><option value="250">250 m</option><option value="500">500 m</option>
+              <option value="1000">1 km</option><option value="2000">2 km</option><option value="5000">5 km</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <input type="number" id="zone-alert-custom" min="50" max="5000" step="10" placeholder="metres" style="display:none;" aria-label="Custom distance in metres">
+            <button id="btn-save-zone-alert" class="btn btn-teal btn-sm" type="button">Save</button>
+            <span id="zone-alert-msg"></span>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -851,6 +818,23 @@
               <option value="OVERSPEED_IN_ZONE">OVERSPEED_IN_ZONE</option>
               <option value="ZONE EXIT">ZONE EXIT</option>
               <option value="EMERGENCY STOP">EMERGENCY STOP</option>
+              <option value="AUTH_OK">AUTH_OK</option>
+              <option value="DRIVER_ENROLLED">DRIVER_ENROLLED</option>
+                        <option value="DRIVER_DELETED">DRIVER_DELETED</option>
+              <option value="LOGS_CLEARED">LOGS_CLEARED</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0; min-width:140px;">
+            <label class="form-label">Severity</label>
+            <select id="filter-severity" class="form-control">
+              <option value="ALL">All severities</option>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="WARNING">WARNING</option>
+              <option value="LOW">LOW</option>
+              <option value="INFO">INFO</option>
             </select>
           </div>
 
@@ -897,6 +881,7 @@
             <thead>
               <tr>
                 <th>Event</th>
+                <th>Severity</th>
                 <th>Date and time</th>
                 <th>Driver</th>
                 <th>Speed</th>
@@ -1026,12 +1011,13 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Application Modules -->
-  <script src="static/js/client_simulator.js"></script>
+  <script src="static/js/dialog.js"></script>
   <script src="static/js/alerts.js"></script>
   <script src="static/js/charts.js"></script>
   <script src="static/js/map.js"></script>
   <script src="static/js/zones.js"></script>
   <script src="static/js/dashboard.js"></script>
+  <script src="static/js/headturn.js"></script>
   <script src="static/js/driver_auth.js"></script>
 
 <div id="zm-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#F3F4F6;flex-direction:column;">

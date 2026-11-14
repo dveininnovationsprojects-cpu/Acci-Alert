@@ -115,12 +115,6 @@ class AlertSystem {
         setTimeout(() => this.playTone(659.25, "sine", 0.35, 0.25), 160); // E5
         break;
 
-      case "signal":
-        // Continuous pulsed red stop warning
-        this.playTone(700, "square", 0.25, 0.15);
-        setTimeout(() => this.playTone(700, "square", 0.25, 0.15), 300);
-        break;
-
       default:
         this.playTone(600, "sine", 0.2, 0.2);
         break;
@@ -209,8 +203,7 @@ class AlertSystem {
       "UNAUTHORISED DRIVER": "SECURITY ALERT: UNAUTHORISED DRIVER",
       "OBSTACLE DETECTED": "PROXIMITY WARNING: OBSTACLE DETECTED",
       "OVERSPEED": "SPEED VIOLATION: OVERSPEED",
-      "DANGER ZONE": alert.title || "DANGER ZONE ENTERED",
-      "TRAFFIC SIGNAL STOP": "SIGNAL VIOLATION: RED SIGNAL STOP"
+      "DANGER ZONE": alert.title || "DANGER ZONE ENTERED"
     };
 
 
