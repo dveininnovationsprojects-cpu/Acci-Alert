@@ -67,7 +67,10 @@ CREATE TABLE IF NOT EXISTS telemetry (
     lat       REAL,
     lon       REAL,
     state     TEXT,
-    zone_id   TEXT
+    zone_id   TEXT,
+    ax        REAL,
+    ay        REAL,
+    az        REAL
 );
 CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry(timestamp);
 CREATE TABLE IF NOT EXISTS danger_zones (
@@ -180,6 +183,11 @@ def connect(path=DEFAULT_DB):
             pass
         return _repair(path)
     conn.executescript(SCHEMA)
+    # Files made before the accelerometer columns existed get them added here
+    have = {r[1] for r in conn.execute("PRAGMA table_info(telemetry)")}
+    for column in ("ax", "ay", "az"):
+        if column not in have:
+            conn.execute(f"ALTER TABLE telemetry ADD COLUMN {column} REAL")
     conn.commit()
     return conn
 
@@ -294,14 +302,16 @@ def events_to_csv(rows):
 # -------------------------------------------------------------- telemetry
 @_locked
 def log_telemetry(conn, speed=None, alcohol=None, distance=None, tilt=None,
-                  lat=None, lon=None, state=None, zone_id=None, timestamp=None):
+                  lat=None, lon=None, state=None, zone_id=None, timestamp=None,
+                  ax=None, ay=None, az=None):
     """Store one sample (caller should call this at ~1 Hz, not 5 Hz)."""
     ts = _num(timestamp)
     conn.execute(
-        "INSERT INTO telemetry(timestamp,speed,alcohol,distance,tilt,lat,lon,state,zone_id)"
-        " VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO telemetry(timestamp,speed,alcohol,distance,tilt,lat,lon,state,zone_id,ax,ay,az)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (ts if ts is not None else time.time(), _num(speed), _num(alcohol), _num(distance),
-         _num(tilt), _num(lat), _num(lon), _text(state, 32), _text(zone_id, 32)),
+         _num(tilt), _num(lat), _num(lon), _text(state, 32), _text(zone_id, 32),
+         _num(ax), _num(ay), _num(az)),
     )
     conn.commit()
 

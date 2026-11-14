@@ -299,3 +299,43 @@ def test_zone_manager_header_only_links_back_to_the_dashboard():
     header = page.split("<header>")[1].split("</header>")[0]
     assert 'id="backLink"' in header and "closeZoneManager" in header   # inside the dashboard it closes the overlay
     assert "/dashboard" not in header                                   # a link here would load a page inside the frame
+
+
+def test_accelerometer_values_are_saved_with_telemetry(monkeypatch):
+    from backend import app as app_module
+
+    monkeypatch.setattr(app_module.socketio, "emit", lambda *a, **k: None)
+    monkeypatch.setattr(app_module.state, "mode", "serial")
+    time.sleep(1.2)
+    monkeypatch.setattr(app_module.state, "last_telemetry_saved", 0.0)
+    app_module.process_telemetry_packet({"spd": 12, "lat": 13.1, "lon": 80.3, "fix": 1,
+                                         "ax": 0.25, "ay": -0.5, "az": 0.98}, source="TEST")
+    row = app_module.zone_conn.execute("SELECT ax, ay, az FROM telemetry ORDER BY id DESC LIMIT 1").fetchone()
+    assert (row["ax"], row["ay"], row["az"]) == (0.25, -0.5, 0.98)
+
+
+def test_old_telemetry_table_gets_accelerometer_columns(tmp_path):
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE telemetry (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp REAL NOT NULL, speed REAL, "
+                "alcohol REAL, distance REAL, tilt REAL, lat REAL, lon REAL, state TEXT, zone_id TEXT)")
+    old.commit()
+    old.close()
+    conn = zone_db.connect(path)
+    zone_db.log_telemetry(conn, speed=5, ax=0.1, ay=0.2, az=0.3)
+    assert conn.execute("SELECT az FROM telemetry").fetchone()["az"] == 0.3
+    conn.close()
+
+
+def test_login_event_uses_the_latest_car_position(monkeypatch):
+    from backend import app as app_module
+
+    monkeypatch.setattr(app_module.state, "latest_telemetry", {"spd": 41.5, "lat": 12.5, "lon": 79.5})
+    assert app_module.vehicle_position() == (41.5, 12.5, 79.5)
+    monkeypatch.setattr(app_module.state, "latest_telemetry", None)
+    assert app_module.vehicle_position()[0] == 0.0
+
+
+def test_unused_liveness_stub_is_gone():
+    from backend import app as app_module
+    assert app_module.app.test_client().post("/api/liveness").status_code == 404
