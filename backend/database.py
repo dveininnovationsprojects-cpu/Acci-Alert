@@ -277,16 +277,6 @@ def get_all_zones():
     return rows
 
 
-def get_zone_by_id(zone_id: int):
-    """Retrieve a single danger zone by ID."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM danger_zones WHERE id = ?", (zone_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
 def add_zone(code: str, name: str, latitude: float, longitude: float,
              radius_meters: float, speed_limit: float, severity: str = "MEDIUM",
              details: str = "") -> int:
@@ -313,33 +303,6 @@ def add_zone(code: str, name: str, latitude: float, longitude: float,
     conn.commit()
     conn.close()
     return new_id
-
-
-def update_zone(zone_id: int, code: str, name: str, latitude: float, longitude: float,
-                radius_meters: float, speed_limit: float, severity: str = "MEDIUM",
-                details: str = "") -> bool:
-    """Update an existing danger zone."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE danger_zones
-        SET code = ?, name = ?, latitude = ?, longitude = ?, radius_meters = ?, speed_limit = ?, severity = ?, details = ?
-        WHERE id = ?
-    """, (
-        code.strip().upper(),
-        name.strip(),
-        float(latitude),
-        float(longitude),
-        float(radius_meters),
-        float(speed_limit),
-        severity.strip().upper(),
-        (details or "").strip(),
-        zone_id
-    ))
-    updated = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return updated
 
 
 def delete_zone(zone_id: int) -> bool:
@@ -409,14 +372,6 @@ def log_command(command: str, source: str = "UI", status: str = "SENT"):
 
 
 # Compatibility Aliases for Rest APIs & Test Suites
-def add_danger_zone(code: str, name: str, latitude: float, longitude: float,
-                    radius_meters: float, speed_limit: float,
-                    severity: str = "MEDIUM", details: str = "") -> int:
-    return add_zone(code, name, latitude, longitude, radius_meters, speed_limit, severity, details)
-
-
-def delete_danger_zone(zone_id: int) -> bool:
-    return delete_zone(zone_id)
 
 
 def get_recent_events(limit: int = 100, offset: int = 0, event_type: str = None):

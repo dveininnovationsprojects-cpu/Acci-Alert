@@ -36,7 +36,7 @@ def train_ai_model(dataset_dir: Path = config.DATASET_DIR) -> FaceRecognizer:
 
     driver_folders = [d for d in dataset_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
     if not driver_folders:
-        raise ValueError(f"No driver folders found in {dataset_dir}. Run enrol_driver.py first.")
+        raise ValueError(f"No driver folders found in {dataset_dir}. Enrol a driver from the dashboard first (photos are saved there).")
 
     names_map: Dict[int, str] = {}
     face_rois: List[np.ndarray] = []

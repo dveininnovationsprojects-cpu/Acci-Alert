@@ -32,13 +32,13 @@ code/
     face_detector.py   Finds faces and eyes
     face_recognizer.py Recognises drivers: LBPH model and the pretrained SFace model
     liveness.py        Movement check
-    face_auth.py       Face login flow (webcam to result)
     train_model.py     Trains the face model from dataset/
     backup.py          Database backup script
-    tools/             Scripts: get_models, enrol a driver, camera test, T8 accuracy check
+    tools/             Scripts: get_models, camera test, T8 accuracy check
     tests/             All automated tests
     models/            Face models (LBPH model, Haar files, SFace and YuNet .onnx files)
-    data/              Database files (not in Git)
+    data/              Database files and face signatures (not in Git)
+    dataset/           Photos saved at enrolment, one folder per driver (not in Git)
   frontend/
     index.html         Dashboard (main page)
     dashboard.html     Fleet dashboard page
@@ -92,13 +92,13 @@ python -m backend.tools.get_models
 
 Then start the server, open the **Face Recognition** tab, choose **Enrol Drivers**, type a name and click
 **Start Enrolment Capture**. The browser camera takes live frames and the server saves the face signatures in
-`backend/data/face_gallery.npz`. There is no photo set and no training step. Once one driver is enrolled the
+`backend/data/face_gallery.npz`, and the captured frames are kept as photos in `backend/dataset/<name>/`.
+There is no training step. Once one driver is enrolled the
 face check uses SFace. Drivers that were only in the old LBPH model must be enrolled live again.
 
 Other face tools:
 
 ```bash
-python -m backend.tools.enrol_driver --name "Arun" --target 25
 python -m backend.tools.camera_test
 python -m backend.train_model     # old LBPH model, needs photos in backend/dataset/<name>/
 ```
