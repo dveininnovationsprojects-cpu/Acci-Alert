@@ -100,6 +100,7 @@ simulator.set_danger_zones(database.get_all_zones())
 face_detector = FaceDetector()
 face_recognizer = FaceRecognizer()
 face_sface = SFaceRecognizer()   # pretrained model, drivers enrolled live from the camera
+database.sync_driver_samples(face_sface.enrolled())   # keep the driver table in step with the saved faces
 liveness_detector = LivenessDetector()
 db_logger = DatabaseLogger()
 
@@ -482,18 +483,43 @@ def decode_frame(data: str):
     return cv2.imdecode(buf, cv2.IMREAD_COLOR)
 
 
+def roster_entries():
+    """Every driver the face login knows, most recently enrolled first. The details come from the database."""
+    known = set(face_sface.enrolled()) | set(face_recognizer.labels_map.values())
+    records = {d["name"]: d for d in database.get_driver_records()}
+    entries = []
+    for name in known:
+        row = records.get(name, {})
+        entries.append({
+            "name": name,
+            "samples": row.get("face_samples") or 0,
+            "license": row.get("license_number") or "",
+            "enrolled_at": row.get("last_enrolled_at") or "",
+            "images": row.get("photos_saved") or 0,
+            "folder": row.get("photo_folder") or f"backend/dataset/{name}",
+        })
+    entries.sort(key=lambda e: (e["enrolled_at"], e["name"]), reverse=True)   # no date -> last
+    return entries
+
+
 @app.route("/api/enrolled", methods=["GET"])
 def enrolled_drivers_api():
-    """Drivers the face login knows, with the number of saved face samples."""
-    drivers = dict(face_sface.enrolled())
-    for name in face_recognizer.labels_map.values():
-        drivers.setdefault(name, 0)
-    licenses = {d["name"]: d.get("license_number") or "" for d in database.get_all_drivers()}
+    """Drivers the face login knows, newest enrolment first."""
     return jsonify({
         "engine": "sface" if use_sface() else "lbph",
         "models_ready": face_sface.models_ready,
-        "drivers": [{"name": n, "samples": c, "license": licenses.get(n, "")} for n, c in sorted(drivers.items())],
+        "drivers": roster_entries(),
     })
+
+
+@app.route("/api/enrolled/<name>", methods=["GET"])
+def enrolled_driver_details_api(name):
+    """One driver's details and full enrolment history."""
+    entry = next((e for e in roster_entries() if e["name"] == name), None)
+    if entry is None:
+        return jsonify({"status": "error", "message": "Driver not found."}), 404
+    entry["history"] = database.get_driver_history(name)
+    return jsonify(entry)
 
 
 @app.route("/api/enrol", methods=["POST"])
@@ -524,7 +550,8 @@ def enrol_driver_api():
         logger.error(f"Error in /api/enrol: {err}")
         return jsonify({"status": "error", "message": "Enrolment failed."}), 500
 
-    db_logger.register_enrolled_driver(result["name"], result["total_samples"], license_number)
+    database.save_driver_enrolment(result["name"], license_number, result["accepted"], result["total_samples"],
+                                   result["images_saved"], result["folder"])
     result["license"] = license_number
     database.add_event("DRIVER_ENROLLED", result["name"], 0.0, config.DEFAULT_LATITUDE, config.DEFAULT_LONGITUDE,
                        "None", f"Enrolled from live camera: {result['accepted']} frames, license {license_number}, photos in {result['folder']}")

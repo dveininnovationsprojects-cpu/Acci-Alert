@@ -69,7 +69,7 @@ DB_PATH = Path(DATABASE_PATH)
 # Server
 SECRET_KEY = os.environ.get("SECRET_KEY", "accialert-dev-key")
 HOST = "0.0.0.0"
-PORT = 5173
+PORT = int(os.environ.get("ACCIALERT_PORT", 5173))   # the demo port; override only for a second test copy
 DEBUG = False
 
 # Telemetry & Sampling

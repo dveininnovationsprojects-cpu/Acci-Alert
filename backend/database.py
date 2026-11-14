@@ -66,6 +66,31 @@ def init_db():
         )
     """)
 
+    # Driver details added for live face enrolment (older databases are upgraded in place)
+    existing_columns = {row["name"] for row in cursor.execute("PRAGMA table_info(drivers)").fetchall()}
+    for column, definition in [
+        ("face_samples", "INTEGER NOT NULL DEFAULT 0"),    # face signatures saved for this driver
+        ("photos_saved", "INTEGER NOT NULL DEFAULT 0"),    # photos saved in backend/dataset/<name>/
+        ("photo_folder", "TEXT"),
+        ("last_enrolled_at", "TEXT"),
+    ]:
+        if column not in existing_columns:
+            cursor.execute(f"ALTER TABLE drivers ADD COLUMN {column} {definition}")
+
+    # One row per enrolment, so the full history of a driver can be shown
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS driver_enrolments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            driver_name TEXT NOT NULL,
+            license_number TEXT,
+            frames_used INTEGER NOT NULL,
+            face_samples INTEGER NOT NULL,
+            photos_saved INTEGER NOT NULL,
+            photo_folder TEXT,
+            enrolled_at TEXT NOT NULL
+        )
+    """)
+
     # Commands Audit Log
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS commands_log (
@@ -390,4 +415,85 @@ def get_events_count(event_type: str = None) -> int:
     res = get_events(limit=1, offset=0, event_type=event_type)
     return res["total"]
 
+
+# Driver details (name, license, face samples, photos, enrolment history)
+
+def save_driver_enrolment(name: str, license_number: str, frames_used: int, face_samples: int,
+                          photos_saved: int, photo_folder: str):
+    """Store a finished enrolment: updates (or creates) the driver and adds a history row."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db_connection()
+    try:
+        row = conn.execute("SELECT id FROM drivers WHERE name = ?", (name,)).fetchone()
+        note = f"Enrolled from live camera, {face_samples} face samples"
+        if row:
+            conn.execute("""
+                UPDATE drivers
+                SET license_number = COALESCE(?, license_number), authorized = 1, notes = ?,
+                    face_samples = ?, photos_saved = photos_saved + ?, photo_folder = ?, last_enrolled_at = ?
+                WHERE id = ?
+            """, (license_number, note, face_samples, photos_saved, photo_folder, now, row["id"]))
+        else:
+            conn.execute("""
+                INSERT INTO drivers (name, license_number, authorized, notes, created_at,
+                                     face_samples, photos_saved, photo_folder, last_enrolled_at)
+                VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)
+            """, (name, license_number, note, now, face_samples, photos_saved, photo_folder, now))
+        conn.execute("""
+            INSERT INTO driver_enrolments (driver_name, license_number, frames_used, face_samples,
+                                           photos_saved, photo_folder, enrolled_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (name, license_number, frames_used, face_samples, photos_saved, photo_folder, now))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_driver_records():
+    """Driver rows, most recently enrolled first."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute("SELECT * FROM drivers ORDER BY COALESCE(last_enrolled_at, created_at) DESC, id DESC").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_driver_history(name: str, limit: int = 100):
+    """Enrolment history of one driver, newest first."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute("SELECT * FROM driver_enrolments WHERE driver_name = ? ORDER BY id DESC LIMIT ?",
+                            (name, int(limit))).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def sync_driver_samples(sample_counts):
+    """Make the database agree with the saved face signatures at server start.
+    sample_counts: {driver name: number of face signatures in the gallery file}.
+    Drivers enrolled before these columns existed get their sample count and date filled in."""
+    conn = get_db_connection()
+    try:
+        for name, count in sample_counts.items():
+            row = conn.execute("SELECT id, face_samples, last_enrolled_at FROM drivers WHERE name = ?", (name,)).fetchone()
+            event = conn.execute("SELECT MAX(timestamp) FROM events WHERE event_type = 'DRIVER_ENROLLED' AND driver_name = ?",
+                                 (name,)).fetchone()[0]
+            when = event or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if row is None:
+                conn.execute("""INSERT INTO drivers (name, authorized, notes, created_at, face_samples, last_enrolled_at)
+                                VALUES (?, 1, 'Enrolled from live camera', ?, ?, ?)""", (name, when, count, when))
+            else:
+                conn.execute("UPDATE drivers SET face_samples = ?, last_enrolled_at = COALESCE(last_enrolled_at, ?) WHERE id = ?",
+                             (count, when, row["id"]))
+            has_history = conn.execute("SELECT 1 FROM driver_enrolments WHERE driver_name = ? LIMIT 1", (name,)).fetchone()
+            if not has_history and count:
+                license_number = conn.execute("SELECT license_number FROM drivers WHERE name = ?", (name,)).fetchone()[0]
+                conn.execute("""INSERT INTO driver_enrolments (driver_name, license_number, frames_used, face_samples,
+                                                               photos_saved, photo_folder, enrolled_at)
+                                VALUES (?, ?, ?, ?, 0, NULL, ?)""", (name, license_number, count, count, when))
+        conn.commit()
+    finally:
+        conn.close()
 

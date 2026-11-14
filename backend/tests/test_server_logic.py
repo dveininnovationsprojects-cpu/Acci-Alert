@@ -101,3 +101,31 @@ def test_healthy_database_is_left_alone(tmp_path):
     make_database(path, telemetry_rows=10)
     zone_db.connect(path).close()
     assert not list(tmp_path.glob("zones.db.corrupt-*"))
+
+
+# ---------------------------------------------------------------- driver details in the database
+def test_driver_table_is_upgraded_and_history_is_kept():
+    from backend import app as app_module
+    db = app_module.database
+    conn = db.get_db_connection()
+    columns = {r["name"] for r in conn.execute("PRAGMA table_info(drivers)")}
+    conn.close()
+    assert {"face_samples", "photos_saved", "photo_folder", "last_enrolled_at"} <= columns
+
+    db.save_driver_enrolment("DbTest", "DL-7777", 25, 25, 25, "backend/dataset/DbTest")
+    db.save_driver_enrolment("DbTest", "DL-7777", 20, 45, 20, "backend/dataset/DbTest")
+    row = next(d for d in db.get_driver_records() if d["name"] == "DbTest")
+    assert (row["license_number"], row["face_samples"], row["photos_saved"]) == ("DL-7777", 45, 45)
+    history = db.get_driver_history("DbTest")
+    assert [h["frames_used"] for h in history] == [20, 25]          # newest first
+
+
+def test_sync_fills_in_drivers_enrolled_before_the_columns_existed():
+    from backend import app as app_module
+    db = app_module.database
+    db.sync_driver_samples({"SyncOnly": 10})
+    row = next(d for d in db.get_driver_records() if d["name"] == "SyncOnly")
+    assert row["face_samples"] == 10 and row["last_enrolled_at"]
+    assert len(db.get_driver_history("SyncOnly")) == 1
+    db.sync_driver_samples({"SyncOnly": 10})                         # running it again adds nothing
+    assert len(db.get_driver_history("SyncOnly")) == 1

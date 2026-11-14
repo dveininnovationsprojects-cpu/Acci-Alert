@@ -185,27 +185,34 @@ def test_enrol_requires_license_number():
     assert "license" in reply.get_json()["message"].lower()
 
 
-def test_enrol_saves_license_and_blocks_a_duplicate(monkeypatch, tmp_path, fake_recognizer):
+def test_enrolment_details_are_stored_in_the_database(monkeypatch, tmp_path, fake_recognizer):
     from backend import app as app_module
-    stored = []
     monkeypatch.setattr(app_module, "face_sface", fake_recognizer)
     monkeypatch.setattr(app_module.config, "DATASET_DIR", tmp_path / "dataset")
-    monkeypatch.setattr(app_module.database, "get_all_drivers", lambda: list(stored))
-    monkeypatch.setattr(app_module.database, "add_event", lambda *a, **k: 0)
-    monkeypatch.setattr(app_module.db_logger, "register_enrolled_driver",
-                        lambda name, count, license_number=None: stored.append(
-                            {"name": name, "license_number": license_number}))
     client = app_module.app.test_client()
     frames = [BLANK_JPEG] * 12
 
-    first = client.post("/api/enrol", json={"name": "Arun", "license": "TN-09 1234", "frames": frames})
+    first = client.post("/api/enrol", json={"name": "QaArun", "license": "TN-09 1234", "frames": frames})
     assert first.status_code == 200
     assert first.get_json()["license"] == "TN-09 1234"
-    assert len(list((tmp_path / "dataset" / "Arun").glob("*.jpg"))) == 12
+    assert len(list((tmp_path / "dataset" / "QaArun").glob("*.jpg"))) == 12
 
-    clash = client.post("/api/enrol", json={"name": "Kumar", "license": "TN-09 1234", "frames": frames})
+    row = next(d for d in app_module.database.get_driver_records() if d["name"] == "QaArun")
+    assert row["license_number"] == "TN-09 1234"
+    assert row["face_samples"] == 12
+    assert row["photos_saved"] == 12
+    assert row["last_enrolled_at"]
+
+    client.post("/api/enrol", json={"name": "QaArun", "license": "TN-09 1234", "frames": frames})   # enrol again
+    details = client.get("/api/enrolled/QaArun").get_json()
+    assert details["samples"] == 24 and details["images"] == 24
+    assert len(details["history"]) == 2            # one history row per enrolment
+    assert details["history"][0]["frames_used"] == 12
+
+    clash = client.post("/api/enrol", json={"name": "QaKumar", "license": "TN-09 1234", "frames": frames})
     assert clash.status_code == 400
-    assert "already belongs to Arun" in clash.get_json()["message"]
+    assert "already belongs to QaArun" in clash.get_json()["message"]
 
+    assert client.get("/api/enrolled/NoSuchDriver").status_code == 404
     listed = {d["name"]: d for d in client.get("/api/enrolled").get_json()["drivers"]}
-    assert listed["Arun"]["license"] == "TN-09 1234"
+    assert listed["QaArun"]["license"] == "TN-09 1234"

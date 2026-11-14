@@ -11,6 +11,8 @@
  *   7. Synchronization with Muniyappan's Fleet Dashboard & Card 6
  */
 
+const ENROL_FRAMES = 25;   // frames taken at enrolment, one every 0.4 s
+
 class DriverAuthController {
   constructor() {
     this.videoEl = document.getElementById("driverVideo");
@@ -47,6 +49,7 @@ class DriverAuthController {
 
     this.loadPersistedLogs();
     this.bindEvents();
+    this.bindRosterEvents();
     this.loadRoster();
     this.loadAuditLogs();
     this.loadPersistedCapture();
@@ -630,7 +633,7 @@ class DriverAuthController {
       const data = await res.json();
       this.enrolledDrivers = {};
       (data.drivers || []).forEach(d => {
-        this.enrolledDrivers[d.name] = { name: d.name, count: d.samples, license: d.license || "" };
+        this.enrolledDrivers[d.name] = { name: d.name, count: d.samples, license: d.license || "", enrolledAt: d.enrolled_at || "" };
       });
     } catch (_) {
       this.enrolledDrivers = {};
@@ -658,7 +661,7 @@ class DriverAuthController {
       alert("Enter the driver's name and license number first.");
       return;
     }
-    const wanted = Math.min(100, Math.max(10, parseInt(document.getElementById("inputSampleCount")?.value || 25, 10)));
+    const wanted = ENROL_FRAMES;
 
     const wrap = document.getElementById("enrolProgressWrap");
     if (wrap) wrap.style.display = "block";
@@ -671,6 +674,7 @@ class DriverAuthController {
     }
 
     this.enrolmentState = { isEnrolling: true, driverName: name, targetSamples: wanted, capturedSamples: 0 };
+    this.showEnrolCamera(true);
     const canvas = document.createElement("canvas");
     canvas.width = 640;
     canvas.height = 480;
@@ -685,6 +689,7 @@ class DriverAuthController {
       this.enrolmentState.capturedSamples = frames.length;
       if (fill) fill.style.width = `${Math.round((frames.length / wanted) * 100)}%`;
       this.setEnrolStatus(`Capturing ${name}: ${frames.length} / ${wanted}. Look at the camera and turn your head slowly.`, false);
+      this.setEnrolCount(`${frames.length} / ${wanted}`);
       await new Promise(resolve => setTimeout(resolve, 400));
     }
 
@@ -697,6 +702,7 @@ class DriverAuthController {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Enrolment failed.");
+      this.setEnrolCount("Saved");
       this.finishEnrolment(data);
     } catch (err) {
       this.setEnrolStatus(err.message, true);
@@ -717,32 +723,151 @@ class DriverAuthController {
     }
   }
 
+  // Shows the live camera in the enrolment form (the same camera stream the face check uses)
+  showEnrolCamera(on) {
+    const video = document.getElementById("enrolVideo");
+    const box = video ? video.parentElement : null;
+    if (!video || !box) return;
+    if (on && this.stream) {
+      video.srcObject = this.stream;
+      video.play().catch(() => {});
+      box.classList.add("live");
+      const count = document.getElementById("enrolFrameCount");
+      if (count) count.style.display = "block";
+    } else {
+      box.classList.remove("live");
+    }
+  }
+
+  setEnrolCount(text) {
+    const count = document.getElementById("enrolFrameCount");
+    if (count) count.textContent = text;
+  }
+
+  escapeHtml(text) {
+    return String(text ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  statusLabel(d) {
+    return d.count > 0
+      ? '<span class="badge badge-success">Live enrolled</span>'
+      : '<span class="badge badge-warning">Needs live enrolment</span>';
+  }
+
+  // The roster shows the 5 most recent drivers. "View all drivers" opens the full list.
   renderRosterTable() {
     const tbody = document.getElementById("rosterTableBody");
     if (!tbody) return;
 
-    const drivers = Object.values(this.enrolledDrivers);
+    const drivers = Object.values(this.enrolledDrivers);   // newest enrolment first (server order)
+    const recent = drivers.slice(0, 5);
+
     if (drivers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No drivers enrolled.</td></tr>';
-      return;
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No drivers enrolled.</td></tr>';
+    } else {
+      tbody.innerHTML = recent.map(d => `
+        <tr>
+          <td style="font-weight:600;">${this.escapeHtml(d.name)}</td>
+          <td>${this.statusLabel(d)}</td>
+          <td style="color:var(--text-secondary);">${this.escapeHtml(d.license) || "-"}</td>
+          <td style="color:var(--text-secondary);">${d.count} samples</td>
+          <td><button type="button" class="btn btn-outline btn-sm" data-view-driver="${this.escapeHtml(d.name)}">View</button></td>
+        </tr>
+      `).join("");
     }
 
-    tbody.innerHTML = drivers.map(d => `
-      <tr>
-        <td style="font-weight:600; color:var(--text-main, #111827);">
-          ${d.name}
-        </td>
-        <td><span class="badge ${d.count > 0 ? "badge-success" : "badge-warning"}">${d.count > 0 ? "Live enrolled" : "Needs live enrolment"}</span></td>
-        <td style="color:var(--text-secondary);">${d.license || "-"}</td>
-        <td style="color:var(--text-secondary);">${d.count} samples</td>
-      </tr>
-    `).join("");
+    const note = document.getElementById("rosterNote");
+    if (note) note.textContent = drivers.length > 5 ? `Showing the 5 most recent of ${drivers.length} drivers` : "";
 
     const badge = document.getElementById("enrolledCountBadge");
     if (badge) badge.textContent = `${drivers.length} drivers`;
 
     const subtabBadge = document.getElementById("subtab-enrol-badge");
     if (subtabBadge) subtabBadge.textContent = drivers.length;
+  }
+
+  // ---- full-screen window: all drivers, or one driver's details and history
+  openDriverModal(title, html) {
+    document.getElementById("driver-modal-title").textContent = title;
+    document.getElementById("driver-modal-body").innerHTML = html;
+    document.getElementById("driver-modal").classList.add("show");
+  }
+
+  closeDriverModal() {
+    document.getElementById("driver-modal")?.classList.remove("show");
+  }
+
+  showAllDrivers() {
+    const drivers = Object.values(this.enrolledDrivers);
+    const rows = drivers.map(d => `
+      <tr>
+        <td style="font-weight:600;">${this.escapeHtml(d.name)}</td>
+        <td>${this.statusLabel(d)}</td>
+        <td>${this.escapeHtml(d.license) || "-"}</td>
+        <td>${d.count}</td>
+        <td>${this.escapeHtml(d.enrolledAt) || "-"}</td>
+        <td><button type="button" class="btn btn-outline btn-sm" data-view-driver="${this.escapeHtml(d.name)}" data-from-list="1">View</button></td>
+      </tr>`).join("");
+    this.openDriverModal(`All drivers (${drivers.length})`, `
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead><tr><th>Driver Name</th><th>Status</th><th>License number</th><th>Samples</th><th>Last enrolled</th><th>Details</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" style="text-align:center;">No drivers enrolled.</td></tr>'}</tbody>
+        </table>
+      </div>`);
+  }
+
+  async showDriverDetails(name, fromList) {
+    let d;
+    try {
+      const res = await fetch(`/api/enrolled/${encodeURIComponent(name)}`);
+      if (!res.ok) throw new Error();
+      d = await res.json();
+    } catch (_) {
+      this.openDriverModal(name, "<p>The details could not be loaded.</p>");
+      return;
+    }
+    const history = (d.history || []).map(h => `
+      <tr>
+        <td style="white-space:nowrap;">${this.escapeHtml(h.enrolled_at)}</td>
+        <td>${this.escapeHtml(h.license_number) || "-"}</td>
+        <td>${h.frames_used}</td>
+        <td>${h.face_samples}</td>
+        <td>${h.photos_saved}</td>
+      </tr>`).join("");
+    const back = fromList ? '<button type="button" class="btn btn-outline btn-sm" data-back-to-list="1" style="margin-bottom:14px;">Back to all drivers</button>' : "";
+    this.openDriverModal(d.name, `
+      ${back}
+      <dl class="detail-grid">
+        <dt>Status</dt><dd>${d.samples > 0 ? "Live enrolled" : "Needs live enrolment"}</dd>
+        <dt>License number</dt><dd>${this.escapeHtml(d.license) || "-"}</dd>
+        <dt>Face samples</dt><dd>${d.samples}</dd>
+        <dt>Photos saved</dt><dd>${d.images} in ${this.escapeHtml(d.folder)}</dd>
+        <dt>Last enrolled</dt><dd>${this.escapeHtml(d.enrolled_at) || "-"}</dd>
+      </dl>
+      <h4 style="margin-bottom:8px;">Enrolment history</h4>
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead><tr><th>Date and time</th><th>License number</th><th>Frames used</th><th>Total samples</th><th>Photos saved</th></tr></thead>
+          <tbody>${history || '<tr><td colspan="5" style="text-align:center;">No enrolment recorded yet.</td></tr>'}</tbody>
+        </table>
+      </div>`);
+  }
+
+  bindRosterEvents() {
+    document.getElementById("btnViewAllDrivers")?.addEventListener("click", () => this.showAllDrivers());
+    document.getElementById("btn-driver-modal-close")?.addEventListener("click", () => this.closeDriverModal());
+    document.getElementById("driver-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "driver-modal") this.closeDriverModal();        // click outside the window
+      const view = e.target.closest("[data-view-driver]");
+      if (view) this.showDriverDetails(view.dataset.viewDriver, view.dataset.fromList === "1");
+      if (e.target.closest("[data-back-to-list]")) this.showAllDrivers();
+    });
+    document.getElementById("rosterTableBody")?.addEventListener("click", (e) => {
+      const view = e.target.closest("[data-view-driver]");
+      if (view) this.showDriverDetails(view.dataset.viewDriver, false);
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") this.closeDriverModal(); });
   }
 
 
