@@ -59,7 +59,7 @@ class DatabaseLogger:
             """)
             conn.commit()
 
-    def register_enrolled_driver(self, driver_name: str, face_count: int):
+    def register_enrolled_driver(self, driver_name: str, face_count: int, license_number: Optional[str] = None):
         """Records or updates an enrolled driver in the drivers table."""
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self._get_connection() as conn:
@@ -81,9 +81,12 @@ class DatabaseLogger:
                     row_id = existing["id"] if isinstance(existing, dict) or hasattr(existing, "__getitem__") else existing[0]
                     cursor.execute("UPDATE drivers SET authorized = 1, notes = ? WHERE id = ?",
                                    (f"Enrolled {face_count} face descriptors", row_id))
+                    if license_number:
+                        cursor.execute("UPDATE drivers SET license_number = ? WHERE id = ?", (license_number, row_id))
                 else:
                     cursor.execute("INSERT INTO drivers (name, license_number, authorized, notes, created_at) VALUES (?, ?, 1, ?, ?)",
-                                   (driver_name, f"DL-{driver_name[:3].upper()}-2024", f"Enrolled {face_count} face descriptors", now))
+                                   (driver_name, license_number or f"DL-{driver_name[:3].upper()}-2024",
+                                    f"Enrolled {face_count} face descriptors", now))
             conn.commit()
 
     def log_auth_event(self,

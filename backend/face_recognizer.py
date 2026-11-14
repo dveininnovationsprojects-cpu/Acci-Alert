@@ -251,24 +251,26 @@ class SFaceRecognizer:
     @staticmethod
     def clean_name(name: str) -> str:
         """Letters, digits, spaces, dots, dashes and underscores only, up to 40 characters."""
-        name = re.sub(r"[^A-Za-z0-9 ._-]", "", str(name)).strip()[:40]
+        name = re.sub(r"[^A-Za-z0-9 ._-]", "", str(name)).strip(" .")[:40].strip(" .")
         if not name or name.lower() == "unknown":
             raise ValueError("Enter a valid driver name.")
         return name
 
-    def enrol(self, name: str, frames: List[np.ndarray]) -> Dict[str, any]:
+    def enrol(self, name: str, frames: List[np.ndarray], image_dir=None) -> Dict[str, any]:
         """Save face signatures for a driver from live camera frames.
-        Frames with no face, several faces or a small face are skipped."""
+        Frames with no face, several faces or a small face are skipped.
+        If image_dir is given, the frames that were used are also saved there as JPEG files."""
         if not self.models_ready:
             raise RuntimeError("SFace models are missing. Run: python -m backend.tools.get_models")
         name = self.clean_name(name)
-        sigs, skipped = [], 0
+        sigs, used, skipped = [], [], 0
         for frame in frames:
             faces = self._faces(frame)
             if len(faces) != 1:
                 skipped += 1
                 continue
             sigs.append(self._signature(frame, faces[0]))
+            used.append(frame)
         if len(sigs) < config.ENROL_MIN_FRAMES:
             raise ValueError(f"Only {len(sigs)} usable frames (need {config.ENROL_MIN_FRAMES}). "
                              "Face the camera alone, with good light, and try again.")
@@ -277,7 +279,22 @@ class SFaceRecognizer:
             self.gallery[name] = np.vstack([old, sigs]) if old is not None else np.array(sigs)
             self._save_gallery()
             total = len(self.gallery[name])
-        return {"name": name, "accepted": len(sigs), "skipped": skipped, "total_samples": total}
+        saved = self._save_images(image_dir, used) if image_dir is not None else 0
+        return {"name": name, "accepted": len(sigs), "skipped": skipped, "total_samples": total,
+                "images_saved": saved}
+
+    @staticmethod
+    def _save_images(folder, frames: List[np.ndarray]) -> int:
+        """Write frames as 01.jpg, 02.jpg ... continuing after any files already in the folder."""
+        folder = Path(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        number = len(list(folder.glob("*.jpg")))
+        saved = 0
+        for frame in frames:
+            number += 1
+            if cv2.imwrite(str(folder / f"{number:02d}.jpg"), frame):
+                saved += 1
+        return saved
 
     def enrolled(self) -> Dict[str, int]:
         """Driver name -> number of saved face signatures."""

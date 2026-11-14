@@ -135,3 +135,77 @@ def test_verify_unlocks_only_after_movement_and_logs_once(monkeypatch):
     assert replies[2]["driver"] == "Arun"
     assert events == ["UNAUTHORISED", "AUTH_OK"]   # one entry per change, not one per frame
     assert len(commands) == 2
+
+
+# ---------------------------------------------------------------- saved enrolment photos
+@pytest.fixture
+def fake_recognizer(tmp_path):
+    """A recogniser that 'finds' one face in every frame, so no models are needed."""
+    rec = SFaceRecognizer(gallery_path=tmp_path / "gallery.npz")
+    rec.models_ready = True
+    rec._faces = lambda frame: [np.zeros(15)]
+    rec._signature = lambda frame, face: np.random.rand(128).astype(np.float32)
+    return rec
+
+
+def test_enrolment_frames_are_saved_as_numbered_jpegs(fake_recognizer, tmp_path):
+    frames = [np.full((120, 160, 3), 100 + i, np.uint8) for i in range(12)]
+    folder = tmp_path / "dataset" / "Arun"
+
+    first = fake_recognizer.enrol("Arun", frames, image_dir=folder)
+    assert first["images_saved"] == 12
+    assert sorted(p.name for p in folder.glob("*.jpg"))[:2] == ["01.jpg", "02.jpg"]
+
+    second = fake_recognizer.enrol("Arun", frames, image_dir=folder)   # numbering carries on
+    assert second["images_saved"] == 12
+    assert len(list(folder.glob("*.jpg"))) == 24
+    assert (folder / "24.jpg").exists()
+
+
+def test_no_images_are_saved_unless_a_folder_is_given(fake_recognizer, tmp_path):
+    result = fake_recognizer.enrol("Arun", [np.zeros((120, 160, 3), np.uint8)] * 12)
+    assert result["images_saved"] == 0
+
+
+@pytest.mark.parametrize("sneaky, expected", [("../evil", "evil"), ("..\\x", "x"), (" ..name.. ", "name")])
+def test_names_cannot_point_outside_the_dataset_folder(sneaky, expected):
+    assert SFaceRecognizer.clean_name(sneaky) == expected
+
+
+def test_dots_only_name_is_rejected():
+    with pytest.raises(ValueError):
+        SFaceRecognizer.clean_name("../..")
+
+
+# ---------------------------------------------------------------- license number at enrolment
+def test_enrol_requires_license_number():
+    from backend.app import app
+    reply = app.test_client().post("/api/enrol", json={"name": "Arun", "frames": ["x"]})
+    assert reply.status_code == 400
+    assert "license" in reply.get_json()["message"].lower()
+
+
+def test_enrol_saves_license_and_blocks_a_duplicate(monkeypatch, tmp_path, fake_recognizer):
+    from backend import app as app_module
+    stored = []
+    monkeypatch.setattr(app_module, "face_sface", fake_recognizer)
+    monkeypatch.setattr(app_module.config, "DATASET_DIR", tmp_path / "dataset")
+    monkeypatch.setattr(app_module.database, "get_all_drivers", lambda: list(stored))
+    monkeypatch.setattr(app_module.database, "add_event", lambda *a, **k: 0)
+    monkeypatch.setattr(app_module.db_logger, "register_enrolled_driver",
+                        lambda name, count, license_number=None: stored.append(
+                            {"name": name, "license_number": license_number}))
+    client = app_module.app.test_client()
+    frames = [BLANK_JPEG] * 12
+
+    first = client.post("/api/enrol", json={"name": "Arun", "license": "TN-09 1234", "frames": frames})
+    assert first.status_code == 200
+    assert first.get_json()["license"] == "TN-09 1234"
+    assert len(list((tmp_path / "dataset" / "Arun").glob("*.jpg"))) == 12
+
+    clash = client.post("/api/enrol", json={"name": "Kumar", "license": "TN-09 1234", "frames": frames})
+    assert clash.status_code == 400
+    assert "already belongs to Arun" in clash.get_json()["message"]
+
+    listed = {d["name"]: d for d in client.get("/api/enrolled").get_json()["drivers"]}
+    assert listed["Arun"]["license"] == "TN-09 1234"

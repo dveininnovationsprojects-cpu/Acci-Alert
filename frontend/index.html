@@ -566,6 +566,10 @@
                   <input type="text" id="inputDriverName" class="form-control" placeholder="Driver name" required>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">License number</label>
+                  <input type="text" id="inputLicenseNumber" class="form-control" placeholder="e.g. TN-09-2024-9843" maxlength="30" required>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
                   <label class="form-label">Face samples to capture</label>
                   <input type="number" id="inputSampleCount" class="form-control" value="25" min="5" max="100">
                   <small style="color:var(--text-muted); font-size:0.72rem;">One frame every 0.4 s, 10 to 100 frames. Keep good light on your face and turn your head slowly.</small>
@@ -599,6 +603,7 @@
                     <tr>
                       <th>Driver Name</th>
                       <th>Status</th>
+                      <th>License number</th>
                       <th>Samples</th>
                     </tr>
                   </thead>

@@ -12,6 +12,7 @@ import json
 import logging
 import math
 import os
+import re
 import sys
 import threading
 import time
@@ -483,10 +484,11 @@ def enrolled_drivers_api():
     drivers = dict(face_sface.enrolled())
     for name in face_recognizer.labels_map.values():
         drivers.setdefault(name, 0)
+    licenses = {d["name"]: d.get("license_number") or "" for d in database.get_all_drivers()}
     return jsonify({
         "engine": "sface" if use_sface() else "lbph",
         "models_ready": face_sface.models_ready,
-        "drivers": [{"name": n, "samples": c} for n, c in sorted(drivers.items())],
+        "drivers": [{"name": n, "samples": c, "license": licenses.get(n, "")} for n, c in sorted(drivers.items())],
     })
 
 
@@ -499,18 +501,29 @@ def enrol_driver_api():
         return jsonify({"status": "error", "message": "name and frames are required."}), 400
     if len(frames) > 200:
         return jsonify({"status": "error", "message": "Send at most 200 frames."}), 400
+    license_number = re.sub(r"[^A-Za-z0-9 /-]", "", str(payload.get("license") or "")).strip()[:30]
+    if not license_number:
+        return jsonify({"status": "error", "message": "Enter the driver's license number."}), 400
     try:
         images = [decode_frame(f) for f in frames]
-        result = face_sface.enrol(payload["name"], [img for img in images if img is not None])
+        name = face_sface.clean_name(payload["name"])
+        owner = next((d["name"] for d in database.get_all_drivers()
+                      if d.get("license_number") == license_number and d["name"] != name), None)
+        if owner:
+            return jsonify({"status": "error", "message": f"License number {license_number} already belongs to {owner}."}), 400
+        result = face_sface.enrol(name, [img for img in images if img is not None],
+                                  image_dir=config.DATASET_DIR / name)
+        result["folder"] = f"backend/dataset/{result['name']}"
     except (ValueError, RuntimeError) as err:
         return jsonify({"status": "error", "message": str(err)}), 400
     except Exception as err:
         logger.error(f"Error in /api/enrol: {err}")
         return jsonify({"status": "error", "message": "Enrolment failed."}), 500
 
-    db_logger.register_enrolled_driver(result["name"], result["total_samples"])
+    db_logger.register_enrolled_driver(result["name"], result["total_samples"], license_number)
+    result["license"] = license_number
     database.add_event("DRIVER_ENROLLED", result["name"], 0.0, config.DEFAULT_LATITUDE, config.DEFAULT_LONGITUDE,
-                       "None", f"Enrolled from live camera: {result['accepted']} frames")
+                       "None", f"Enrolled from live camera: {result['accepted']} frames, license {license_number}, photos in {result['folder']}")
     return jsonify({"status": "success", **result})
 
 

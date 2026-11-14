@@ -630,7 +630,7 @@ class DriverAuthController {
       const data = await res.json();
       this.enrolledDrivers = {};
       (data.drivers || []).forEach(d => {
-        this.enrolledDrivers[d.name] = { name: d.name, count: d.samples };
+        this.enrolledDrivers[d.name] = { name: d.name, count: d.samples, license: d.license || "" };
       });
     } catch (_) {
       this.enrolledDrivers = {};
@@ -653,8 +653,9 @@ class DriverAuthController {
   async startEnrolment() {
     if (this.enrolmentState.isEnrolling) return;
     const name = document.getElementById("inputDriverName")?.value.trim();
-    if (!name) {
-      alert("Enter the driver's name first.");
+    const license = document.getElementById("inputLicenseNumber")?.value.trim();
+    if (!name || !license) {
+      alert("Enter the driver's name and license number first.");
       return;
     }
     const wanted = Math.min(100, Math.max(10, parseInt(document.getElementById("inputSampleCount")?.value || 25, 10)));
@@ -692,7 +693,7 @@ class DriverAuthController {
       const res = await fetch("/api/enrol", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name, frames: frames })
+        body: JSON.stringify({ name: name, license: license, frames: frames })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Enrolment failed.");
@@ -709,9 +710,11 @@ class DriverAuthController {
     if (window.DashboardApp) {
       window.DashboardApp.showToast(`${result.name} enrolled: ${result.accepted} samples saved.`, "success");
     }
-    this.setEnrolStatus(`${result.name} enrolled with ${result.total_samples} samples. Skipped frames: ${result.skipped}.`, false);
-    const nameInput = document.getElementById("inputDriverName");
-    if (nameInput) nameInput.value = "";
+    this.setEnrolStatus(`${result.name} enrolled with ${result.total_samples} samples. Photos saved in ${result.folder} (skipped frames: ${result.skipped}).`, false);
+    for (const id of ["inputDriverName", "inputLicenseNumber"]) {
+      const input = document.getElementById(id);
+      if (input) input.value = "";
+    }
   }
 
   renderRosterTable() {
@@ -720,7 +723,7 @@ class DriverAuthController {
 
     const drivers = Object.values(this.enrolledDrivers);
     if (drivers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">No drivers enrolled.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:20px;">No drivers enrolled.</td></tr>';
       return;
     }
 
@@ -730,6 +733,7 @@ class DriverAuthController {
           ${d.name}
         </td>
         <td><span class="badge ${d.count > 0 ? "badge-success" : "badge-warning"}">${d.count > 0 ? "Live enrolled" : "Needs live enrolment"}</span></td>
+        <td style="color:var(--text-secondary);">${d.license || "-"}</td>
         <td style="color:var(--text-secondary);">${d.count} samples</td>
       </tr>
     `).join("");
