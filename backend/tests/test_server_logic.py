@@ -292,3 +292,10 @@ def test_a_lasting_alert_is_logged_once_not_every_five_seconds(monkeypatch):
     tick(62, auth=1)                                                   # the alert clears
     tick(70, auth=0)                                                   # and comes back: a new entry
     assert logged() == 3
+
+
+def test_zone_manager_header_only_links_back_to_the_dashboard():
+    page = (Path(__file__).resolve().parents[2] / "frontend" / "zones.html").read_text(encoding="utf-8")
+    header = page.split("<header>")[1].split("</header>")[0]
+    assert 'id="backLink"' in header and "closeZoneManager" in header   # inside the dashboard it closes the overlay
+    assert "/dashboard" not in header                                   # a link here would load a page inside the frame

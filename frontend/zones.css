@@ -37,3 +37,4 @@ th, td { padding: 6px 10px; text-align: left; white-space: nowrap; border-bottom
 th { position: sticky; top: 0; background: var(--panel); color: var(--teal); }
 td.sev-critical, td.sev-high { color: var(--red); } td.sev-medium { color: var(--orange); } td.sev-low { color: var(--yellow); }
 @media (max-width: 800px) { main { grid-template-columns: 1fr; } aside { max-height: none; } }
+#backLink { color: var(--teal); margin-right: 14px; text-decoration: none; }
