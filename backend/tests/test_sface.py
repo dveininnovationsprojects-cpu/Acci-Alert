@@ -1,5 +1,7 @@
 """Tests for the live-enrolment face recogniser (SFace) and its API."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -216,3 +218,39 @@ def test_enrolment_details_are_stored_in_the_database(monkeypatch, tmp_path, fak
     assert client.get("/api/enrolled/NoSuchDriver").status_code == 404
     listed = {d["name"]: d for d in client.get("/api/enrolled").get_json()["drivers"]}
     assert listed["QaArun"]["license"] == "TN-09 1234"
+
+
+def test_face_detection_and_matching_run_one_thread_at_a_time(tmp_path):
+    """The OpenCV models are not thread safe, so every use must hold the recogniser's lock."""
+    rec = SFaceRecognizer(gallery_path=tmp_path / "gallery.npz")
+    held = []
+
+    class FakeDetector:
+        def setInputSize(self, size):
+            held.append(rec.lock._is_owned())
+
+        def detect(self, frame):
+            held.append(rec.lock._is_owned())
+            return 1, None
+
+    class FakeRecognizer:
+        def alignCrop(self, frame, face):
+            held.append(rec.lock._is_owned())
+            return frame
+
+        def feature(self, image):
+            held.append(rec.lock._is_owned())
+            return np.zeros((1, 128), np.float32)
+
+    rec.detector, rec.recognizer = FakeDetector(), FakeRecognizer()
+    rec._faces(np.zeros((48, 64, 3), np.uint8))
+    rec._signature(np.zeros((48, 64, 3), np.uint8), np.zeros(15))
+    assert held and all(held)
+
+
+def test_enrolment_page_switches_the_camera_off_after_the_frames_are_taken():
+    script = (Path(__file__).resolve().parents[2] / "frontend" / "static" / "js" / "driver_auth.js").read_text(encoding="utf-8")
+    start = script.index("async startEnrolment()")
+    body = script[start:script.index("async finishEnrolment", start)]
+    assert body.index("} finally {") < body.index('fetch("/api/enrol"')          # off before the frames are sent
+    assert "this.stopCamera();" in body and 'setEnrolCameraNote("Camera is off.")' in body

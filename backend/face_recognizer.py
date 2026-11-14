@@ -176,7 +176,9 @@ class SFaceRecognizer:
         self.model_path = Path(model_path or config.SFACE_FILE)
         self.gallery_path = Path(gallery_path or config.FACE_GALLERY_FILE)
         self.threshold = config.SFACE_THRESHOLD if threshold is None else threshold
-        self.lock = threading.Lock()
+        # The OpenCV models are not safe to use from two threads at once, and the server answers
+        # /api/verify and /api/enrol in different threads. One lock covers detection, signatures and matching.
+        self.lock = threading.RLock()
         self.gallery: Dict[str, np.ndarray] = {}
         self.detector = None
         self.recognizer = None
@@ -210,14 +212,16 @@ class SFaceRecognizer:
     def _faces(self, frame: np.ndarray):
         """Faces found in the frame that are big and clear enough to use."""
         h, w = frame.shape[:2]
-        self.detector.setInputSize((w, h))
-        _, faces = self.detector.detect(frame)
+        with self.lock:
+            self.detector.setInputSize((w, h))
+            _, faces = self.detector.detect(frame)
         if faces is None:
             return []
         return [f for f in faces if f[2] >= config.SFACE_MIN_FACE_PX and f[14] >= config.SFACE_MIN_DETECT_SCORE]
 
     def _signature(self, frame: np.ndarray, face) -> np.ndarray:
-        return self.recognizer.feature(self.recognizer.alignCrop(frame, face))[0]
+        with self.lock:
+            return self.recognizer.feature(self.recognizer.alignCrop(frame, face))[0]
 
     def _best_match(self, sig: np.ndarray) -> Tuple[str, float]:
         best_name, best_score = "Unknown", -1.0

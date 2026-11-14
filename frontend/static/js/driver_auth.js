@@ -666,6 +666,7 @@ class DriverAuthController {
     const wrap = document.getElementById("enrolProgressWrap");
     if (wrap) wrap.style.display = "block";
     this.setEnrolStatus("Starting the camera...", false);
+    this.setEnrolCameraNote("Starting the camera...");
 
     await this.startCamera();
     if (!this.cameraIsLive()) {
@@ -683,14 +684,21 @@ class DriverAuthController {
     const fill = document.getElementById("enrolProgressFill");
 
     // One frame every 400 ms, so the driver has time to turn the head a little between frames.
-    while (frames.length < wanted) {
-      ctx.drawImage(this.videoEl, 0, 0, 640, 480);
-      frames.push(canvas.toDataURL("image/jpeg", 0.85));
-      this.enrolmentState.capturedSamples = frames.length;
-      if (fill) fill.style.width = `${Math.round((frames.length / wanted) * 100)}%`;
-      this.setEnrolStatus(`Capturing ${name}: ${frames.length} / ${wanted}. Look at the camera and turn your head slowly.`, false);
-      this.setEnrolCount(`${frames.length} / ${wanted}`);
-      await new Promise(resolve => setTimeout(resolve, 400));
+    try {
+      while (frames.length < wanted) {
+        ctx.drawImage(this.videoEl, 0, 0, 640, 480);
+        frames.push(canvas.toDataURL("image/jpeg", 0.85));
+        this.enrolmentState.capturedSamples = frames.length;
+        if (fill) fill.style.width = `${Math.round((frames.length / wanted) * 100)}%`;
+        this.setEnrolStatus(`Capturing ${name}: ${frames.length} / ${wanted}. Look at the camera and turn your head slowly.`, false);
+        this.setEnrolCount(`${frames.length} / ${wanted}`);
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
+    } finally {
+      // The camera is only needed while the frames are taken, so it goes off here.
+      this.stopCamera();
+      this.showEnrolCamera(false);
+      this.setEnrolCameraNote("Camera is off.");
     }
 
     this.setEnrolStatus("Saving face samples...", false);
@@ -702,7 +710,6 @@ class DriverAuthController {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Enrolment failed.");
-      this.setEnrolCount("Saved");
       this.finishEnrolment(data);
     } catch (err) {
       this.setEnrolStatus(err.message, true);
@@ -735,8 +742,16 @@ class DriverAuthController {
       const count = document.getElementById("enrolFrameCount");
       if (count) count.style.display = "block";
     } else {
+      video.srcObject = null;
       box.classList.remove("live");
+      const count = document.getElementById("enrolFrameCount");
+      if (count) count.style.display = "none";
     }
+  }
+
+  setEnrolCameraNote(text) {
+    const note = document.getElementById("enrolCameraNote");
+    if (note) note.textContent = text;
   }
 
   setEnrolCount(text) {

@@ -618,8 +618,8 @@ def enrol_driver_api():
     except (ValueError, RuntimeError) as err:
         return jsonify({"status": "error", "message": str(err)}), 400
     except Exception as err:
-        logger.error(f"Error in /api/enrol: {err}")
-        return jsonify({"status": "error", "message": "Enrolment failed."}), 500
+        logger.exception("Error in /api/enrol")
+        return jsonify({"status": "error", "message": f"Enrolment failed: {str(err)[:120] or type(err).__name__}"}), 500
 
     database.save_driver_enrolment(result["name"], license_number, result["accepted"], result["total_samples"],
                                    result["images_saved"], result["folder"])
