@@ -9,6 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # Project root
 BACKEND_DIR = Path(__file__).resolve().parent      # backend/
 DATA_DIR = Path(os.environ.get("ACCIALERT_DATA_DIR") or BACKEND_DIR / "data")   # tests point this at a temp folder
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATABASE_DIR = BASE_DIR / "database"
+DATABASE_DIR.mkdir(parents=True, exist_ok=True)
 
 AI_DIR = BACKEND_DIR
 MODELS_DIR = BACKEND_DIR / "models"
@@ -63,7 +65,10 @@ LIVENESS_WINDOW_SECONDS = 6.0    # movement is measured over the last few second
 LIVENESS_HOLD_SECONDS = 8.0      # a passed check stays valid this long while the face is in view
 
 # Database Configuration
-DATABASE_PATH = str(DATA_DIR / "accialert.db")
+if os.environ.get("ACCIALERT_DATA_DIR"):
+    DATABASE_PATH = str(DATA_DIR / "accialert.db")
+else:
+    DATABASE_PATH = str(DATABASE_DIR / "accialert.db") if (DATABASE_DIR / "accialert.db").exists() else str(DATA_DIR / "accialert.db")
 DB_PATH = Path(DATABASE_PATH)
 
 # Server
