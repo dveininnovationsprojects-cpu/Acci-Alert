@@ -405,7 +405,8 @@ def process_telemetry_packet(packet: dict, source: str = "SIMULATOR"):
             zone_db.log_telemetry(zone_conn, speed=telemetry["spd"], alcohol=telemetry["alc"],
                                   distance=telemetry["dist"], tilt=telemetry["tilt"],
                                   lat=telemetry["lat"], lon=telemetry["lon"],
-                                  state=telemetry["state"], zone_id=telemetry["zone"])
+                                  state=telemetry["state"], zone_id=telemetry["zone"],
+                                  ax=telemetry["ax"], ay=telemetry["ay"], az=telemetry["az"])
         except Exception as err:
             logger.warning(f"Telemetry could not be saved: {err}")
 
@@ -428,6 +429,15 @@ def process_telemetry_packet(packet: dict, source: str = "SIMULATOR"):
             socketio.emit("zone_event", ev)
     except Exception as err:
         logger.warning(f"Zone engine step failed: {err}")
+
+
+def vehicle_position():
+    """Speed, latitude and longitude of the car right now: the last packet received (ESP32 or
+    simulator), or the default start point if nothing has arrived yet."""
+    t = state.latest_telemetry
+    if t:
+        return t["spd"], t["lat"], t["lon"]
+    return 0.0, config.DEFAULT_LATITUDE, config.DEFAULT_LONGITUDE
 
 
 def background_telemetry_loop():
@@ -699,12 +709,13 @@ def verify_face_api():
             state.active_driver_auth = 1 if unlocked else 0
             send_unified_command("AUTH", 1 if unlocked else 0, source="AI_FACIAL_RECOGNITION")
             if unlocked or face_count == 1:
+                speed_now, lat_now, lon_now = vehicle_position()
                 database.add_event(
                     event_type="AUTH_OK" if unlocked else "UNAUTHORISED DRIVER",
                     driver_name=shown_driver,
-                    vehicle_speed=simulator.speed if simulator else 0.0,
-                    latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
-                    longitude=simulator.current_lon if simulator else config.DEFAULT_LONGITUDE,
+                    vehicle_speed=speed_now,
+                    latitude=lat_now,
+                    longitude=lon_now,
                     details=f"Match {confidence:.0f}%, liveness {liveness.lower()}"
                 )
 
@@ -726,18 +737,6 @@ def verify_face_api():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-@app.route("/api/liveness", methods=["POST"])
-def verify_liveness_api():
-    """Anti-Spoofing Liveness Evaluation endpoint."""
-    return jsonify({
-        "status": "success",
-        "liveness_passed": True,
-        "blink_count": 1,
-        "motion_score": 3.2,
-        "message": "Human vitality confirmed."
-    })
-
-
 @app.route("/api/logs", methods=["GET", "POST", "DELETE"])
 def audit_logs_api():
     """Audit Trail Endpoint: GET listing, POST new record, DELETE clear logs."""
@@ -753,12 +752,13 @@ def audit_logs_api():
         event_type = data.get("event_type") or data.get("type") or "AUTH_OK"
         driver_name = data.get("driver_name") or data.get("driver") or "Unknown"
         details = data.get("details") or data.get("extra_details") or ""
+        speed_now, lat_now, lon_now = vehicle_position()
         database.add_event(
             event_type=event_type,
             driver_name=driver_name,
-            vehicle_speed=simulator.speed if simulator else 0.0,
-            latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
-            longitude=simulator.current_lon if simulator else config.DEFAULT_LONGITUDE,
+            vehicle_speed=speed_now,
+            latitude=lat_now,
+            longitude=lon_now,
             details=details
         )
         return jsonify({"status": "success", "message": "Log entry created."})
