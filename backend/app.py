@@ -465,8 +465,8 @@ def health_check_api():
 
 
 def use_sface() -> bool:
-    """Use the SFace recogniser when it is ready (models present and a driver enrolled)."""
-    return config.DEFAULT_FACE_ENGINE in ("auto", "sface") and face_sface.ready
+    """Use the SFace recogniser whenever its models are downloaded."""
+    return config.DEFAULT_FACE_ENGINE in ("auto", "sface") and face_sface.models_ready
 
 
 def decode_frame(data: str):
@@ -514,98 +514,97 @@ def enrol_driver_api():
     return jsonify({"status": "success", **result})
 
 
+def recognise(frame):
+    """Find the face in a frame and match it.
+    Returns (face_count, box [x, y, w, h] in pixels or None, driver name, recognised, confidence %, note)."""
+    if use_sface():
+        found = face_sface.identify(frame)
+        if found["face_count"] == 0:
+            return 0, None, "Unknown", False, 0.0, "No face found. Look at the camera."
+        if found["face_count"] > 1:
+            return found["face_count"], None, "Unknown", False, 0.0, "Only one person should be in view."
+        if not face_sface.gallery:
+            return 1, found["box"], "Unknown", False, 0.0, "No driver is enrolled yet. Use Enrol Drivers."
+        note = "" if found["authorized"] else "Face not recognised."
+        return 1, found["box"], found["driver"], found["authorized"], max(0.0, found["score"]) * 100.0, note
+
+    # Old LBPH model (used only when the SFace models are not downloaded)
+    det = face_detector.detect_faces(frame)
+    if det.face_count == 0 or det.primary_roi is None:
+        return 0, None, "Unknown", False, 0.0, "No face found. Look at the camera."
+    if det.face_count > 1:
+        return det.face_count, None, "Unknown", False, 0.0, "Only one person should be in view."
+    result = face_recognizer.recognize(det.primary_roi)
+    box = [int(v) for v in det.primary_box]
+    note = "" if result["authorized"] else "Face not recognised."
+    return 1, box, str(result["driver"]), bool(result["authorized"]), float(result["confidence"]), note
+
+
 @app.route("/api/verify", methods=["POST"])
 def verify_face_api():
-    """
-    AI Face Recognition & Liveness Verification Endpoint.
-    Accepts base64 webcam frame, extracts face ROI, applies CLAHE,
-    computes LBPH histogram distance against enrolled drivers, and
-    actuates ignition lock/unlock.
-    """
-    payload = request.get_json() or {}
+    """Check one camera frame: find the face, match it, check the person is live, then lock or unlock the car."""
+    payload = request.get_json(silent=True) or {}
     frame_data = payload.get("frame") or payload.get("image")
     if not frame_data:
         return jsonify({"status": "error", "message": "frame data is required (base64 string)."}), 400
 
     try:
-        if "," in frame_data:
-            frame_data = frame_data.split(",", 1)[1]
-        img_bytes = base64.b64decode(frame_data)
-        np_arr = np.frombuffer(img_bytes, np.uint8)
-        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        if frame is None:
-            return jsonify({"status": "error", "message": "Invalid image format."}), 400
+        frame = decode_frame(frame_data)
+    except Exception:
+        frame = None
+    if frame is None:
+        return jsonify({"status": "error", "message": "Invalid image format."}), 400
 
-        # Find the face and match it against the enrolled drivers
-        if use_sface():
-            found = face_sface.identify(frame)
-            detected = found["face_count"] == 1
-            is_auth = found["authorized"]
-            driver_name = found["driver"]
-            similarity = max(0.0, found["score"]) * 100.0
-            distance = round(100.0 - similarity, 2)
-        else:
-            det = face_detector.detect_faces(frame)
-            detected = det.face_count >= 1 and det.primary_roi is not None
-            if detected:
-                rec_res = face_recognizer.recognize(det.primary_roi)
-                distance = float(rec_res.get("distance", 99.0))
-                similarity = float(rec_res.get("confidence", 0.0))
-                is_auth = bool(rec_res.get("authorized", False))
-                driver_name = str(rec_res.get("driver", "Unknown"))
+    try:
+        frame_h, frame_w = frame.shape[:2]
+        face_count, box, driver_name, recognised, confidence, note = recognise(frame)
 
-        if not detected:
-            return jsonify({
-                "status": "success",
-                "detected": False,
-                "authorized": False,
-                "driver": "Unknown",
-                "distance": 99.0,
-                "confidence": 0.0,
-                "liveness": "NO_FACE",
-                "ignition": "LOCKED"
-            })
+        liveness = "NO_FACE" if face_count == 0 else "PENDING"
+        live = True
+        if face_count != 1:
+            liveness_detector.forget_motion()
+        elif recognised and payload.get("liveness_check", config.ENABLE_LIVENESS_BY_DEFAULT):
+            live = liveness_detector.check_motion(box, frame_w, frame_h)
+            liveness = "PASSED" if live else "PENDING"
+            if not live:
+                note = "Move your head slightly."
+        elif recognised:
+            liveness = "PASSED"
 
-        # Liveness verification
-        liveness_ok = True
-        if payload.get("liveness_check", config.ENABLE_LIVENESS_BY_DEFAULT):
-            liveness_ok = liveness_detector.manual_pass()
+        unlocked = recognised and live
+        shown_driver = driver_name if unlocked else "Unknown"
+        if unlocked:
+            note = f"Welcome, {driver_name}."
 
-        # Update vehicle gating state
-        if is_auth and liveness_ok:
-            state.active_driver_name = driver_name
-            state.active_driver_auth = 1
-            ignition_state = "UNLOCKED"
-            send_unified_command("AUTH", 1, source="AI_FACIAL_RECOGNITION")
-            event_type = "AUTH_OK"
-            severity = "INFO"
-        else:
-            state.active_driver_name = "Unknown"
-            state.active_driver_auth = 0
-            ignition_state = "LOCKED"
-            send_unified_command("AUTH", 0, source="AI_FACIAL_RECOGNITION")
-            event_type = "UNAUTHORISED"
-            severity = "HIGH"
-
-        # Log into SQLite
-        database.add_event(
-            event_type=event_type,
-            driver_name=driver_name,
-            vehicle_speed=simulator.speed if simulator else 0.0,
-            latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
-            longitude=simulator.current_lon if simulator else config.DEFAULT_LONGITUDE,
-            details=f"Distance: {distance:.2f}, Confidence: {similarity:.1f}%, Liveness: {'PASS' if liveness_ok else 'FAIL'}"
-        )
+        # Lock or unlock and write to the log only when the result changes, not on every frame
+        current = (unlocked, shown_driver)
+        if current != getattr(state, "last_face_result", None):
+            state.last_face_result = current
+            state.active_driver_name = shown_driver
+            state.active_driver_auth = 1 if unlocked else 0
+            send_unified_command("AUTH", 1 if unlocked else 0, source="AI_FACIAL_RECOGNITION")
+            if unlocked or face_count == 1:
+                database.add_event(
+                    event_type="AUTH_OK" if unlocked else "UNAUTHORISED",
+                    driver_name=shown_driver,
+                    vehicle_speed=simulator.speed if simulator else 0.0,
+                    latitude=simulator.current_lat if simulator else config.DEFAULT_LATITUDE,
+                    longitude=simulator.current_lon if simulator else config.DEFAULT_LONGITUDE,
+                    details=f"Match {confidence:.0f}%, liveness {liveness.lower()}"
+                )
 
         return jsonify({
             "status": "success",
-            "detected": True,
-            "authorized": is_auth and liveness_ok,
-            "driver": driver_name,
-            "distance": round(distance, 2),
-            "confidence": round(similarity, 1),
-            "liveness": "PASSED" if liveness_ok else "FAILED",
-            "ignition": ignition_state
+            "detected": face_count == 1,
+            "face_count": face_count,
+            "authorized": unlocked,
+            "driver": shown_driver,
+            "distance": round(100.0 - confidence, 2),
+            "confidence": round(confidence, 1),
+            "liveness": liveness,
+            "ignition": "UNLOCKED" if unlocked else "LOCKED",
+            "box": [box[0] / frame_w, box[1] / frame_h, box[2] / frame_w, box[3] / frame_h] if box else None,
+            "message": note,
         })
     except Exception as e:
         logger.error(f"Error in /api/verify: {e}")

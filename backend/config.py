@@ -45,7 +45,7 @@ SFACE_THRESHOLD = 0.40
 SFACE_MIN_DETECT_SCORE = 0.80   # ignore weak face detections
 SFACE_MIN_FACE_PX = 80          # ignore faces smaller than this many pixels wide
 ENROL_MIN_FRAMES = 10           # live enrolment needs at least this many usable frames
-DEFAULT_FACE_ENGINE = "auto"    # "auto" = SFace when models and enrolled drivers exist, else LBPH
+DEFAULT_FACE_ENGINE = "auto"    # "auto" = SFace when its models are downloaded, else the old LBPH model
 
 # Recognition Thresholds
 MATCH_THRESHOLD = 50.0
@@ -58,6 +58,9 @@ ENABLE_LIVENESS_BY_DEFAULT = True
 LIVENESS_BLINK_EYES_MIN = 1
 LIVENESS_TIMEOUT_SECONDS = 5.0
 LIVENESS_MOTION_THRESHOLD = 2.0
+LIVENESS_MOVE_FRACTION = 0.015   # the face must move about 1.5% of the frame width to count as a live person
+LIVENESS_WINDOW_SECONDS = 6.0    # movement is measured over the last few seconds
+LIVENESS_HOLD_SECONDS = 8.0      # a passed check stays valid this long while the face is in view
 
 # Database Configuration
 DATABASE_PATH = str(DATA_DIR / "accialert.db")

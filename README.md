@@ -9,7 +9,7 @@ checks the driver's face before the car starts.
 | Part | What it does | Owner |
 |---|---|---|
 | Dashboard | Live readings, charts, map, alerts, event log, controls | Muniyappan |
-| Face login | Face recognition and blink check, enrolled drivers | Arsal |
+| Face login | Face recognition and movement check, enrolled drivers | Arsal |
 | Danger zones | Zone engine, zone manager page, zone events | Prasanth |
 | Database and backups | SQLite storage, 24 h telemetry purge, backup script | Prasanth |
 | ESP32 firmware | Serial protocol and car hardware | Selvamani |
@@ -31,7 +31,7 @@ code/
     db_logger.py       Saves face login results
     face_detector.py   Finds faces and eyes
     face_recognizer.py Recognises drivers: LBPH model and the pretrained SFace model
-    liveness.py        Blink and movement check
+    liveness.py        Movement check
     face_auth.py       Face login flow (webcam to result)
     train_model.py     Trains the face model from dataset/
     backup.py          Database backup script

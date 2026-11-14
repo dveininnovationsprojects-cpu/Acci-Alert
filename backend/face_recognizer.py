@@ -233,12 +233,15 @@ class SFaceRecognizer:
     def identify(self, frame: np.ndarray) -> Dict[str, any]:
         """Look at one camera frame. A driver is accepted only if exactly one face is
         visible and its score reaches the threshold."""
-        if not self.ready:
-            raise RuntimeError("SFace is not ready: models missing or no driver enrolled.")
+        if not self.models_ready:
+            raise RuntimeError("SFace models are missing. Run: python -m backend.tools.get_models")
         faces = self._faces(frame)
         if len(faces) != 1:
             return {"face_count": len(faces), "driver": "Unknown", "authorized": False, "score": 0.0, "box": None}
         face = faces[0]
+        if not self.gallery:   # nobody enrolled yet: report where the face is, but accept nobody
+            return {"face_count": 1, "driver": "Unknown", "authorized": False, "score": 0.0,
+                    "box": [int(v) for v in face[:4]]}
         with self.lock:
             name, score = self._best_match(self._signature(frame, face))
         ok = score >= self.threshold

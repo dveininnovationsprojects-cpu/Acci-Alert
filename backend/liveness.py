@@ -95,3 +95,39 @@ class LivenessDetector:
 
         return False, self.status_message
 
+    # ---- simple movement check used by the face login (works with any face detector)
+    def check_motion(self, box, frame_w: int, frame_h: int, now: Optional[float] = None) -> bool:
+        """True when the face has moved a little over the last few seconds.
+
+        A photo held still in front of the camera does not move, a real person does.
+        The result stays valid for a few seconds so the lock does not flicker.
+        """
+        now = time.time() if now is None else now
+        if now < getattr(self, "live_until", 0.0):
+            self._remember(box, frame_w, frame_h, now)
+            return True
+
+        self._remember(box, frame_w, frame_h, now)
+        if len(self.moves) < 3:
+            return False
+        xs = [m[1] for m in self.moves]
+        ys = [m[2] for m in self.moves]
+        ws = [m[3] for m in self.moves]
+        spread = max(max(xs) - min(xs), max(ys) - min(ys), max(ws) - min(ws))
+        if spread >= config.LIVENESS_MOVE_FRACTION:
+            self.live_until = now + config.LIVENESS_HOLD_SECONDS
+            return True
+        return False
+
+    def _remember(self, box, frame_w: int, frame_h: int, now: float):
+        x, y, w, h = box
+        if not hasattr(self, "moves"):
+            self.moves = []
+        self.moves = [m for m in self.moves if now - m[0] <= config.LIVENESS_WINDOW_SECONDS]
+        self.moves.append((now, (x + w / 2) / frame_w, (y + h / 2) / frame_h, w / frame_w))
+
+    def forget_motion(self):
+        """Call when no face is in view, so the next person starts a fresh check."""
+        self.moves = []
+        self.live_until = 0.0
+

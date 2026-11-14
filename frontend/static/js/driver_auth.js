@@ -384,92 +384,77 @@ class DriverAuthController {
 
       const cw = this.canvasEl.width;
       const ch = this.canvasEl.height;
-      const boxW = Math.round(cw * 0.44);
-      const boxH = Math.round(ch * 0.56);
-      const boxX = Math.round((cw - boxW) / 2);
-      const boxY = Math.round((ch - boxH) / 2);
+      this.drawFaceHUD(cw, ch);
 
-      // Draw non-mirrored HUD target overlay
-      this.drawTargetHUD(boxX, boxY, boxW, boxH);
-
-      // Periodic AI verification check via /api/verify
-      if (!this._lastCheck || (Date.now() - this._lastCheck) > 1200) {
+      // Ask the server about the current frame twice a second
+      if (!this._lastCheck || (Date.now() - this._lastCheck) > 500) {
         this._lastCheck = Date.now();
         this.evaluateDriverVerification();
-      }
-
-      // Handle enrolment capture ticks
-      if (this.enrolmentState.isEnrolling) {
-        this.captureEnrolmentTick();
       }
     }
 
     this.animFrameId = requestAnimationFrame(() => this.onCameraFrame());
   }
 
-  drawTargetHUD(x, y, w, h) {
+  // Draws a box around the face the server found. The video is mirrored on screen, so the box is mirrored too.
+  drawFaceHUD(cw, ch) {
     const ctx = this.ctx;
     if (!ctx) return;
 
-    const cornerLen = 26;
-    const isAuth = this.lastAuthState === true && this.lastAuthDriver && this.lastAuthDriver !== "Unknown";
-    const primaryColor = isAuth ? "#06D6A0" : "#E11D48";
-
-    ctx.strokeStyle = primaryColor;
-    ctx.lineWidth = 3;
-
-    // Corner brackets
-    ctx.beginPath();
-    ctx.moveTo(x, y + cornerLen);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + cornerLen, y);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(x + w - cornerLen, y);
-    ctx.lineTo(x + w, y);
-    ctx.lineTo(x + w, y + cornerLen);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(x, y + h - cornerLen);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x + cornerLen, y + h);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(x + w - cornerLen, y + h);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x + w, y + h - cornerLen);
-    ctx.stroke();
-
-    // Eye tracking reticles
-    const eyeY = y + Math.round(h * 0.35);
-    const eyeLeftX = x + Math.round(w * 0.3);
-    const eyeRightX = x + Math.round(w * 0.7);
-    const eyeSize = 14;
-
-    ctx.strokeStyle = isAuth ? "rgba(6, 214, 160, 0.75)" : "rgba(225, 29, 72, 0.75)";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(eyeLeftX - eyeSize/2, eyeY - eyeSize/2, eyeSize, eyeSize);
-    ctx.strokeRect(eyeRightX - eyeSize/2, eyeY - eyeSize/2, eyeSize, eyeSize);
-
-    // Unmirrored HUD Status Header
-    ctx.fillStyle = "rgba(11, 18, 32, 0.88)";
-    ctx.fillRect(x, y - 32, w, 28);
-    ctx.strokeStyle = primaryColor;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y - 32, w, 28);
-
-    ctx.fillStyle = "#F9FAFB";
-    ctx.font = "bold 13px 'Inter', sans-serif";
-    ctx.textAlign = "center";
-
-    if (isAuth) {
-      ctx.fillText(`DRIVER: ${this.lastAuthDriver.toUpperCase()} | AUTHORISED`, x + w / 2, y - 13);
-    } else {
-      ctx.fillText("FACIAL SCANNING ACTIVE | AWAITING RECOGNITION", x + w / 2, y - 13);
+    const fresh = this.faceBox && (Date.now() - this.faceBoxTime) < 2000;
+    if (!fresh) {
+      this.hudBox = null;
+      this.drawGuide(cw, ch);
+      return;
     }
+
+    const [nx, ny, nw, nh] = this.faceBox;
+    const target = { x: (1 - nx - nw) * cw, y: ny * ch, w: nw * cw, h: nh * ch };
+    if (!this.hudBox) {
+      this.hudBox = target;
+    } else {
+      const k = 0.35;   // move part of the way each frame so the box glides
+      for (const key of ["x", "y", "w", "h"]) {
+        this.hudBox[key] += (target[key] - this.hudBox[key]) * k;
+      }
+    }
+    const { x, y, w, h } = this.hudBox;
+
+    const isAuth = this.lastAuthState === true;
+    const color = isAuth ? "#15803D" : (this.faceMessage === "Move your head slightly." ? "#B45309" : "#DC2626");
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, w, h);
+
+    const label = isAuth ? this.lastAuthDriver : (this.faceMessage || "Checking...");
+    ctx.font = "bold 14px 'Segoe UI', Arial, sans-serif";
+    const textW = Math.min(cw - 8, ctx.measureText(label).width + 14);
+    const labelX = Math.max(4, Math.min(x, cw - textW - 4));
+    const labelY = y > 28 ? y - 26 : y + h + 2;
+    ctx.fillStyle = color;
+    ctx.fillRect(labelX, labelY, textW, 24);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "left";
+    ctx.fillText(label, labelX + 7, labelY + 17, textW - 10);
+  }
+
+  // Shown when no face is found yet
+  drawGuide(cw, ch) {
+    const ctx = this.ctx;
+    const w = Math.round(cw * 0.36);
+    const h = Math.round(ch * 0.5);
+    const x = Math.round((cw - w) / 2);
+    const y = Math.round((ch - h) / 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
+    ctx.font = "14px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(this.faceMessage || "Show your face", cw / 2, y + h + 22);
   }
 
   // ===================================================================
@@ -502,18 +487,22 @@ class DriverAuthController {
         if (response.ok) {
           const res = await response.json();
           if (res.status === "success") {
+            this.faceBox = res.box || null;
+            this.faceBoxTime = Date.now();
+            this.faceMessage = res.message || "";
+            if (!res.box) this.faceBox = null;
             const detectedDriver = res.driver;
             const isAuth = Boolean(res.authorized);
             const dist = typeof res.distance === "number" ? res.distance : 99.0;
             const conf = typeof res.confidence === "number" ? res.confidence : 0.0;
 
             // Proper Logic: only verify if detected as authorized AND present in enrolled drivers roster
-            if (isAuth && detectedDriver && detectedDriver !== "Unknown" && this.enrolledDrivers[detectedDriver]) {
-              this.updateGatingUI(true, detectedDriver, dist, conf);
+            if (isAuth && detectedDriver && detectedDriver !== "Unknown") {
+              this.updateGatingUI(true, detectedDriver, dist, conf, res.message);
               return;
             } else {
               // Unrecognized subject or no face
-              this.updateGatingUI(false, "Unknown", dist, conf);
+              this.updateGatingUI(false, "Unknown", dist, conf, res.message);
               return;
             }
           }
@@ -544,7 +533,7 @@ class DriverAuthController {
   // ===================================================================
   // VEHICLE GATING & IGNITION INTERLOCK
   // ===================================================================
-  updateGatingUI(isAuth, driverName, distance, similarity) {
+  updateGatingUI(isAuth, driverName, distance, similarity, note) {
     const isRealMatch = isAuth && driverName !== "Unknown";
     const displayName = isRealMatch ? driverName : "Unknown";
 
@@ -563,7 +552,7 @@ class DriverAuthController {
 
     if (livenessBadge) {
       livenessBadge.className = isRealMatch ? "badge badge-success" : "badge badge-warning";
-      livenessBadge.textContent = isRealMatch ? "VERIFIED" : "PENDING";
+      livenessBadge.textContent = isRealMatch ? "Verified" : "Pending";
     }
 
     if (lockBadge) {
@@ -582,8 +571,8 @@ class DriverAuthController {
 
     if (engineSub) {
       engineSub.textContent = isRealMatch ?
-        `Biometric facial recognition matched: ${displayName}. Vitality verified.` :
-        "Waiting for biometric facial verification of registered driver.";
+        `Face matched: ${displayName}. Live person confirmed.` :
+        (note || "Waiting for the driver's face.");
     }
 
     // Sync with Fleet Dashboard Card 6
