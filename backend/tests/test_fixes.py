@@ -199,7 +199,7 @@ def test_explicit_severity_wins(client):
 
 
 def test_alert_events_store_the_alert_severity(client):
-    A.process_telemetry_packet({"spd": 0, "tilt": 70, "auth": 1}, source="TEST")
+    A.process_telemetry_packet({"spd": 0, "tilt": 150, "auth": 1}, source="TEST")
     ev = [e for e in database.get_events(limit=20)["events"] if e["event_type"] == "ACCIDENT"][0]
     assert ev["severity"] == "CRITICAL"
 
@@ -270,7 +270,7 @@ def test_alert_logic_accepts_garbage_directly(client):
 
 
 def test_accident_in_a_packet_with_one_bad_field_is_still_detected(client):
-    A.process_telemetry_packet({"alc": "abc", "tilt": 80, "auth": 1}, source="TEST")
+    A.process_telemetry_packet({"alc": "abc", "tilt": 150, "auth": 1}, source="TEST")
     assert "ACCIDENT" in A.state.active_alerts
 
 

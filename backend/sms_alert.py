@@ -87,6 +87,27 @@ def _split_numbers(value: Any) -> List[str]:
     return [str(v).strip() for v in (value or []) if str(v).strip()]
 
 
+def _switch_file():
+    """The admin panel's on/off button is kept in its own small file next to sms_settings.json."""
+    return config.SMS_SETTINGS_FILE.with_name("sms_switch.json")
+
+
+def _switch_value() -> Optional[bool]:
+    try:
+        value = json.loads(_switch_file().read_text(encoding="utf-8")).get("enabled")
+        return value if isinstance(value, bool) else None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def set_enabled(on: bool) -> None:
+    """Switch SMS sending on or off (kept after a restart). The API key and numbers are not touched."""
+    path = _switch_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"enabled": bool(on)}), encoding="utf-8")
+    logger.info("SMS sending switched %s from the admin panel", "ON" if on else "OFF")
+
+
 def load_settings() -> Dict[str, Any]:
     """Settings from the file, overridden by the environment. Returns a dict with a `problems` list."""
     data: Dict[str, Any] = {}
@@ -103,7 +124,14 @@ def load_settings() -> Dict[str, Any]:
     api_key = (env("ACCIALERT_SMS_API_KEY") or data.get("api_key") or "").strip()
     template_id = str(env("ACCIALERT_SMS_TEMPLATE_ID") or data.get("template_id") or "").strip()
     raw_numbers = _split_numbers(env("ACCIALERT_SMS_TO") or data.get("to_numbers"))
-    enabled = data.get("enabled", True) if env("ACCIALERT_SMS_ENABLED") is None else env("ACCIALERT_SMS_ENABLED") != "0"
+    # Order: the environment variable, then the on/off button in the admin panel, then sms_settings.json, then on
+    switch = _switch_value()
+    if env("ACCIALERT_SMS_ENABLED") is not None:
+        enabled = env("ACCIALERT_SMS_ENABLED") != "0"
+    elif switch is not None:
+        enabled = switch
+    else:
+        enabled = data.get("enabled", True)
     api_url = (data.get("api_url") or DEFAULT_API_URL).strip()
 
     problems, warnings = [], []

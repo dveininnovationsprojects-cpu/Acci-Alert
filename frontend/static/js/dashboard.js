@@ -16,6 +16,7 @@ class DashboardController {
     this.dataStale = false;        // true while the vehicle has stopped sending
 
     this.bindEvents();
+    this.initSmsSwitch();
     this.initSocket();
     this.loadEvents();
 
@@ -152,7 +153,7 @@ class DashboardController {
       const pct = Math.min(100, Math.max(0, (spd / 100) * 100));
       speedFillEl.style.width = `${pct}%`;
       speedFillEl.classList.toggle("danger", spd >= 80);
-      speedFillEl.classList.toggle("warning", spd >= 50 && spd < 80);
+      speedFillEl.classList.toggle("warning", spd >= 60 && spd < 80);
     }
 
     // 2. Alcohol Sensor Level
@@ -162,10 +163,10 @@ class DashboardController {
     const alcFillEl = document.getElementById("fill-alcohol");
     if (alcEl) alcEl.innerText = alc;
     if (alcBadgeEl) {
-      if (alc >= 600) {
+      if (alc >= 220) {
         alcBadgeEl.innerText = "Danger";
         alcBadgeEl.className = "badge badge-danger";
-      } else if (alc >= 350) {
+      } else if (alc >= 180) {
         alcBadgeEl.innerText = "Caution";
         alcBadgeEl.className = "badge badge-warning";
       } else {
@@ -174,10 +175,10 @@ class DashboardController {
       }
     }
     if (alcFillEl) {
-      const alcPct = Math.min(100, (alc / 1023) * 100);
+      const alcPct = Math.min(100, (alc / 330) * 100);      // bar is full at 1.5 x the alert level (220)
       alcFillEl.style.width = `${alcPct}%`;
-      alcFillEl.classList.toggle("danger", alc >= 600);
-      alcFillEl.classList.toggle("warning", alc >= 350 && alc < 600);
+      alcFillEl.classList.toggle("danger", alc >= 220);
+      alcFillEl.classList.toggle("warning", alc >= 180 && alc < 220);
     }
 
     // 3. Obstacle Distance
@@ -187,10 +188,10 @@ class DashboardController {
     const distFillEl = document.getElementById("fill-obstacle");
     if (distEl) distEl.innerText = dist > 400 ? "> 400" : Math.round(dist);
     if (distBadgeEl) {
-      if (dist <= 40) {
+      if (dist <= 25) {
         distBadgeEl.innerText = "Imminent";
         distBadgeEl.className = "badge badge-danger";
-      } else if (dist <= 100) {
+      } else if (dist <= 40) {
         distBadgeEl.innerText = "Warning";
         distBadgeEl.className = "badge badge-warning";
       } else {
@@ -201,8 +202,8 @@ class DashboardController {
     if (distFillEl) {
       const distPct = Math.min(100, (dist / 300) * 100);
       distFillEl.style.width = `${distPct}%`;
-      distFillEl.classList.toggle("danger", dist <= 40);
-      distFillEl.classList.toggle("warning", dist > 40 && dist <= 100);
+      distFillEl.classList.toggle("danger", dist <= 25);
+      distFillEl.classList.toggle("warning", dist > 25 && dist <= 40);
     }
 
     // 4. Accident / Tilt Status
@@ -215,10 +216,10 @@ class DashboardController {
       accelEl.innerText = `X:${(t.ax || 0).toFixed(2)} Y:${(t.ay || 0).toFixed(2)} Z:${(t.az || 1).toFixed(2)}g`;
     }
     if (tiltBadgeEl) {
-      if (tilt >= 45.0 || (t.evt && t.evt.includes("ACCIDENT"))) {
+      if (tilt >= 130.0 || (t.evt && t.evt.includes("ACCIDENT"))) {
         tiltBadgeEl.innerText = "Accident";
         tiltBadgeEl.className = "badge badge-danger";
-      } else if (tilt >= 20.0) {
+      } else if (tilt >= 115.0) {
         tiltBadgeEl.innerText = "Warning";
         tiltBadgeEl.className = "badge badge-warning";
       } else {
@@ -280,7 +281,7 @@ class DashboardController {
     if (gpsFixBadge) {
       if (t.position_source === "LAPTOP") {
         const acc = typeof t.position_accuracy_m === "number" ? ` (±${Math.round(t.position_accuracy_m)} m)` : "";
-        gpsFixBadge.innerText = `Laptop location${acc}`;
+        gpsFixBadge.innerText = `Location${acc}`;
         gpsFixBadge.className = "badge badge-warning";
       } else if (t.position_source === "NONE" || !hasPosition) {
         gpsFixBadge.innerText = "No GPS, no laptop location";
@@ -587,6 +588,59 @@ class DashboardController {
   // ===================================================================
   // UI INTERACTIONS & EVENT BINDINGS
   // ===================================================================
+  // ===================================================================
+  // SMS ON / OFF BUTTON (admin panel, Controls tab)
+  // ===================================================================
+  async loadSmsSwitch() {
+    try {
+      const r = await fetch("/api/sms/status", { cache: "no-store" });
+      this.showSmsSwitch(await r.json());
+    } catch (e) {
+      const note = document.getElementById("sms-switch-note");
+      if (note) note.innerText = "Cannot read the SMS status.";
+    }
+  }
+
+  showSmsSwitch(s) {
+    const btn = document.getElementById("btn-sms-switch");
+    const note = document.getElementById("sms-switch-note");
+    if (!btn || !s) return;
+    const on = !!s.enabled;
+    btn.innerText = on ? "SMS sending: ON  (press to turn off)" : "SMS sending: OFF  (press to turn on)";
+    btn.classList.toggle("btn-teal", on);
+    btn.classList.toggle("btn-outline", !on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    if (!note) return;
+    if (!on) note.innerText = "No text message is sent: not for alerts, not for SOS.";
+    else if (!s.configured) note.innerText = "On, but SMS is not set up yet (" + (s.problems || []).join("; ") + ").";
+    else note.innerText = "Alerts and SOS are texted to " + (s.recipients || []).join(", ") + ".";
+  }
+
+  initSmsSwitch() {
+    const btn = document.getElementById("btn-sms-switch");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const turnOn = btn.getAttribute("aria-pressed") !== "true";
+      btn.disabled = true;
+      try {
+        const r = await fetch("/api/sms/enabled", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: turnOn }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.status === "success") {
+          this.showSmsSwitch(d);
+          this.showToast(turnOn ? "SMS sending is ON." : "SMS sending is OFF.", turnOn ? "success" : "warning");
+        } else {
+          await AppDialog.alert({ title: "Could not change SMS", message: d.message || (r.status === 401 ? "Log in to the admin panel first." : "The server refused the change.") });
+        }
+      } catch (e) {
+        await AppDialog.alert({ title: "Could not change SMS", message: "Cannot reach the AcciAlert server." });
+      }
+      btn.disabled = false;
+    });
+    this.loadSmsSwitch();
+  }
+
   bindEvents() {
     // Tab Switching
     document.querySelectorAll(".tab-btn").forEach(btn => {

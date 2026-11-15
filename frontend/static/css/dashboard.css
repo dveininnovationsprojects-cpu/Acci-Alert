@@ -185,6 +185,18 @@ body {
   opacity: 0.95;
 }
 
+/* The green theme makes .btn-outline white; on the coloured banner it must stay readable */
+#alert-banner-container .btn,
+#alert-banner-container .btn-outline {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid #FFFFFF !important;
+  font-weight: 600;
+}
+#alert-banner-container .btn:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+}
+
 .alert-actions-wrap {
   display: flex;
   align-items: center;

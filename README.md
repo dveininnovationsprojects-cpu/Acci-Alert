@@ -77,7 +77,9 @@ When the browser asks, **allow the camera** (face login) and **allow location** 
 
 Use the Wi-Fi way. Do these in order:
 
-1. Put the laptop and the ESP32 on the same Wi-Fi. Find the laptop's address with `ipconfig` (IPv4 of the Wi-Fi adapter, for example `192.168.1.19`) and put it in the firmware as the server address.
+The ready firmware is in `firmware/AcciAlert_ESP32/` (open `AcciAlert_ESP32.ino` in Arduino IDE; libraries ArduinoJson 7 and TinyGPSPlus; board "ESP32 Dev Module"). It has all sensors, the motor, the buzzer and the Wi-Fi link to this software. Wi-Fi name, password and the laptop address are the three `#define` lines near the top of that file. To test the laptop side without the board: `python firmware/simulate_esp32.py http://127.0.0.1:5173 <MAC>` (see the top of that file).
+
+1. Put the laptop and the ESP32 on the same Wi-Fi. Find the laptop's address with `ipconfig` (IPv4 of the Wi-Fi adapter, for example `192.168.1.19`) and put it in the firmware as the server address (`SERVER_BASE_URL`).
 2. If the ESP32 cannot reach the laptop, allow port 5173 in the Windows firewall (administrator terminal):
    ```bash
    netsh advfirewall firewall add rule name="AcciAlert 5173" dir=in action=allow protocol=TCP localport=5173 profile=any
@@ -128,6 +130,8 @@ Details, message formats and an Arduino example: `docs/ESP32_TELEMETRY_API.md`.
 - **Admin panel, Controls tab:** Reset System and Acknowledge Alert (mute the siren). The Emergency Stop button was removed.
 
 ## SMS alerts (Circuit Digest Cloud, free, India)
+
+**On/off button:** Admin Panel, **Controls** tab, **SMS alerts**. Off means no text at all (alerts, SOS and the test). The choice is kept after a restart (`backend/data/sms_switch.json`); the key and numbers are not touched. `ACCIALERT_SMS_ENABLED=0` still forces it off.
 
 The laptop texts the owner when one of these starts: **accident**, **alcohol detected**, **the car moving with no
 authorised driver**, or **an unauthorised person trying to start the car** (a face shown to the camera and rejected).

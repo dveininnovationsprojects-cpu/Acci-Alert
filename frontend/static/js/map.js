@@ -514,8 +514,8 @@ class VehicleMapManager {
         <strong style="color:#16A34A; font-size:0.9rem;">AcciAlert Vehicle</strong><br/>
         <b>Driver:</b> ${escapeHtml(driverName || "Unknown")}<br/>
         <b>Speed:</b> ${speed ? speed.toFixed(1) : 0.0} km/h<br/>
-        <b>State:</b> <span class="badge ${state === 'RUNNING' ? 'badge-success' : 'badge-danger'}">${state || 'READY'}</span><br/>
-        <b>${source === "LAPTOP" ? "Laptop location" : "GPS"}:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}
+        <b>State:</b> <span class="badge ${(state === 'RUNNING' || state === 'MOVING') ? 'badge-success' : 'badge-danger'}">${state || 'READY'}</span><br/>
+        <b>${source === "LAPTOP" ? "Location" : "GPS"}:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}
       </div>`;
     if (first) this.view.setCenter(lat, lon, 15);                  // first real position: go to it
     this.drawVehicle();

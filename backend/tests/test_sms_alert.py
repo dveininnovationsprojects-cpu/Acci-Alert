@@ -277,9 +277,9 @@ def alerts(sms):
 
 
 def test_an_accident_alert_sends_a_text_once_not_every_second(alerts):
-    tick(tilt=80)
-    tick(tilt=80)
-    tick(tilt=80)
+    tick(tilt=150)
+    tick(tilt=150)
+    tick(tilt=150)
     assert len(alerts.calls) == len(TO)
     assert alerts.calls[0]["data"]["var1"] == "Accident"
 

@@ -112,19 +112,19 @@ THRESHOLDS = {
         "critical": 80.0,      # km/h (overspeed alert)
     },
     "alcohol": {
-        "caution": 350,        # ADC reading
-        "danger": 600,         # ADC reading (alcohol alert)
+        "caution": 180,        # ADC reading (0-1023 scale)
+        "danger": 220,         # ADC reading (alcohol alert) = firmware trigger: clean-air baseline + 350 on the 12-bit ADC
         "max_adc": 1023
     },
     "obstacle": {
-        "caution": 100,        # cm
-        "danger": 40,          # cm (obstacle alert)
+        "caution": 40,         # cm
+        "danger": 25,          # cm (obstacle alert) = firmware warning distance
     },
     "tilt": {
-        "warning": 20.0,       # degrees
-        "accident": 45.0,      # degrees (accident / rollover)
+        "warning": 115.0,      # degrees
+        "accident": 130.0,     # degrees (accident / rollover); this car's sensor board reads about 100 degrees when it stands normally
     },
-    "impact_acceleration": 2.5  # g (vector magnitude sqrt(ax^2+ay^2+az^2))
+    "impact_acceleration": 4.0  # g (vector magnitude sqrt(ax^2+ay^2+az^2)); 2.5 g was set off by simply handling the car
 }
 
 # ESP32 Wi-Fi telemetry API (POST /api/v1/telemetry)

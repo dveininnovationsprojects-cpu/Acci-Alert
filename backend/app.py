@@ -508,6 +508,21 @@ def choose_position(packet: dict):
     return None, None, 0, "NONE", None
 
 
+def derive_vehicle_state(reported, spd) -> str:
+    """Status for the dashboard card. Any active alert shows WARNING (an accident shows EMERGENCY),
+    a car that is really moving shows MOVING, otherwise RUNNING (engine on, standing still)."""
+    reported = str(reported or "").upper()
+    if reported == "EMERGENCY" or "ACCIDENT" in state.active_alerts:
+        return "EMERGENCY"
+    if reported == "LOCKED":
+        return "LOCKED"
+    if reported == "WARNING" or state.active_alerts:
+        return "WARNING"
+    if safe_number(spd, 0.0) >= 0.5:
+        return "MOVING"
+    return reported if reported == "READY" else "RUNNING"
+
+
 def process_telemetry_packet(packet: dict, source: str = "ESP32"):
     """Standardizes, decorates, and broadcasts a telemetry packet.
     A missing or non-numeric field falls back to a safe default instead of dropping the packet."""
@@ -543,6 +558,9 @@ def process_telemetry_packet(packet: dict, source: str = "ESP32"):
 
     # Run alert detection logic
     evaluate_and_dispatch_alerts(telemetry)
+
+    # Vehicle status shown on the dashboard: EMERGENCY / LOCKED / WARNING / MOVING / RUNNING
+    telemetry["state"] = derive_vehicle_state(telemetry["state"], telemetry["spd"])
 
     # Broadcast over Socket.IO to connected browsers
     socketio.emit("telemetry", telemetry)
@@ -684,7 +702,7 @@ def admin_status_api():
 
 # These changes need the admin login (reading is open: the dashboard shows zones and events)
 ADMIN_ONLY_WRITES = ("/api/zone-settings", "/api/enrol", "/api/enrolled", "/api/drivers", "/api/zones", "/zm/api/zones", "/api/serial/connect",
-                     "/api/serial/send", "/api/logs", "/api/config")
+                     "/api/serial/send", "/api/logs", "/api/config", "/api/sms/enabled", "/api/sms/test")
 
 
 @app.before_request
@@ -743,7 +761,7 @@ def sos_api():
     texted = sms_alert.notify("SOS", {"speed": speed, "lat": lat, "lon": lon, "driver": driver,
                                       "source": (state.latest_telemetry or {}).get("position_source")})
     socketio.emit("sos", {"driver": driver, "lat": lat, "lon": lon})
-    message = "SOS sent. The owner is being texted." if texted else "SOS recorded. The text was not sent (SMS is not set up, or a limit was reached)."
+    message = "SOS sent. The owner is being texted." if texted else "SOS recorded. The text was not sent (SMS is switched off or not set up, or a limit was reached)."
     return jsonify({"status": "success", "texted": bool(texted), "message": message})
 
 
@@ -1627,6 +1645,19 @@ def laptop_location_api():
 def sms_status_api():
     """Is SMS set up, who gets the texts (numbers hidden), the limits, how many went out, and the last results."""
     return jsonify({"status": "success", **sms_alert.status(), "recent": database.get_sms_log(10)})
+
+
+@app.route("/api/sms/enabled", methods=["POST"])
+def sms_enabled_api():
+    """The admin panel's SMS on/off button. Off means no text at all (alerts, SOS and tests)."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("enabled"), bool):
+        return jsonify({"status": "error", "message": "Send {\"enabled\": true} or {\"enabled\": false}."}), 400
+    sms_alert.set_enabled(data["enabled"])
+    database.add_event(event_type="SMS_SWITCH", driver_name=state.active_driver_name,
+                       details="SMS sending switched " + ("ON" if data["enabled"] else "OFF") + " by the admin",
+                       severity="LOW")
+    return jsonify({"status": "success", **sms_alert.status()})
 
 
 @app.route("/api/sms/test", methods=["POST"])
