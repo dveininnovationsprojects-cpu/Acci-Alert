@@ -275,7 +275,7 @@ def test_a_lasting_alert_is_logged_once_not_every_five_seconds(monkeypatch):
 
     def tick(seconds, auth):
         app_module.evaluate_and_dispatch_alerts(
-            {"spd": 0, "alc": 0, "dist": 999, "tilt": 0, "auth": auth, "lat": 1.0, "lon": 1.0}, now=1000.0 + seconds)
+            {"spd": 12, "alc": 0, "dist": 999, "tilt": 0, "auth": auth, "lat": 1.0, "lon": 1.0}, now=1000.0 + seconds)
 
     def logged():
         return app_module.database.get_events(limit=50, search="ThrottleTest")["total"]

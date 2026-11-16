@@ -133,10 +133,18 @@ Details, message formats and an Arduino example: `docs/ESP32_TELEMETRY_API.md`.
 
 **On/off button:** Admin Panel, **Controls** tab, **SMS alerts**. Off means no text at all (alerts, SOS and the test). The choice is kept after a restart (`backend/data/sms_switch.json`); the key and numbers are not touched. `ACCIALERT_SMS_ENABLED=0` still forces it off.
 
-The laptop texts the owner when one of these starts: **accident**, **alcohol detected**, **the car moving with no
-authorised driver**, or **an unauthorised person trying to start the car** (a face shown to the camera and rejected).
+The laptop texts the owner when one of these starts: **accident**, **car crashed** (an obstacle 4 cm away or closer, or the distance sensor sending no distance at all: `Dist: none` on the ESP32, "> 400" on the dashboard; switch the second case off with `CRASH_ON_NO_ECHO = False` in `backend/config.py`), **alcohol detected**, **the car moving with no
+authorised driver**, or **an unauthorised person trying to start the car** (a face shown to the camera and rejected, texted on the **3rd failed attempt in a row** within 10 minutes, not on the first mistake).
 Pressing **SOS** on the dashboard also texts the owner (it ignores the hourly and daily limits and can repeat after 30 seconds).
 Overspeed, obstacles and danger-zone alerts are not texted.
+
+**What counts as an accident** (it sends the text): a hard impact of 4 g or more, **or** a tilt of **50 degrees or more to the left or to the right**
+that lasts about 3 seconds, **or** the car crashing into something (obstacle 4 cm or closer, or the distance sensor losing its echo right after a
+very close reading, which is what happens when something touches it). The tilt is measured from where the car rests (the first reading after
+the server starts, followed slowly if the car is parked on a slope), so it does not matter which way the board is fixed and both sides behave the
+same. After you move the board or the car to a new normal position, press **RESET SYSTEM** in the admin panel: the car as it stands then becomes the
+new "upright". If turning the board by hand gives false alarms, set `TILT_REQUIRE_SHOCK = True` (then a tilt only counts after a knock or fast spin).
+The overspeed limit is 25 km/h. Limits: `backend/config.py` (`THRESHOLDS`, `TILT_*`).
 
 It uses the free SMS API of Circuit Digest Cloud (circuitdigest.cloud). It works for **Indian mobile numbers only**, and the
 text is a **ready-made template** with two slots (`var1`, `var2`): you cannot write your own sentence or add a map link.
@@ -159,7 +167,7 @@ To change what goes into the slots, edit `var1` and `var2` in `backend/data/sms_
 Example for template 101 ("Your {var1} is currently at {var2}."): `"template_id": "101", "var1": "alert_text", "var2": "location", "value_style": "free"` gives "Your vehicle accident is currently at https://maps.google.com/?q=13.05000,80.25000."
 `value_style` is `plain` (letters and digits only, up to 30, as the service's tutorial says) or `free` (readable text and links, up to 100). If a text is refused, try `plain`.
 
-**It cannot spam:** the same alert is texted once per 5 minutes, at most 6 texts per hour, 20 per day and 90 per month (each recipient counts). The counts are kept in the database, so a restart does not reset them. Texts are sent in the background, so a slow service never delays the dashboard. If SMS is not set up, nothing is sent and nothing breaks.
+**Limits:** the same alert is texted once per 3 minutes. There is no hourly and no daily limit in the software (`SMS_MAX_PER_HOUR` and `SMS_MAX_PER_DAY` in `backend/config.py` are 0; put a number there to bring one back), and at most 90 per month (each recipient counts). The SMS service has its own limits (about 15 a day on the free plan) and refuses texts sent less than about 15 seconds apart, so the software sends one text at a time with a 16 second gap (`SMS_MIN_GAP_S`) and tries again when the service says "please wait". The counts are kept in the database, so a restart does not reset them. Texts are sent in the background, so a slow service never delays the dashboard. If SMS is not set up, nothing is sent and nothing breaks.
 
 **Good to know:** the service may refuse a text if its template is not approved for India's telecom rules (DLT), so always send a test first. Check the current limits and the exact API address on their dashboard.
 

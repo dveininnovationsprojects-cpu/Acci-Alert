@@ -2,7 +2,7 @@
 // RIGHT, then LEFT, then look STRAIGHT (arrows on the camera picture). The server checks the face and the turns,
 // and on success this page shows ENGINE START and opens the dashboard.
 (() => {
-  const POLL_MS = 800, RETRY_AFTER_MS = 4000, ENGINE_SHOW_MS = 2600;
+  const POLL_MS = 250, RETRY_AFTER_MS = 3000, ENGINE_SHOW_MS = 1200;
   const $ = (id) => document.getElementById(id);
   const video = $("cam"), box = $("camBox"), statusEl = $("status"), hintEl = $("hint"), camOff = $("camOff"), retry = $("retry");
   const progress = $("progress"), progressFill = $("progressFill");
@@ -91,6 +91,7 @@
       setProgress(0);
       const clip = await HeadTurn.capture({
         video, challenge: c.data, overlay, say: (t) => say(t, ""), progress: setProgress,
+        keep: 4,                      // pictures kept per step: a shorter clip is checked faster (enrolment keeps more)
       });
       overlay.hide();
       if (!clip.ok) {
@@ -101,8 +102,11 @@
         return;
       }
       frame("found"); say("Checking your face...");
+      const sentAt = performance.now();
       const r = await post("/api/authenticate", { frames: clip.frames, challenge: c.data.token });
       setProgress(null);
+      // for finding slow logins: press F12, Console. "request" is the whole wait, "server" is what the check itself took.
+      console.info(`Face login: ${clip.frames.length} pictures sent, request ${Math.round(performance.now() - sentAt)} ms, server check ${r.data && r.data.elapsed_ms} ms`, r.data && r.data.timing_ms);
       if (r.ok && r.data && r.data.status === "success" && r.data.authorized) { engineStart(r.data.driver); return; }
       const why = (r.data && r.data.message) || "Face check failed.";
       frame("bad"); setStep(1); overlay.reset();
@@ -125,7 +129,7 @@
       $("engineView").style.display = "block";
       $("engineWho").textContent = `Welcome, ${driver}. Opening the dashboard...`;
       setTimeout(() => { location.href = "/home"; }, ENGINE_SHOW_MS);
-    }, 500);
+    }, 150);
   }
 
   retry.addEventListener("click", startCamera);

@@ -47,6 +47,7 @@ _warned: Dict[str, float] = {}
 # What the service is told for each alert (letters and digits only, no spaces)
 ALERT_WORDS = {
     "ACCIDENT": "Accident",
+    "CAR CRASHED": "CarCrashed",
     "ALCOHOL DETECTED": "Alcohol",
     "UNAUTHORISED DRIVER": "UnauthorisedDriver",
     "UNAUTHORISED LOGIN": "UnauthorisedLogin",
@@ -57,6 +58,7 @@ ALERT_WORDS = {
 # Readable wording, for templates like 101 "Your {var1} is currently at {var2}."
 ALERT_PHRASES = {
     "ACCIDENT": "vehicle accident",
+    "CAR CRASHED": "crashed car",
     "ALCOHOL DETECTED": "driver alcohol alert",
     "UNAUTHORISED DRIVER": "unauthorised driver",
     "UNAUTHORISED LOGIN": "unauthorised start attempt",
@@ -268,11 +270,38 @@ def explain_error(result: Dict[str, Any]) -> str:
     return f"HTTP {code}: " + " - ".join(p for p in (hint, text) if p) if (hint or text) else f"HTTP {code}: no details"
 
 
+_send_lock = threading.Lock()      # one text at a time to the service
+_last_post_at = 0.0
+
+
+def _post_spaced(settings: Dict[str, Any], number: str, var1: str, var2: str) -> Dict[str, Any]:
+    """The service refuses texts that arrive too close together ("SMS rate limit exceeded. Please wait 7.3 seconds").
+    So texts go out one at a time with a gap (SMS_MIN_GAP_S), and a refusal that says how long to wait is tried again."""
+    global _last_post_at
+    result: Dict[str, Any] = {}
+    for _attempt in range(3):
+        with _send_lock:
+            pause = _last_post_at + config.SMS_MIN_GAP_S - time.time()
+            if pause > 0:
+                time.sleep(pause)
+            result = _post(settings, number, var1, var2)
+            _last_post_at = time.time()
+        if result["ok"]:
+            return result
+        message = str((result.get("payload") or {}).get("message") or "")
+        wait = re.search(r"wait\s+([\d.]+)\s*second", message, re.IGNORECASE)
+        if result.get("status_code") == 429 and wait:
+            time.sleep(min(float(wait.group(1)) + 1.0, 30.0))
+            continue
+        break
+    return result
+
+
 def _send_all(settings: Dict[str, Any], alert_type: str, var1: str, var2: str, log_ids: Dict[str, int]) -> None:
     for number in settings["to_numbers"]:
         log_id = log_ids[number]
         try:
-            result = _post(settings, number, var1, var2)
+            result = _post_spaced(settings, number, var1, var2)
             if result["ok"]:
                 database.update_sms_log(log_id, "sent", f"accepted ({var1}, {var2})")
                 logger.info("SMS %s sent to %s", alert_type, mask(number))
@@ -312,14 +341,21 @@ def notify(alert_type: str, info: Optional[Dict[str, Any]] = None, force: bool =
             now = time.time()
             sos = alert_type == "SOS"          # an SOS press is urgent: short cooldown, and the hourly and daily limits do not stop it
             cooldown = config.SMS_SOS_COOLDOWN_S if sos else settings["cooldown_s"]
+            # The limits that urgent alerts ignore: SOS ignores the hourly and daily ones, an accident or a crash only the
+            # hourly one (an hour of test alerts must not silence the text that matters). Daily and monthly still protect
+            # the service's quota.
+            skipped_caps = ("max_per_hour", "max_per_day") if sos else (("max_per_hour",) if alert_type in config.SMS_NO_HOURLY_CAP else ())
             if not force and now - _last_attempt.get(alert_type, 0) < cooldown:
                 return False
             n = len(settings["to_numbers"])
-            for key, seconds, label in (("max_per_hour", 3600, "hourly"), ("max_per_day", 86400, "daily"),
+            # "Daily" means today since midnight (how the service counts it), not a rolling 24 hours: a text sent
+            # yesterday afternoon must not block an alert this morning.
+            since_midnight = (datetime.now() - datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+            for key, seconds, label in (("max_per_hour", 3600, "hourly"), ("max_per_day", since_midnight + 1, "daily"),
                                         ("max_per_month", 30 * 86400, "monthly")):
-                if sos and key != "max_per_month":
+                if key in skipped_caps:
                     continue
-                if database.count_sms_since(seconds) + n > settings[key]:
+                if settings[key] > 0 and database.count_sms_since(seconds) + n > settings[key]:       # 0 = no limit
                     _warn_once(label, f"SMS {label} limit ({settings[key]}) reached: {alert_type} not texted")
                     return False
             _last_attempt[alert_type] = now

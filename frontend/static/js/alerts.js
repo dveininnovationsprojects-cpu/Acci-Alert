@@ -183,6 +183,12 @@ class AlertSystem {
     if (this.currentAlert && this.currentAlert.type === alertObj.type) {
       return;
     }
+    // A crash or an accident stays on the banner: the milder alerts that arrive with it (for example the
+    // obstacle alert at 4 cm) must not replace it and make the banner flicker.
+    const top = { "CAR CRASHED": 2, "ACCIDENT": 2 };
+    if (this.currentAlert && (top[this.currentAlert.type] || 0) > (top[alertObj.type] || 0)) {
+      return;
+    }
 
     this.currentAlert = alertObj;
     this.displayBanner(alertObj);
@@ -199,6 +205,7 @@ class AlertSystem {
 
     const titles = {
       "ACCIDENT": "CRITICAL: ACCIDENT DETECTED",
+      "CAR CRASHED": "CRITICAL: CAR CRASHED",
       "ALCOHOL DETECTED": "SAFETY ALERT: ALCOHOL DETECTED",
       "UNAUTHORISED DRIVER": "SECURITY ALERT: UNAUTHORISED DRIVER",
       "OBSTACLE DETECTED": "PROXIMITY WARNING: OBSTACLE DETECTED",
@@ -217,7 +224,7 @@ class AlertSystem {
     this.bannerEl.classList.add("show");
 
     // Dynamic styling based on severity
-    if (alert.severity === "CRITICAL" || alert.type === "ACCIDENT") {
+    if (alert.severity === "CRITICAL" || alert.type === "ACCIDENT" || alert.type === "CAR CRASHED") {
       this.bannerEl.style.background = "#B91C1C";
     } else if (alert.type === "ALCOHOL DETECTED" || alert.type === "UNAUTHORISED DRIVER") {
       this.bannerEl.style.background = "#C2410C";

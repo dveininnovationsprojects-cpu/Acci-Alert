@@ -103,7 +103,7 @@
             <div id="fill-speed" class="mini-progress-fill" style="width: 0%;"></div>
           </div>
           <div class="card-footer">
-            <span>Limit: <strong id="val-speed-limit" style="color:var(--teal-primary);">80 km/h</strong></span>
+            <span>Limit: <strong id="val-speed-limit" style="color:var(--teal-primary);">25 km/h</strong></span>
             <span id="badge-speed-status" class="badge badge-success">Cruising</span>
           </div>
         </div>
@@ -237,10 +237,6 @@
           <div class="card-body">
             <span id="badge-gps-fix" class="badge badge-muted" style="font-size:1rem; padding:6px 14px;">Waiting</span>
           </div>
-          <div class="card-footer">
-            <span>Constellation</span>
-            <span class="badge badge-info">8 sats</span>
-          </div>
         </div>
 
       </div>
@@ -276,7 +272,7 @@
           <div class="chart-subcard">
             <div class="chart-subcard-title">
               <span>Alcohol Sensor (MQ-3 ADC)</span>
-              <span style="color:var(--orange-primary);">0 - 1024 ADC</span>
+              <span style="color:var(--orange-primary);">alert at 220 ADC</span>
             </div>
             <div class="chart-canvas-container">
               <canvas id="alcoholChartCanvas"></canvas>

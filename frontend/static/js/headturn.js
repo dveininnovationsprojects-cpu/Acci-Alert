@@ -86,7 +86,7 @@
           run = test(p.yaw - base) ? run + 1 : 0;
           if (run >= need) { overlay.done(name); frames.push(...current.slice(-keep)); return { ok: true }; }
         }
-        await sleep(Math.max(0, 70 - (Date.now() - t)));
+        await sleep(Math.max(0, 40 - (Date.now() - t)));
       }
       return { ok: false, message: crowded ? "Only one person should be in view." : `${name === "STRAIGHT" ? "Look straight at the camera." : `Turn your head ${name} clearly, until the arrow turns green.`}` };
     }
@@ -102,12 +102,11 @@
       if (p.error) return { ok: false, frames, message: p.error === "server" ? "Cannot reach the server." : p.error };
       if (p.faces === 1 && p.yaw !== null) { baseValues.push(p.yaw); frames.push(current[current.length - 1]); }
       else if (p.faces > 1) say("Only one person should be in view.");
-      await sleep(70);
     }
     if (baseValues.length < basePictures) return { ok: false, frames, message: "Your face was not seen. Look at the camera." };
     base = baseValues.slice().sort((a, b) => a - b)[Math.floor((basePictures - 1) / 2)];
     if (basePictures % 2 === 0) { const s = baseValues.slice().sort((a, b) => a - b); base = (s[basePictures / 2 - 1] + s[basePictures / 2]) / 2; }
-    overlay.done("STRAIGHT"); await sleep(150); overlay.reset();
+    overlay.done("STRAIGHT"); await sleep(60); overlay.reset();
     progress(0.25);
 
     // 1. RIGHT, 2. LEFT, 3. STRAIGHT

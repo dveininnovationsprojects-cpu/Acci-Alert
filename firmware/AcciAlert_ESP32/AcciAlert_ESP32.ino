@@ -60,7 +60,7 @@ const unsigned long SENSOR_INTERVAL_MS = 100;
 const unsigned long NET_INTERVAL_MS = 1000;            // one reading + one command poll per second
 const unsigned long SERVER_TIMEOUT_MS = 8000;          // no answer from the laptop -> lock the car
 const float WHEEL_CIRCUMFERENCE_M = 0.204f;            // same value as WHEEL_CIRCUMFERENCE_M in backend/config.py
-const float DEFAULT_SPEED_LIMIT_KMH = 40.0f;           // used when the laptop sends LIMIT 0
+const float DEFAULT_SPEED_LIMIT_KMH = 25.0f;           // used when the laptop sends LIMIT 0
 
 const unsigned long ECHO_TIMEOUT_US = 30000UL;
 const float ULTRASONIC_WARNING_CM = 25.0f;
@@ -107,6 +107,7 @@ uint32_t mq3BootMs = 0;
 unsigned long mq3CalSum = 0, mq3CalCount = 0;
 
 // Ultrasonic
+uint32_t lastCloseReadingMs = 0;                       // when a reading of 6 cm or less was last seen (0 = never)
 float distanceCm = -1.0f;
 bool distanceValid = false;
 bool obstacleWarning = false;
@@ -150,6 +151,7 @@ struct Telemetry {
   float distance;
   float ax, ay, az, gx, gy, gz;
   float rpm;
+  float peakG, peakGyro;       // strongest knock (g) and spin (deg/s) since the last reading was sent
   uint32_t pulses;
   double lat, lon;
   bool fix;
@@ -211,14 +213,27 @@ void readUltrasonic() {
   digitalWrite(TRIG_PIN, LOW);
 
   unsigned long duration = pulseIn(ECHO_PIN, HIGH, ECHO_TIMEOUT_US);
-  if (duration == 0) {                 // no echo: not a close obstacle
+  float measured = (duration == 0) ? -1.0f : (duration * 0.0343f) / 2.0f;
+
+  // Something touching the sensor: the HC-SR04 then gives NO echo, or a wrong "far" value (about 400 cm).
+  // If the last reading was very close (6 cm or less) a moment ago, a "no echo" or "far" reading now means the car
+  // has hit something. It is held for 1.2 s so that the once-a-second report to the laptop always sees it.
+  bool noEchoOrFar = (duration == 0) || (measured >= 300.0f);
+  if (noEchoOrFar && lastCloseReadingMs != 0 && (millis() - lastCloseReadingMs) <= 1200UL) {
+    distanceCm = 0.5f;
+    distanceValid = true;
+    obstacleCritical = true;
+    obstacleWarning = true;
+    return;
+  }
+  if (duration == 0) {                 // no echo and nothing was close before: nothing in range
     distanceValid = false;
     distanceCm = -1.0f;
     obstacleWarning = false;
     obstacleCritical = false;
     return;
   }
-  distanceCm = (duration * 0.0343f) / 2.0f;
+  distanceCm = measured;
   distanceValid = (distanceCm > 0.0f && distanceCm <= 500.0f);
   if (!distanceValid) {
     obstacleWarning = false;
@@ -227,6 +242,7 @@ void readUltrasonic() {
   }
   obstacleCritical = (distanceCm <= ULTRASONIC_CRITICAL_CM);
   obstacleWarning = (distanceCm <= ULTRASONIC_WARNING_CM);
+  if (distanceCm <= 6.0f) lastCloseReadingMs = millis();     // remembered for the "touching the sensor" case
 }
 
 // ============================
@@ -423,6 +439,9 @@ void publishSnapshot() {
   snap.ax = accelX; snap.ay = accelY; snap.az = accelZ;
   snap.gx = gyroX;  snap.gy = gyroY;  snap.gz = gyroZ;
   snap.rpm = speedRPM;
+  float gyroMag = sqrtf(gyroX * gyroX + gyroY * gyroY + gyroZ * gyroZ);
+  if (accelerationG > snap.peakG) snap.peakG = accelerationG;      // 10 samples a second: a short knock is not missed
+  if (gyroMag > snap.peakGyro) snap.peakGyro = gyroMag;
   snap.pulses = irPulseCount;
   snap.fix = gpsFixValid;
   snap.lat = gpsFixValid ? gpsLatitude : 0.0;             // 0,0 with fix=false: dashboard uses the laptop position
@@ -617,6 +636,8 @@ void sendTelemetry() {
   Telemetry t;
   if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(50)) != pdTRUE) return;
   t = snap;
+  snap.peakG = 0;                  // the peaks start again for the next second
+  snap.peakGyro = 0;
   xSemaphoreGive(dataMutex);
 
   JsonDocument d;
@@ -630,6 +651,8 @@ void sendTelemetry() {
   g["x"] = clampf(t.gx, -2000, 2000); g["y"] = clampf(t.gy, -2000, 2000); g["z"] = clampf(t.gz, -2000, 2000);
   s["speed_rpm"] = clampf(t.rpm, 0, 20000);
   s["ir_pulse_count"] = t.pulses;
+  s["peak_accel_g"] = clampf(t.peakG, 0, 160);             // optional fields: the server uses them to tell a roll-over
+  s["peak_gyro_dps"] = clampf(t.peakGyro, 0, 5000);        // from a hand turning the car
   JsonObject p = s["gps"].to<JsonObject>();
   p["latitude"] = round6(t.lat);
   p["longitude"] = round6(t.lon);

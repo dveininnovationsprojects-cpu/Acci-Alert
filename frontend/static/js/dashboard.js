@@ -150,10 +150,10 @@ class DashboardController {
     const speedFillEl = document.getElementById("fill-speed");
     if (speedEl) speedEl.innerText = spd.toFixed(1);
     if (speedFillEl) {
-      const pct = Math.min(100, Math.max(0, (spd / 100) * 100));
+      const pct = Math.min(100, Math.max(0, (spd / 25) * 100));          // the bar is full at the 25 km/h limit
       speedFillEl.style.width = `${pct}%`;
-      speedFillEl.classList.toggle("danger", spd >= 80);
-      speedFillEl.classList.toggle("warning", spd >= 60 && spd < 80);
+      speedFillEl.classList.toggle("danger", spd > 25);
+      speedFillEl.classList.toggle("warning", spd >= 20 && spd <= 25);
     }
 
     // 2. Alcohol Sensor Level
@@ -188,7 +188,10 @@ class DashboardController {
     const distFillEl = document.getElementById("fill-obstacle");
     if (distEl) distEl.innerText = dist > 400 ? "> 400" : Math.round(dist);
     if (distBadgeEl) {
-      if (dist <= 25) {
+      if (t.no_echo === true || dist < 4.5) {
+        distBadgeEl.innerText = "Crash";                // no echo ("none" / "> 400") or 4 cm and less: the CAR CRASHED alert
+        distBadgeEl.className = "badge badge-danger";
+      } else if (dist <= 25) {
         distBadgeEl.innerText = "Imminent";
         distBadgeEl.className = "badge badge-danger";
       } else if (dist <= 40) {
@@ -216,10 +219,11 @@ class DashboardController {
       accelEl.innerText = `X:${(t.ax || 0).toFixed(2)} Y:${(t.ay || 0).toFixed(2)} Z:${(t.az || 1).toFixed(2)}g`;
     }
     if (tiltBadgeEl) {
-      if (tilt >= 130.0 || (t.evt && t.evt.includes("ACCIDENT"))) {
+      // a big tilt is an accident only after a knock or fast spin (t.tilt_violent); turned slowly by hand it is a warning
+      if ((tilt >= 50.0 && t.tilt_violent !== false) || (t.evt && t.evt.includes("ACCIDENT"))) {
         tiltBadgeEl.innerText = "Accident";
         tiltBadgeEl.className = "badge badge-danger";
-      } else if (tilt >= 115.0) {
+      } else if (tilt >= 25.0) {
         tiltBadgeEl.innerText = "Warning";
         tiltBadgeEl.className = "badge badge-warning";
       } else {
@@ -284,8 +288,8 @@ class DashboardController {
         gpsFixBadge.innerText = `Location${acc}`;
         gpsFixBadge.className = "badge badge-warning";
       } else if (t.position_source === "NONE" || !hasPosition) {
-        gpsFixBadge.innerText = "No GPS, no laptop location";
-        gpsFixBadge.className = "badge badge-danger";
+        gpsFixBadge.innerText = "Waiting";              // no GPS fix and no laptop location yet
+        gpsFixBadge.className = "badge badge-muted";
       } else {
         gpsFixBadge.innerText = fix ? "GPS fix" : "No fix";
         gpsFixBadge.className = `badge ${fix ? 'badge-success' : 'badge-danger'}`;
@@ -301,7 +305,7 @@ class DashboardController {
 
     // Feed to Live Charts
     if (window.ChartsManager) {
-      window.ChartsManager.update(spd, alc, t.server_time);
+      window.ChartsManager.update(spd, alc, t.timestamp, t.epoch);
     }
 
     // Feed to GPS Map
@@ -606,9 +610,16 @@ class DashboardController {
     const note = document.getElementById("sms-switch-note");
     if (!btn || !s) return;
     const on = !!s.enabled;
-    btn.innerText = on ? "SMS sending: ON  (press to turn off)" : "SMS sending: OFF  (press to turn on)";
-    btn.classList.toggle("btn-teal", on);
-    btn.classList.toggle("btn-outline", !on);
+    // state badge (green ON / red OFF) and one button that does the opposite
+    const state = document.getElementById("sms-state");
+    if (state) {
+      state.classList.toggle("off", !on);
+      state.querySelector("b").innerText = on ? "SMS sending is ON" : "SMS sending is OFF";
+    }
+    btn.innerText = on ? "Turn SMS off" : "Turn SMS on";
+    btn.classList.toggle("btn-teal", !on);           // green button to turn it on
+    btn.classList.toggle("btn-outline", on);         // red outline button to turn it off
+    btn.classList.toggle("sms-turn-off", on);
     btn.setAttribute("aria-pressed", on ? "true" : "false");
     if (!note) return;
     if (!on) note.innerText = "No text message is sent: not for alerts, not for SOS.";

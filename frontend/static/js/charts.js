@@ -8,26 +8,21 @@ class LiveChartsManager {
   constructor() {
     this.speedChart = null;
     this.alcoholChart = null;
-    this.maxDataPoints = 60; // 60 seconds of history
+    this.windowSeconds = 60;   // the charts show the last 60 seconds of real readings
+    this.maxDataPoints = 300;  // safety limit if readings arrive very fast
+    this.alcoholThreshold = 220;   // same as the alcohol alert level in backend/config.py
 
     this.speedHistory = [];
     this.alcoholHistory = [];
     this.timeLabels = [];
+    this.epochs = [];          // when each reading arrived (seconds), used to drop readings older than 60 s
 
     this.isPaused = false;
     this.initCharts();
   }
 
   initCharts() {
-    const now = new Date();
-    // Initialize 60 empty seconds
-    for (let i = this.maxDataPoints - 1; i >= 0; i--) {
-      const past = new Date(now.getTime() - i * 1000);
-      this.timeLabels.push(past.toTimeString().split(" ")[0]);
-      this.speedHistory.push(0);
-      this.alcoholHistory.push(180);
-    }
-
+    // No made-up start values: the charts stay empty until the first real reading arrives
     this.initSpeedChart();
     this.initAlcoholChart();
   }
@@ -90,7 +85,7 @@ class LiveChartsManager {
           y: {
             display: true,
             min: 0,
-            max: 100,
+            suggestedMax: 100,      // grows if the speed goes above 100
             grid: { color: "rgba(17, 24, 39, 0.08)" },
             ticks: {
               color: "#6B7280",
@@ -130,8 +125,8 @@ class LiveChartsManager {
             pointHoverBackgroundColor: "#0D9488"
           },
           {
-            label: "Danger Threshold (600 ADC)",
-            data: new Array(this.maxDataPoints).fill(600),
+            label: `Alert level (${this.alcoholThreshold} ADC)`,
+            data: [],
             borderColor: "rgba(225, 29, 72, 0.65)",
             borderWidth: 1.5,
             borderDash: [5, 5],
@@ -184,12 +179,12 @@ class LiveChartsManager {
           y: {
             display: true,
             min: 0,
-            max: 1024,
+            suggestedMax: 400,      // grows up to 1023 if the reading goes higher
             grid: { color: "rgba(17, 24, 39, 0.08)" },
             ticks: {
               color: "#6B7280",
               font: { size: 10 },
-              stepSize: 200
+              stepSize: 100
             }
           }
         }
@@ -197,24 +192,23 @@ class LiveChartsManager {
     });
   }
 
-  update(speed, alcohol, timestampStr) {
+  // speed (km/h), alcohol (ADC), timestampStr ("YYYY-MM-DD HH:MM:SS" of the reading), epoch (seconds of the reading)
+  update(speed, alcohol, timestampStr, epoch) {
     if (this.isPaused) return;
 
     const label = timestampStr ? timestampStr.split(" ")[1] || timestampStr : new Date().toTimeString().split(" ")[0];
+    const at = typeof epoch === "number" ? epoch : Date.now() / 1000;
 
-    // Push new and shift oldest
     this.speedHistory.push(speed);
-    if (this.speedHistory.length > this.maxDataPoints) {
-      this.speedHistory.shift();
-    }
-
     this.alcoholHistory.push(alcohol);
-    if (this.alcoholHistory.length > this.maxDataPoints) {
-      this.alcoholHistory.shift();
-    }
-
     this.timeLabels.push(label);
-    if (this.timeLabels.length > this.maxDataPoints) {
+    this.epochs.push(at);
+
+    // Keep only the last 60 seconds (by time, not by number of readings)
+    while (this.epochs.length > 1 && (this.epochs[0] < at - this.windowSeconds || this.epochs.length > this.maxDataPoints)) {
+      this.epochs.shift();
+      this.speedHistory.shift();
+      this.alcoholHistory.shift();
       this.timeLabels.shift();
     }
 
@@ -229,7 +223,7 @@ class LiveChartsManager {
     if (this.alcoholChart) {
       this.alcoholChart.data.labels = this.timeLabels;
       this.alcoholChart.data.datasets[0].data = this.alcoholHistory;
-      this.alcoholChart.data.datasets[1].data = new Array(this.timeLabels.length).fill(600);
+      this.alcoholChart.data.datasets[1].data = new Array(this.timeLabels.length).fill(this.alcoholThreshold);
       this.alcoholChart.update("none");
     }
   }

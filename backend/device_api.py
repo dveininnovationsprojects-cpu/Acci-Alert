@@ -176,6 +176,12 @@ def validate_payload(body: Any) -> Tuple[Optional[Dict[str, Any]], List[Dict[str
                     err(full, f"must be between {lo} and {hi} (got {v})")
                     continue
             values[path] = v
+        # Optional: the strongest acceleration (g) and spin (deg/s) of the last second. The reading itself is one
+        # sample a second and can miss a short knock; these peaks (10 samples a second on the ESP32) do not.
+        for name, hi in (("peak_accel_g", 160.0), ("peak_gyro_dps", 5000.0)):
+            raw = sensors.get(name)
+            if isinstance(raw, (int, float)) and not isinstance(raw, bool) and math.isfinite(raw) and 0 <= raw <= hi:
+                values[name] = float(raw)
 
     # alerts
     alerts = body.get("alerts")
@@ -203,13 +209,73 @@ def validate_payload(body: Any) -> Tuple[Optional[Dict[str, Any]], List[Dict[str
     return values, errors, warnings
 
 
+# Tilt of the car
+#
+# The MPU board can be fixed in any direction (on this car "up" is not its Z axis, so the old "angle from Z" read
+# about 99 degrees at rest and jumped past 130 degrees when the car was only touched, which texted a false accident).
+# So the tilt is the angle from where the car RESTS: the first reading sets the resting direction, and it follows
+# a car that is slowly parked on a slope (small angles only, so a roll-over is never absorbed).
+# The RESET command (or reset_tilt_reference) makes the next reading the new resting direction.
+_tilt_state: Dict[str, Dict[str, Any]] = {}
+
+
+def reset_tilt_reference(device_id: Optional[str] = None) -> None:
+    """Forget the resting direction (one device, or all): the next reading becomes the new "upright"."""
+    if device_id is None:
+        _tilt_state.clear()
+        _shock_state.clear()
+    else:
+        _tilt_state.pop(device_id, None)
+        _shock_state.pop(device_id, None)
+
+
+# A roll-over is violent (a hard knock or a fast spin); turning the car by hand is gentle. So a tilt only counts as an
+# accident when a shock happened in the last few readings.
+_shock_state: Dict[str, List[bool]] = {}
+
+
+def recent_shock(device_id: str, accel_g: float, gyro_dps: float) -> bool:
+    """True when this reading, or one of the last few, had a hard knock or a fast spin."""
+    hit = accel_g >= config.TILT_SHOCK_ACCEL_G or gyro_dps >= config.TILT_SHOCK_GYRO_DPS
+    history = (_shock_state.get(device_id, []) + [hit])[-config.TILT_SHOCK_READINGS:]
+    _shock_state[device_id] = history
+    return any(history)
+
+
+def tilt_from_rest(device_id: str, ax: float, ay: float, az: float) -> float:
+    """Degrees between the car's resting direction and now. A short bump does not count: the value reported is the
+    smallest tilt of the last few readings, so only a tilt that lasts (a car on its side) gets through."""
+    magnitude = math.sqrt(ax * ax + ay * ay + az * az)
+    if magnitude < 0.3:                                   # free fall or a dead sensor: no direction to compare
+        return 0.0
+    cur = (ax / magnitude, ay / magnitude, az / magnitude)
+    st = _tilt_state.get(device_id)
+    if st is None:
+        _tilt_state[device_id] = {"ref": cur, "recent": [0.0] * config.TILT_SMOOTH_READINGS}      # starts "at rest"
+        return 0.0
+    ref = st["ref"]
+    dot = max(-1.0, min(1.0, sum(c * r for c, r in zip(cur, ref))))
+    angle = math.degrees(math.acos(dot))
+    if angle < config.TILT_FOLLOW_MAX_DEG and 0.8 <= magnitude <= 1.2:      # still, and close to rest: follow slowly
+        a = config.TILT_FOLLOW_RATE
+        mixed = tuple(r * (1 - a) + c * a for r, c in zip(ref, cur))
+        norm = math.sqrt(sum(m * m for m in mixed)) or 1.0
+        st["ref"] = tuple(m / norm for m in mixed)
+    st["recent"] = (st["recent"] + [angle])[-config.TILT_SMOOTH_READINGS:]
+    return min(st["recent"])
+
+
 # Conversion to the dashboard's telemetry format
 
 def to_dashboard_packet(v: Dict[str, Any]) -> Dict[str, Any]:
     """Map a validated reading to the packet format used by the alert pipeline."""
     ax, ay, az = (v["accelerometer.x"] / G, v["accelerometer.y"] / G, v["accelerometer.z"] / G)
-    horizontal = math.sqrt(ax * ax + ay * ay)
-    tilt = math.degrees(math.atan2(horizontal, az)) if (horizontal or az) else 0.0
+    device = str(v.get("device_id", ""))
+    tilt = tilt_from_rest(device, ax, ay, az)
+    # strongest knock / spin: the peaks of the last second when the ESP32 sends them, else this one sample
+    sample_g = math.sqrt(ax * ax + ay * ay + az * az)
+    sample_gyro = math.sqrt(v["gyroscope.x"] ** 2 + v["gyroscope.y"] ** 2 + v["gyroscope.z"] ** 2)
+    shock = recent_shock(device, max(sample_g, v.get("peak_accel_g", 0.0)), max(sample_gyro, v.get("peak_gyro_dps", 0.0)))
     speed_kmh = v["speed_rpm"] * config.WHEEL_CIRCUMFERENCE_M * 60.0 / 1000.0
     adc_scaled = round(v["alcohol_adc"] * 1023.0 / config.DEVICE_ADC_MAX)
 
@@ -227,6 +293,8 @@ def to_dashboard_packet(v: Dict[str, Any]) -> Dict[str, Any]:
         "dist": v["distance_cm"],
         "ax": ax, "ay": ay, "az": az,
         "tilt": tilt,
+        "no_echo": v["distance_cm"] > config.CRASH_FAR_CM,           # "none": 500 sent by the ESP32 when the sensor gets no echo
+        "tilt_violent": shock or not config.TILT_REQUIRE_SHOCK,    # with TILT_REQUIRE_SHOCK a tilt only counts after a knock or spin
         "lat": v["gps.latitude"],
         "lon": v["gps.longitude"],
         "fix": 1 if v["gps.fix_valid"] else 0,

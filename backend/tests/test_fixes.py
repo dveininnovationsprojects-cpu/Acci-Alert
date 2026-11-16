@@ -76,10 +76,12 @@ def test_toggle_auth_updates_the_lock_state_the_alerts_read(client):
     assert A.state.active_driver_auth == 0
     assert client.get("/api/status").get_json()["active_driver_authorized"] == 0
     A.process_telemetry_packet({"spd": 0, "auth": 1}, source="TEST")
-    assert "UNAUTHORISED DRIVER" in A.state.active_alerts           # still locked on the server
+    assert "UNAUTHORISED DRIVER" not in A.state.active_alerts       # locked but standing still: nobody is driving
+    A.process_telemetry_packet({"spd": 12, "auth": 1}, source="TEST")
+    assert "UNAUTHORISED DRIVER" in A.state.active_alerts           # still locked on the server, and moving
     post(client, "/api/command", {"command": "AUTH", "value": 1})
     assert A.state.active_driver_auth == 1
-    A.process_telemetry_packet({"spd": 0, "auth": 1}, source="TEST")
+    A.process_telemetry_packet({"spd": 12, "auth": 1}, source="TEST")
     assert "UNAUTHORISED DRIVER" not in A.state.active_alerts       # unlock clears the red banner
 
 

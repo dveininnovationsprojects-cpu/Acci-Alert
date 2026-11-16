@@ -49,7 +49,7 @@ def show_status() -> None:
     for warning in s["warnings"]:
         print(f"  note: {warning}")
     lim = s["limits"]
-    print(f"Limits:      same alert once per {lim['cooldown_s']} s, {lim['max_per_hour']}/hour, {lim['max_per_day']}/day, {lim['max_per_month']}/month")
+    print(f"Limits:      same alert once per {lim['cooldown_s']} s, {lim['max_per_hour']}/hour, {lim['max_per_day'] or 'no limit'}/day, {lim['max_per_month']}/month")
     print(f"Sent:        {s['sent_last_hour']} in the last hour, {s['sent_last_day']} in the last day, {s['sent_last_month']} in the last 30 days")
     print(f"Texts for:   {', '.join(s['alert_types'])}")
 

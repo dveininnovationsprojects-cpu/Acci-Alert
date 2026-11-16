@@ -122,6 +122,8 @@ All fields below are required. Unknown extra fields are ignored.
 | `sensors.gyroscope.x/y/z` | number | -2000 to 2000 | **degrees per second** |
 | `sensors.speed_rpm` | number | 0 to 20000 | Wheel RPM |
 | `sensors.ir_pulse_count` | integer | 0 or more | Pulses from the IR sensor |
+| `sensors.peak_accel_g` | number, **optional** | 0 to 160 | Strongest acceleration (g) of the last second, sampled 10 times a second. With `peak_gyro_dps` it lets the server tell a roll-over (hard knock or fast spin) from a hand slowly turning the car |
+| `sensors.peak_gyro_dps` | number, **optional** | 0 to 5000 | Strongest spin (degrees per second) of the last second |
 | `sensors.gps.latitude` | number | -90 to 90 | |
 | `sensors.gps.longitude` | number | -180 to 180 | |
 | `sensors.gps.fix_valid` | boolean | `true` / `false` | A JSON boolean, not 0/1 or "true" |

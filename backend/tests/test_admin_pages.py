@@ -133,7 +133,8 @@ def frame():
 
 @pytest.mark.parametrize("count", [0, 1, 2])
 def test_face_present_reports_the_number_of_faces_and_changes_nothing(client, monkeypatch, count):
-    monkeypatch.setattr(server, "recognise", lambda f: (count, None, "Unknown", False, 0.0, ""))
+    monkeypatch.setattr(server.face_sface, "models_ready", True)
+    monkeypatch.setattr(server.face_sface, "_faces", lambda f: [object()] * count)      # only the face count is needed
     server.state.active_driver_auth = 0
     before = len(server.database.get_events(limit=500)["events"])
     res = client.post("/api/face-present", json={"frame": frame()})

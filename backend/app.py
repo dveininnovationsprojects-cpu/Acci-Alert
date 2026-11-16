@@ -46,7 +46,7 @@ try:
     from face_recognizer import FaceRecognizer, SFaceRecognizer
     from liveness import LivenessDetector, ChallengeBook
     from db_logger import DatabaseLogger
-    from device_api import create_device_blueprint, get_api_key
+    from device_api import create_device_blueprint, get_api_key, reset_tilt_reference
     import device_registry
     import sms_alert
     import admin_auth
@@ -62,7 +62,7 @@ except ImportError:
     from backend.face_recognizer import FaceRecognizer, SFaceRecognizer
     from backend.liveness import LivenessDetector, ChallengeBook
     from backend.db_logger import DatabaseLogger
-    from backend.device_api import create_device_blueprint, get_api_key
+    from backend.device_api import create_device_blueprint, get_api_key, reset_tilt_reference
     from backend import device_registry
     from backend import sms_alert
     from backend import admin_auth
@@ -138,6 +138,7 @@ class SystemState:
         self.active_alerts = {}  # alert_type: timestamp
         self.last_logged_alerts = {}  # alert_type: timestamp
         self.zone_speed_limit_applied = None
+        self.failed_logins = []   # times of the failed face logins in a row (see UNAUTH_LOGIN_SMS_AFTER)
         self.last_telemetry_saved = 0.0
 
 state = SystemState()
@@ -337,7 +338,7 @@ def evaluate_and_dispatch_alerts(telemetry: dict, now: Optional[float] = None):
 
     # 1. ACCIDENT Check
     is_accident = (
-        tilt >= config.THRESHOLDS["tilt"]["accident"] or
+        (tilt >= config.THRESHOLDS["tilt"]["accident"] and bool(telemetry.get("tilt_violent", True))) or
         accel_magnitude >= config.THRESHOLDS["impact_acceleration"] or
         "ACCIDENT" in evt_field
     )
@@ -365,17 +366,30 @@ def evaluate_and_dispatch_alerts(telemetry: dict, now: Optional[float] = None):
         })
 
     # 3. OBSTACLE Check
+    no_echo = bool(telemetry.get("no_echo")) and config.CRASH_ON_NO_ECHO     # Dist: none (sent as 500): see CRASH_ON_NO_ECHO
+    is_crash = dist < config.THRESHOLDS["obstacle"]["crash"] or no_echo      # the card shows 4 cm and less (it rounds), so 4.4 counts
     is_obstacle = (
         dist <= config.THRESHOLDS["obstacle"]["danger"] or
         "OBSTACLE" in evt_field
     )
-    if is_obstacle:
+    if is_obstacle and not is_crash:                              # a crash replaces the plain obstacle message
         current_alerts.append({
             "type": "OBSTACLE DETECTED",
             "severity": "CRITICAL",
             "title": "CRITICAL PROXIMITY ALERT",
             "message": f"Obstacle within danger zone: {dist:.1f} cm! Collision imminent.",
             "sound": "alarm"
+        })
+
+    # 3b. CAR CRASHED: the obstacle is 4 cm away or closer (shown rounded), so the car has hit something (also texted)
+    if is_crash:
+        current_alerts.append({
+            "type": "CAR CRASHED",
+            "severity": "CRITICAL",
+            "title": "CAR CRASHED",
+            "message": ("The car has crashed: the distance sensor has no echo (reading above 400 cm / none)." if no_echo
+                        else f"The car has crashed: the obstacle is only {dist:.1f} cm away."),
+            "sound": "accident"
         })
 
     # 4. OVERSPEED Check
@@ -432,13 +446,14 @@ def evaluate_and_dispatch_alerts(telemetry: dict, now: Optional[float] = None):
             send_unified_command("LIMIT", 0, source="ZONE_ENGINE")
             state.zone_speed_limit_applied = None
 
-    # 6. UNAUTHORISED DRIVER Check
-    if auth == 0 or state.active_driver_auth == 0:
+    # 6. UNAUTHORISED DRIVER Check: the car is MOVING with no authorised driver. A locked car that stands still
+    # (nobody has logged in yet, or the admin panel is open) is not "operated", so it raises no alert.
+    if (auth == 0 or state.active_driver_auth == 0) and spd > config.UNAUTH_DRIVER_MIN_SPEED_KMH:
         current_alerts.append({
             "type": "UNAUTHORISED DRIVER",
             "severity": "CRITICAL",
             "title": "SECURITY BREACH",
-            "message": f"Vehicle operated by unauthorized subject ({state.active_driver_name})!",
+            "message": f"The car is moving ({spd:.0f} km/h) with no authorised driver ({state.active_driver_name})!",
             "sound": "alarm"
         })
 
@@ -468,7 +483,7 @@ def evaluate_and_dispatch_alerts(telemetry: dict, now: Optional[float] = None):
         # Text the owner when a serious alert starts (limits and settings are in sms_alert.py).
         # An UNAUTHORISED DRIVER alert is only texted when the car is really moving: a locked car that is
         # only switched on is not an emergency.
-        if just_started and a_type in config.SMS_ALERT_TYPES and (a_type != "UNAUTHORISED DRIVER" or spd > 2.0):
+        if just_started and a_type in config.SMS_ALERT_TYPES and (a_type != "UNAUTHORISED DRIVER" or spd > config.UNAUTH_DRIVER_MIN_SPEED_KMH):
             sms_alert.notify(a_type, {"driver": state.active_driver_name, "speed": spd, "lat": lat, "lon": lon,
                                       "source": telemetry.get("position_source")})
 
@@ -541,6 +556,8 @@ def process_telemetry_packet(packet: dict, source: str = "ESP32"):
         "ay": round(safe_number(packet.get("ay"), 0.0), 2),
         "az": round(safe_number(packet.get("az"), 1.0), 2),
         "tilt": round(safe_number(packet.get("tilt"), 0.0), 1),
+        "no_echo": bool(packet.get("no_echo", False)),             # the distance sensor gave no echo (ESP32 over Wi-Fi)
+        "tilt_violent": bool(packet.get("tilt_violent", True)),   # False: only turned slowly (a hand), not knocked or spun
         "lat": lat,
         "lon": lon,
         "fix": fix,
@@ -616,6 +633,8 @@ def send_unified_command(command: str, value=None, source: str = "UI"):
     if str(command).upper() == "AUTH":
         # The lock state the alerts read must follow every lock or unlock, not only a face scan.
         state.active_driver_auth = 1 if safe_number(value, 0, as_int=True) else 0
+    if str(command).upper() == "RESET":
+        reset_tilt_reference()        # RESET SYSTEM: the car as it stands now is the new "upright"
     database.log_command(f"{command}:{value}" if value is not None else command, source=source)
 
     # 1. USB serial, if connected
@@ -730,7 +749,8 @@ def face_present_api():
         frame = None
     if frame is None:
         return jsonify({"status": "error", "message": "frame data is required."}), 400
-    face_count = recognise(frame)[0]
+    # only the number of faces is needed: no face match (that is the slow part)
+    face_count = len(face_sface._faces(frame)) if face_sface.models_ready else recognise(frame)[0]
     return jsonify({"status": "success", "faces": int(face_count)})
 
 
@@ -1090,7 +1110,8 @@ def verify_face_api():
 
 
 AUTH_MIN_FRAMES = 3
-AUTH_MAX_FRAMES = 60            # the head-turn clip is about 40 pictures
+AUTH_MAX_FRAMES = 60            # the head-turn clip is about 16 pictures
+AUTH_MATCH_FRAMES = 6           # at most this many straight pictures go through the (slow) face match
 
 
 @app.route("/api/auth/challenge", methods=["POST", "GET"])
@@ -1124,14 +1145,33 @@ def authenticate_driver_api():
         seen = []                  # one entry per frame that has exactly one face, in time order
         crowded = False
         moved = False
+        # Fast way (head-turn login with the SFace models): every picture is only searched for the face and the head
+        # turn (cheap). The slow face match runs afterwards on a few straight pictures only (see below).
+        fast = bool(turn_check and use_sface() and face_sface.gallery)
+        timing = {"decode": 0.0, "detect": 0.0, "match": 0.0}       # seconds, written to the server log (see below)
         for data in frames:
+            step_started = time.perf_counter()
             try:
                 frame = decode_frame(data)
             except Exception:
                 frame = None
+            timing["decode"] += time.perf_counter() - step_started
             if frame is None:
                 continue
             frame_h, frame_w = frame.shape[:2]
+            if fast:
+                step_started = time.perf_counter()
+                faces = face_sface._faces(frame)
+                timing["detect"] += time.perf_counter() - step_started
+                if len(faces) > 1:
+                    crowded = True
+                if len(faces) != 1:
+                    continue
+                row = [float(v) for v in faces[0]]
+                seen.append({"driver": "Unknown", "recognised": False, "confidence": 0.0,
+                             "box": [int(v) for v in row[:4]], "w": frame_w, "h": frame_h,
+                             "yaw": headturn.yaw_ratio(row), "_frame": frame, "_face": faces[0]})
+                continue
             result = recognise(frame)
             face_count, box, driver_name, recognised, confidence, _note = result[:6]
             yaw = result[6] if len(result) > 6 else None
@@ -1151,6 +1191,20 @@ def authenticate_driver_api():
         straight = seen
         if turn_check and turn["base"] is not None:
             straight = [s for s in seen if s["yaw"] is not None and abs(s["yaw"] - turn["base"]) <= config.HEAD_FRONTAL_MAX]
+        if fast:
+            # match only a few pictures, spread over the straight ones (the same rule as before: most of them must agree)
+            if len(straight) > AUTH_MATCH_FRAMES:
+                step = (len(straight) - 1) / (AUTH_MATCH_FRAMES - 1)
+                straight = [straight[int(round(i * step))] for i in range(AUTH_MATCH_FRAMES)]
+            match_started = time.perf_counter()
+            for s in straight:
+                name, score = face_sface._best_match(face_sface._signature(s["_frame"], s["_face"]))
+                ok = score >= face_sface.threshold
+                s["driver"], s["recognised"], s["confidence"] = (name if ok else "Unknown"), ok, max(0.0, score) * 100.0
+            timing["match"] = time.perf_counter() - match_started
+            for s in seen:
+                s.pop("_frame", None)
+                s.pop("_face", None)
         winner, votes = None, 0
         names = {}
         for s in straight:
@@ -1185,10 +1239,19 @@ def authenticate_driver_api():
         state.active_driver_name = shown_driver
         state.active_driver_auth = 1 if authorized else 0
         send_unified_command("AUTH", 1 if authorized else 0, source="AI_FACIAL_RECOGNITION")
-        if seen and not authorized:
-            speed_now, lat_now, lon_now = vehicle_position()
-            sms_alert.notify("UNAUTHORISED LOGIN", {"speed": speed_now, "lat": lat_now, "lon": lon_now,
-                                                    "source": (state.latest_telemetry or {}).get("position_source")})
+        if authorized:
+            state.failed_logins = []                      # a good login starts the count again
+        elif seen:
+            # Text the owner only after several failed attempts in a row (not on the first mistake): a driver whose
+            # head turn was not seen, or a wrong face tried once or twice, does not cost a text message.
+            now_login = time.time()
+            recent = [t for t in state.failed_logins if now_login - t <= config.UNAUTH_LOGIN_WINDOW_S] + [now_login]
+            state.failed_logins = recent
+            if len(recent) >= config.UNAUTH_LOGIN_SMS_AFTER:
+                state.failed_logins = []
+                speed_now, lat_now, lon_now = vehicle_position()
+                sms_alert.notify("UNAUTHORISED LOGIN", {"speed": speed_now, "lat": lat_now, "lon": lon_now,
+                                                        "source": (state.latest_telemetry or {}).get("position_source")})
         if seen:
             speed_now, lat_now, lon_now = vehicle_position()
             database.add_event(
@@ -1199,9 +1262,15 @@ def authenticate_driver_api():
                 severity="INFO" if authorized else "HIGH",
             )
 
+        total_ms = (time.time() - started) * 1000
+        logger.info("Face login check: %d pictures sent, %d with one face | decode %.0f ms, face search %.0f ms, "
+                    "face match %.0f ms | whole check %.0f ms | %s", len(frames), len(seen), timing["decode"] * 1000,
+                    timing["detect"] * 1000, timing["match"] * 1000, total_ms, "UNLOCKED" if authorized else "stays locked")
         return jsonify({
             "status": "success",
             "authorized": authorized,
+            "timing_ms": {"decode": round(timing["decode"] * 1000), "search": round(timing["detect"] * 1000),
+                          "match": round(timing["match"] * 1000), "total": round(total_ms)},
             "auth_status": "AUTHORIZED" if authorized else ("UNAUTHORIZED" if seen else "STANDBY"),
             "driver": shown_driver,
             "driver_name": shown_driver,

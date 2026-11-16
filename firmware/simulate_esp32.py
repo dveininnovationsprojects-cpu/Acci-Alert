@@ -85,6 +85,7 @@ def main():
                 "gyroscope": {"x": 0.02, "y": 0.01, "z": 0.03},
                 "speed_rpm": 85.0 + (n % 5),
                 "ir_pulse_count": 20 * n,
+                "peak_accel_g": 1.02, "peak_gyro_dps": 18.0,           # optional: strongest knock and spin of the last second
                 "gps": {"latitude": 13.0827 if a.fix else 0.0, "longitude": 80.2707 if a.fix else 0.0,
                         "fix_valid": a.fix, "satellites": 7 if a.fix else 0},
             },

@@ -142,10 +142,84 @@ def test_the_hourly_cap_holds_even_with_different_alerts(sms):
     assert len(sms.calls) == 4
 
 
+def test_an_accident_or_crash_is_texted_even_when_the_hourly_cap_is_used_up(sms):
+    write_settings(sms, max_per_hour=2, cooldown_s=0)               # 2 recipients: one alert uses the whole hour
+    assert sms_alert.notify("ALCOHOL DETECTED", {}) is True
+    assert sms_alert.notify("UNAUTHORISED DRIVER", {}) is False      # hourly cap reached: a normal alert is held back
+    assert sms_alert.notify("ACCIDENT", {}) is True                  # ... but an accident still goes out
+    assert sms_alert.notify("CAR CRASHED", {}) is True               # ... and so does a crash
+
+
+def test_there_is_no_hourly_limit_any_more(sms):
+    write_settings(sms, max_per_hour=0, max_per_day=0, max_per_month=0, cooldown_s=0)
+    for _ in range(20):
+        assert sms_alert.notify("ALCOHOL DETECTED", {}) is True           # an alcohol alert after many other texts
+
+
+def test_a_refusal_that_says_wait_is_tried_again(sms, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(sms_alert.time, "sleep", lambda s: sleeps.append(s))
+    answers = iter([{"status": 429, "json": {"success": False, "message": "SMS rate limit exceeded. Please wait 7.3 seconds."}},
+                    {"status": 200, "json": {"success": True, "message": "queued"}}])
+    first = {"seen": False}
+
+    def fake_post(url, params=None, headers=None, data=None, timeout=None):
+        a = next(answers) if not first["seen"] else {"status": 200, "json": {"success": True}}
+        first["seen"] = True
+        sms.calls.append({"data": json.loads(data)})
+        return SimpleNamespace(status_code=a["status"], json=lambda: a["json"])
+
+    monkeypatch.setattr(sms_alert.requests, "post", fake_post)
+    write_settings(sms, to_numbers=[TO[0]], cooldown_s=0)
+    assert sms_alert.notify("ACCIDENT", {}) is True
+    assert any(abs(s - 8.3) < 0.01 for s in sleeps)                           # it waited the 7.3 s the service asked for (+1)
+    rows = database.get_sms_log(1)
+    assert rows[0]["status"] == "sent"                                        # and the second try went through
+
+
+def test_texts_are_spaced_by_the_minimum_gap(sms, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(sms_alert.time, "sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(config, "SMS_MIN_GAP_S", 16.0)
+    monkeypatch.setattr(sms_alert, "_last_post_at", sms_alert.time.time())     # a text was just sent
+    write_settings(sms, to_numbers=[TO[0]], cooldown_s=0)
+    assert sms_alert.notify("ALCOHOL DETECTED", {}) is True
+    assert sleeps and 14.0 < sleeps[0] <= 16.0                                 # it waited about 16 s before sending
+
+
+def test_zero_means_no_daily_limit(sms):
+    write_settings(sms, max_per_day=0, max_per_hour=0, max_per_month=0, cooldown_s=0)
+    for _ in range(40):                                              # far more than any daily limit
+        assert sms_alert.notify("ACCIDENT", {}) is True
+
+
+def test_the_daily_limit_is_off_by_default():
+    assert config.SMS_MAX_PER_DAY == 0
+
+
+def test_an_accident_still_obeys_the_daily_cap(sms):
+    write_settings(sms, max_per_day=2, max_per_hour=2, cooldown_s=0)
+    assert sms_alert.notify("ACCIDENT", {}) is True
+    assert sms_alert.notify("CAR CRASHED", {}) is False              # the daily quota is the service's limit: it holds
+
+
 def test_the_daily_cap_holds(sms):
     write_settings(sms, max_per_day=2, cooldown_s=0)
     assert sms_alert.notify("ACCIDENT", {}) is True
     assert sms_alert.notify("ALCOHOL DETECTED", {}) is False
+
+
+def test_the_daily_cap_counts_today_not_the_last_24_hours(sms):
+    """Texts sent yesterday must not block an alert today (the service counts per calendar day)."""
+    from datetime import datetime, timedelta
+    write_settings(sms, max_per_day=2, max_per_hour=50, cooldown_s=0)
+    yesterday = (datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+    with database.get_db_connection() as conn:              # 5 texts sent late yesterday, less than 24 hours ago
+        for _ in range(5):
+            conn.execute("INSERT INTO sms_log (timestamp, alert_type, recipient, status, detail) VALUES (?, 'ACCIDENT', '918*****4887', 'sent', '')", (yesterday,))
+        conn.commit()
+    assert sms_alert.notify("ACCIDENT", {}) is True          # today's count is still 0
+    assert sms_alert.notify("ALCOHOL DETECTED", {}) is False  # today's cap of 2 is now used
 
 
 def test_the_cap_survives_a_restart(sms):
@@ -322,10 +396,29 @@ def _login(alerts, who, recognised, yaws):
     return client.post("/api/authenticate", json={"frames": [frame] * len(yaws), "challenge": token}).get_json()
 
 
-def test_a_rejected_face_login_is_texted(alerts):
-    res = _login(alerts, "Unknown", False, TURNING)
-    assert res["authorized"] is False
+def test_a_rejected_face_login_is_texted_only_on_the_third_failed_attempt(alerts):
+    A.state.failed_logins = []
+    for attempt in (1, 2):                                     # one or two mistakes cost no text
+        assert _login(alerts, "Unknown", False, TURNING)["authorized"] is False
+        assert alerts.calls == [], f"texted on attempt {attempt}"
+    assert _login(alerts, "Unknown", False, TURNING)["authorized"] is False
     assert len(alerts.calls) == len(TO) and alerts.calls[0]["data"]["var1"] == "UnauthorisedLogin"
+
+
+def test_a_good_login_starts_the_count_again(alerts):
+    A.state.failed_logins = []
+    _login(alerts, "Unknown", False, TURNING)
+    _login(alerts, "Unknown", False, TURNING)
+    assert _login(alerts, "Arun", True, TURNING)["authorized"] is True
+    _login(alerts, "Unknown", False, TURNING)                  # only the first failure after the good login
+    assert alerts.calls == [] and len(A.state.failed_logins) == 1
+
+
+def test_old_failed_attempts_do_not_count(alerts):
+    import time
+    A.state.failed_logins = [time.time() - A.config.UNAUTH_LOGIN_WINDOW_S - 60] * 5     # long ago
+    _login(alerts, "Unknown", False, TURNING)
+    assert alerts.calls == [] and len(A.state.failed_logins) == 1
 
 
 def test_an_authorised_login_is_not_texted(alerts):

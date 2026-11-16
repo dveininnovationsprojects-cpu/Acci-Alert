@@ -108,8 +108,8 @@ API_TIMEOUT = 1.5
 # Safety & Sensor Alert Thresholds (Fleet Telemetry)
 THRESHOLDS = {
     "speed": {
-        "warning": 60.0,       # km/h
-        "critical": 80.0,      # km/h (overspeed alert)
+        "warning": 20.0,       # km/h
+        "critical": 25.0,      # km/h (overspeed alert)
     },
     "alcohol": {
         "caution": 180,        # ADC reading (0-1023 scale)
@@ -119,10 +119,11 @@ THRESHOLDS = {
     "obstacle": {
         "caution": 40,         # cm
         "danger": 25,          # cm (obstacle alert) = firmware warning distance
+        "crash": 4.5,          # cm: BELOW this (the dashboard card rounds, so "4 cm" and less) the car has hit something: CAR CRASHED alert and an SMS
     },
     "tilt": {
-        "warning": 115.0,      # degrees
-        "accident": 130.0,     # degrees (accident / rollover); this car's sensor board reads about 100 degrees when it stands normally
+        "warning": 25.0,       # degrees away from the car's resting direction (learned automatically, see device_api.py)
+        "accident": 50.0,      # degrees to the LEFT or to the RIGHT (the angle has no side): accident message and SMS
     },
     "impact_acceleration": 4.0  # g (vector magnitude sqrt(ax^2+ay^2+az^2)); 2.5 g was set off by simply handling the car
 }
@@ -155,11 +156,27 @@ DEVICE_ALLOW_LEGACY_KEY = os.environ.get("ACCIALERT_ALLOW_LEGACY_KEY", "1") != "
 # (ACCIALERT_SMS_API_KEY, ACCIALERT_SMS_TEMPLATE_ID, ACCIALERT_SMS_TO)
 # or from backend/data/sms_settings.json, which `python -m backend.tools.sms setup` creates (never committed).
 SMS_SETTINGS_FILE = DATA_DIR / "sms_settings.json"
-SMS_ALERT_TYPES = ("ACCIDENT", "ALCOHOL DETECTED", "UNAUTHORISED DRIVER", "UNAUTHORISED LOGIN", "SOS")
-SMS_SOS_COOLDOWN_S = 30     # the SOS button may text again after this long (it ignores the hourly and daily limits, not the monthly one)
-SMS_COOLDOWN_S = 300          # the same alert type is texted at most once in this time
-SMS_MAX_PER_HOUR = 6          # messages (each recipient counts) per hour, all types together
-SMS_MAX_PER_DAY = 20          # and per day
+SMS_ALERT_TYPES = ("ACCIDENT", "CAR CRASHED", "ALCOHOL DETECTED", "UNAUTHORISED DRIVER", "UNAUTHORISED LOGIN", "SOS")
+CRASH_ON_NO_ECHO = True       # True: the ESP32 sending no distance (Dist: none, sent as 500, shown as "> 400") is a CAR CRASHED alert + SMS
+CRASH_FAR_CM = 400.0          # a distance above this (the sensor's real maximum) counts as "none"
+                              # Set CRASH_ON_NO_ECHO = False to stop it: an open road ahead also gives "none".
+TILT_FOLLOW_MAX_DEG = 20      # a car parked on a slope is followed only while its tilt is below this (a roll-over is not)
+TILT_FOLLOW_RATE = 0.02       # how fast the resting direction follows (per reading)
+TILT_REQUIRE_SHOCK = False    # False: a tilt of 50 degrees on either side is an accident by itself (slow turn by hand too).
+                              # True: only after a knock or fast spin (fewer false alarms while you handle the board)
+TILT_SHOCK_ACCEL_G = 1.4      # a tilt only counts as an accident after a knock this hard (g) ...
+TILT_SHOCK_GYRO_DPS = 150     # ... or a spin this fast (degrees per second): turning the car by hand is gentler (<90)
+TILT_SHOCK_READINGS = 6       # ... within the last this many readings (about 6 seconds)
+TILT_SMOOTH_READINGS = 3     # a tilt must last this many readings (about 3 seconds) to count: a bump or a touch does not
+UNAUTH_DRIVER_MIN_SPEED_KMH = 2.0  # the "unauthorised driver" alert (and its text) needs the car to move faster than this
+UNAUTH_LOGIN_SMS_AFTER = 3   # the "unauthorised login" text goes out on the 3rd failed face login in a row (more than 2)
+UNAUTH_LOGIN_WINDOW_S = 600   # ... counted within this many seconds
+SMS_SOS_COOLDOWN_S = 30    # the SOS button may text again after this long (it ignores the hourly and daily limits, not the monthly one)
+SMS_NO_HOURLY_CAP = ("ACCIDENT", "CAR CRASHED")   # these alerts are texted even when the hourly limit is used up
+SMS_COOLDOWN_S = 180          # the same alert type is texted at most once in this time
+SMS_MAX_PER_HOUR = 0          # per hour: 0 = NO hourly limit
+SMS_MIN_GAP_S = float(os.environ.get("ACCIALERT_SMS_MIN_GAP_S", "16"))   # seconds between two texts: the service refuses texts sent closer together
+SMS_MAX_PER_DAY = 0           # per calendar day: 0 = NO daily limit. (The service itself may still refuse after 15 a day.)
 SMS_MAX_PER_MONTH = 90        # the free Circuit Digest plan allows about 100 SMS a month
 SMS_MAX_RECIPIENTS = 5        # numbers that get the text
 SMS_TIMEOUT_S = 8

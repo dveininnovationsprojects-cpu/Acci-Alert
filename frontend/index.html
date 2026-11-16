@@ -106,7 +106,7 @@
             <div id="fill-speed" class="mini-progress-fill" style="width: 0%;"></div>
           </div>
           <div class="card-footer">
-            <span>Limit: <strong id="val-speed-limit" style="color:var(--teal-primary);">80 km/h</strong></span>
+            <span>Limit: <strong id="val-speed-limit" style="color:var(--teal-primary);">25 km/h</strong></span>
             <span id="badge-speed-status" class="badge badge-success">Cruising</span>
           </div>
         </div>
@@ -233,10 +233,6 @@
           <div class="card-body">
             <span id="badge-gps-fix" class="badge badge-muted" style="font-size:1rem; padding:6px 14px;">Waiting</span>
           </div>
-          <div class="card-footer">
-            <span>Constellation</span>
-            <span class="badge badge-info">8 sats</span>
-          </div>
         </div>
 
       </div>
@@ -272,7 +268,7 @@
           <div class="chart-subcard">
             <div class="chart-subcard-title">
               <span>Alcohol Sensor (MQ-3 ADC)</span>
-              <span style="color:var(--orange-primary);">0 - 1024 ADC</span>
+              <span style="color:var(--orange-primary);">alert at 220 ADC</span>
             </div>
             <div class="chart-canvas-container">
               <canvas id="alcoholChartCanvas"></canvas>
@@ -335,61 +331,25 @@
 
       <!-- TAB 1: CONTROL PANEL -->
       <div id="tab-control-panel" class="tab-content active">
-        <div class="control-panel-grid">
+        <div class="control-panel-grid control-two">
 
-          <!-- Critical Actions Group -->
-          <div class="control-group-card">
-            <span class="control-group-title">
-              Controls
-            </span>
-            <div class="btn-actions-row">
-              <button id="btn-reset-system" class="btn btn-teal" style="flex:1;">
-                RESET SYSTEM
-              </button>
-            </div>
-            <div class="btn-actions-row">
-              <button id="btn-ack-alert" class="btn btn-orange" style="width:100%;">
-                Acknowledge Alert (Mute Siren)
-              </button>
+          <!-- Controls -->
+          <div class="control-group-card control-card">
+            <span class="control-group-title">Controls</span>
+            <p class="control-hint">Clear a stopped car or an alert, and silence the siren.</p>
+            <div class="control-actions">
+              <button id="btn-reset-system" type="button" class="btn btn-teal">RESET SYSTEM</button>
+              <button id="btn-ack-alert" type="button" class="btn btn-orange">Acknowledge Alert (Mute Siren)</button>
             </div>
           </div>
 
-          <!-- SMS on/off -->
-          <div class="control-group-card" id="sms-switch-card">
+          <!-- SMS alerts -->
+          <div class="control-group-card control-card" id="sms-switch-card">
             <span class="control-group-title">SMS alerts</span>
-            <div class="btn-actions-row">
-              <button id="btn-sms-switch" type="button" class="btn btn-teal" style="flex:1;" aria-pressed="true">
-                SMS sending: ON
-              </button>
-            </div>
-            <p id="sms-switch-note" style="margin:6px 0 0; font-size:0.78rem; color:var(--text-muted);">Checking...</p>
-          </div>
-
-          <!-- ESP32 Serial Hardware Configuration (Visible when Serial mode is active) -->
-          <div id="serial-hardware-panel" class="control-group-card" style="grid-column: 1 / -1;">
-            <span class="control-group-title">
-              ESP32 serial setup
-            </span>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">COM Port</label>
-                <select id="select-serial-port" class="form-control">
-                  <option value="COM3">Scanning ports...</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Baud Rate</label>
-                <select id="select-serial-baud" class="form-control">
-                  <option value="115200" selected>115200 (AcciAlert Default)</option>
-                  <option value="9600">9600</option>
-                  <option value="57600">57600</option>
-                </select>
-              </div>
-              <div class="form-group" style="justify-content:flex-end;">
-                <button onclick="window.DashboardApp.loadSerialPorts()" class="btn btn-outline btn-sm">
-                  Refresh Ports
-                </button>
-              </div>
+            <span id="sms-state" class="sms-state"><i></i><b>Checking...</b></span>
+            <p id="sms-switch-note" class="control-hint">Reading the SMS status...</p>
+            <div class="control-actions">
+              <button id="btn-sms-switch" type="button" class="btn btn-outline" aria-pressed="true">Turn SMS off</button>
             </div>
           </div>
 
